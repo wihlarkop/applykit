@@ -1,22 +1,21 @@
 import json
 import os
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
-from pydantic import ValidationError
 
 from app.database import get_db
-from app.models import Profile
+from app.models import GeneratedCV, GeneratedCoverLetter, Profile
 from app.schemas import (
-    ProfileData,
-    GenerateCvResponse,
+    ATSEnhancement,
     CoverLetterRequest,
     CoverLetterResponse,
+    GenerateCvResponse,
     PdfRequest,
-    ATSEnhancement,
 )
-from app.services.llm import call_llm, APIKeyNotConfiguredError, LLMCallError
-from app.services.pdf import html_to_pdf, PDFRenderError
+from app.services.llm import APIKeyNotConfiguredError, LLMCallError, call_llm
+from app.services.pdf import PDFRenderError, html_to_pdf
 from app.utils import profile_to_schema
 
 router = APIRouter()
@@ -27,10 +26,16 @@ COVER_LETTER_SYSTEM_PROMPT = """You are an expert career coach. Write a professi
 
 
 def _check_api_key():
-    if not os.getenv("LLM_API_KEY", "").strip() or not os.getenv("LLM_PROVIDER", "").strip():
+    if (
+        not os.getenv("LLM_API_KEY", "").strip()
+        or not os.getenv("LLM_PROVIDER", "").strip()
+    ):
         raise HTTPException(
             status_code=400,
-            detail={"detail": "LLM_API_KEY not configured. See README.", "code": "API_KEY_NOT_CONFIGURED"},
+            detail={
+                "detail": "LLM_API_KEY not configured. See README.",
+                "code": "API_KEY_NOT_CONFIGURED",
+            },
         )
 
 
@@ -39,7 +44,10 @@ def _get_profile_or_404(db: Session) -> Profile:
     if not profile:
         raise HTTPException(
             status_code=404,
-            detail={"detail": "No profile found. Please complete your profile first.", "code": "PROFILE_NOT_FOUND"},
+            detail={
+                "detail": "No profile found. Please complete your profile first.",
+                "code": "PROFILE_NOT_FOUND",
+            },
         )
     return profile
 
@@ -55,15 +63,31 @@ def generate_cv(db: Session = Depends(get_db)):
 
     try:
         llm_output = call_llm(profile_data.model_dump_json(), system=ATS_SYSTEM_PROMPT)
-        cleaned = llm_output.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        cleaned = (
+            llm_output.strip()
+            .removeprefix("```json")
+            .removeprefix("```")
+            .removesuffix("```")
+            .strip()
+        )
         ats = ATSEnhancement(**json.loads(cleaned))
-        result_profile = profile_data.model_copy(update={
-            "summary": ats.summary,
-            "work_experience": ats.work_experience,
-        })
+        result_profile = profile_data.model_copy(
+            update={
+                "summary": ats.summary,
+                "work_experience": ats.work_experience,
+            }
+        )
         enhanced = True
     except Exception:
         pass  # fallback to original profile on any error
+
+    # Save to history
+    entry = GeneratedCV(
+        enhanced=int(enhanced),
+        profile_snapshot=result_profile.model_dump_json(),
+    )
+    db.add(entry)
+    db.commit()
 
     return GenerateCvResponse(enhanced=enhanced, profile=result_profile)
 
@@ -76,7 +100,7 @@ def generate_cv_pdf(req: PdfRequest):
         raise HTTPException(
             status_code=502,
             detail={"detail": str(e), "code": "PDF_RENDER_FAILED"},
-        )
+        ) from e
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -97,9 +121,23 @@ Additional context: {req.extra_context or "None"}"""
     try:
         text = call_llm(prompt, system=COVER_LETTER_SYSTEM_PROMPT)
     except APIKeyNotConfiguredError as e:
-        raise HTTPException(status_code=400, detail={"detail": str(e), "code": "API_KEY_NOT_CONFIGURED"})
+        raise HTTPException(
+            status_code=400, detail={"detail": str(e), "code": "API_KEY_NOT_CONFIGURED"}
+        ) from e
     except LLMCallError as e:
-        raise HTTPException(status_code=502, detail={"detail": str(e), "code": "LLM_CALL_FAILED"})
+        raise HTTPException(
+            status_code=502, detail={"detail": str(e), "code": "LLM_CALL_FAILED"}
+        ) from e
+
+    # Save to history
+    entry = GeneratedCoverLetter(
+        company_name=req.company_name,
+        job_description=req.job_description,
+        extra_context=req.extra_context or None,
+        cover_letter_text=text,
+    )
+    db.add(entry)
+    db.commit()
 
     return CoverLetterResponse(cover_letter_text=text)
 
@@ -112,7 +150,7 @@ def generate_cover_letter_pdf(req: PdfRequest):
         raise HTTPException(
             status_code=502,
             detail={"detail": str(e), "code": "PDF_RENDER_FAILED"},
-        )
+        ) from e
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

@@ -30,3 +30,23 @@ class Profile(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+
+
+class GeneratedCV(Base):
+    __tablename__ = "generated_cv"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    enhanced = Column(Integer, default=0)           # 0 = false, 1 = true (SQLite bool)
+    profile_snapshot = Column(Text, nullable=False)  # JSON string of ProfileData
+
+
+class GeneratedCoverLetter(Base):
+    __tablename__ = "generated_cover_letter"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    company_name = Column(String, nullable=True)
+    job_description = Column(Text, nullable=False)
+    extra_context = Column(Text, nullable=True)
+    cover_letter_text = Column(Text, nullable=False)

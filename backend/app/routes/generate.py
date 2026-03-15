@@ -6,7 +6,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import GeneratedCV, GeneratedCoverLetter, Profile
+from app.models import GeneratedCoverLetter, GeneratedCV, Profile
 from app.schemas import (
     ATSEnhancement,
     CoverLetterRequest,
@@ -147,7 +147,9 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
         try:
             user_prompt = _format_profile_for_llm(profile_data)
             if req.job_description:
-                user_prompt += f"\n\n---\nTARGET JOB DESCRIPTION:\n{req.job_description}"
+                user_prompt += (
+                    f"\n\n---\nTARGET JOB DESCRIPTION:\n{req.job_description}"
+                )
             user_prompt += f"\n\n---\nORIGINAL DATA (use this schema for your JSON output):\n{profile_data.model_dump_json()}"
             llm_output = call_llm(
                 user_prompt,

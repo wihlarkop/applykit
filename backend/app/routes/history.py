@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import GeneratedCV, GeneratedCoverLetter, Profile
+from app.models import GeneratedCoverLetter, GeneratedCV, Profile
 from app.schemas import (
     GeneratedCoverLetterEntry,
     GeneratedCoverLetterListResponse,
@@ -53,6 +53,7 @@ def _enrich_cl(entry: GeneratedCoverLetter, profiles: dict) -> dict:
 
 # --- CV history ---
 
+
 @router.get("/history/cv", response_model=GeneratedCVListResponse)
 def list_cv_history(
     db: Session = Depends(get_db),
@@ -70,7 +71,9 @@ def list_cv_history(
 def get_cv_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCV).filter_by(id=entry_id).first()
     if not entry:
-        raise HTTPException(status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"})
+        raise HTTPException(
+            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
+        )
     return _enrich_cv(entry, _profile_map([entry], db))
 
 
@@ -78,12 +81,15 @@ def get_cv_history_entry(entry_id: int, db: Session = Depends(get_db)):
 def delete_cv_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCV).filter_by(id=entry_id).first()
     if not entry:
-        raise HTTPException(status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"})
+        raise HTTPException(
+            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
+        )
     db.delete(entry)
     db.commit()
 
 
 # --- Cover letter history ---
+
 
 @router.get("/history/cover-letter", response_model=GeneratedCoverLetterListResponse)
 def list_cover_letter_history(
@@ -98,11 +104,15 @@ def list_cover_letter_history(
     return GeneratedCoverLetterListResponse(items=[_enrich_cl(e, pm) for e in items])
 
 
-@router.get("/history/cover-letter/{entry_id}", response_model=GeneratedCoverLetterEntry)
+@router.get(
+    "/history/cover-letter/{entry_id}", response_model=GeneratedCoverLetterEntry
+)
 def get_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCoverLetter).filter_by(id=entry_id).first()
     if not entry:
-        raise HTTPException(status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"})
+        raise HTTPException(
+            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
+        )
     return _enrich_cl(entry, _profile_map([entry], db))
 
 
@@ -110,6 +120,8 @@ def get_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_db))
 def delete_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCoverLetter).filter_by(id=entry_id).first()
     if not entry:
-        raise HTTPException(status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"})
+        raise HTTPException(
+            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
+        )
     db.delete(entry)
     db.commit()

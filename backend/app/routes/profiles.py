@@ -23,12 +23,18 @@ def _profile_list_item(p: Profile) -> ProfileListItem:
     sk = json.loads(p.skills or "[]")
     ed = json.loads(p.education or "[]")
     score = 0
-    if p.name: score += 15
-    if p.email: score += 10
-    if p.summary: score += 10
-    if we: score += 30
-    if ed: score += 20
-    if sk: score += 15
+    if p.name:
+        score += 15
+    if p.email:
+        score += 10
+    if p.summary:
+        score += 10
+    if we:
+        score += 30
+    if ed:
+        score += 20
+    if sk:
+        score += 15
     return ProfileListItem(
         id=p.id,
         label=p.label,
@@ -98,16 +104,30 @@ def get_profile(profile_id: int, db: Session = Depends(get_db)):
 
 
 CONTENT_FIELDS = {
-    "name", "email", "phone", "location", "linkedin", "github",
-    "portfolio", "summary", "work_experience", "education", "skills",
-    "projects", "certifications",
+    "name",
+    "email",
+    "phone",
+    "location",
+    "linkedin",
+    "github",
+    "portfolio",
+    "summary",
+    "work_experience",
+    "education",
+    "skills",
+    "projects",
+    "certifications",
 }
 
 
 @router.put("/profiles/{profile_id}", response_model=ProfileData)
 def save_profile(profile_id: int, data: ProfileData, db: Session = Depends(get_db)):
     profile = _get_or_404(db, profile_id)
-    fields = {k: v for k, v in data.model_dump(exclude={"id", "updated_at"}).items() if k in CONTENT_FIELDS}
+    fields = {
+        k: v
+        for k, v in data.model_dump(exclude={"id", "updated_at"}).items()
+        if k in CONTENT_FIELDS
+    }
 
     for key, value in fields.items():
         if key in JSON_FIELDS:

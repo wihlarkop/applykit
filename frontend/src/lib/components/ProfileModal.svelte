@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { createProfile, saveProfile, listProfiles } from '$lib/api';
-  import type { ProfileData, CreateProfileRequest } from '$lib/types';
-  import { profiles } from '$lib/profiles.svelte';
   import { activeProfile } from '$lib/activeProfile.svelte';
-  import { toastState } from '$lib/toast.svelte';
+  import { createProfile, listProfiles, saveProfile } from '$lib/api';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { profiles } from '$lib/profiles.svelte';
+  import { toastState } from '$lib/toast.svelte';
+  import type { CreateProfileRequest, ProfileData } from '$lib/types';
 
   function portal(node: HTMLElement) {
     document.body.appendChild(node);

@@ -52,8 +52,8 @@ OUTPUT FORMAT — return ONLY this JSON structure, no markdown, no explanation:
 
 @router.post("/import/cv", response_model=ProfileData)
 async def import_cv(
-    file: UploadFile | None = File(None),
-    text: str | None = Form(None),
+    file: UploadFile | None = File(default=None),
+    text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ):
     provider, api_key = get_llm_config(db)
@@ -147,4 +147,4 @@ async def import_cv(
                 "detail": "Could not parse CV into profile fields. Try editing manually.",
                 "code": "LLM_OUTPUT_INVALID",
             },
-        )
+        ) from None

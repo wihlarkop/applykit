@@ -1,9 +1,9 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import Toaster from '$lib/components/Toaster.svelte';
-  import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import ProfileSwitcher from '$lib/components/ProfileSwitcher.svelte';
   import SettingsButton from '$lib/components/SettingsButton.svelte';
+  import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+  import Toaster from '$lib/components/Toaster.svelte';
   import { themeState } from '$lib/theme.svelte';
   import '../app.css';
 
@@ -30,11 +30,11 @@
 </script>
 
 <div class="min-h-screen flex flex-col bg-muted/40">
-  <header class="sticky top-0 z-[60] border-b bg-card">
+  <header class="sticky top-0 z-60 border-b bg-card">
     <div class="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-8">
         <a href={isOnboarded ? "/" : "/onboarding"} class="font-bold text-lg tracking-tight hover:text-primary transition-colors">ApplyKit</a>
-        
+
         {#if isOnboarded}
           <nav class="flex items-center gap-1 animate-in fade-in slide-in-from-left-2 duration-500">
             {#each navLinks as link}

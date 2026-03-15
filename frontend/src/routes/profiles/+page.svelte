@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { deleteProfile, getProfile, listProfiles } from '$lib/api';
-  import { profiles } from '$lib/profiles.svelte';
-  import { activeProfile } from '$lib/activeProfile.svelte';
-  import ProfileModal from '$lib/components/ProfileModal.svelte';
-  import type { ProfileListItem } from '$lib/types';
-  import { Button } from '$lib/components/ui/button';
   import { goto } from '$app/navigation';
+  import { activeProfile } from '$lib/activeProfile.svelte';
+  import { deleteProfile, getProfile, listProfiles } from '$lib/api';
+  import ProfileModal from '$lib/components/ProfileModal.svelte';
+  import { Button } from '$lib/components/ui/button';
+  import { profiles } from '$lib/profiles.svelte';
+  import type { ProfileListItem } from '$lib/types';
 
   let modalMode = $state<'create' | 'edit' | null>(null);
   let editingProfile = $state<ProfileListItem | null>(null);

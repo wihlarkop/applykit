@@ -1,11 +1,11 @@
 <script lang="ts">
+  import { activeProfile } from '$lib/activeProfile.svelte';
+  import StatusIndicator from '$lib/components/StatusIndicator.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
-  import { User, FileText, Sparkles, Mail, ArrowRight, Lock } from '@lucide/svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
-  import { activeProfile } from '$lib/activeProfile.svelte';
   import { profiles } from '$lib/profiles.svelte';
-  import StatusIndicator from '$lib/components/StatusIndicator.svelte';
+  import { ArrowRight, FileText, Lock, Mail, Sparkles, User } from '@lucide/svelte';
 
   let { data } = $props();
   const isOnboarded = $derived(data.isOnboarded);
@@ -61,13 +61,13 @@
         .map((card, index) => ({ ...card, displayStep: index + 1 }))
     );
   </script>
-  
+
   <div class="space-y-10 pb-10">
     <div class="flex justify-end px-2 py-2 text-xs">
       <StatusIndicator />
     </div>
 
-    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-8 sm:p-12 border shadow-sm">
+    <div class="relative overflow-hidden rounded-3xl bg-linear-to-br from-primary/10 via-background to-secondary/10 p-8 sm:p-12 border shadow-sm">
       <div class="relative z-10 max-w-2xl">
         <div class="inline-flex items-center rounded-full border bg-background/50 px-3 py-1 text-sm font-medium mb-6 backdrop-blur-sm">
           <Sparkles class="mr-2 h-4 w-4 text-primary" />
@@ -86,7 +86,7 @@
           {#if isOnboarded}
             Your profile is ready. Use our AI tools to tailor your application for any job in seconds.
           {:else}
-            Your self-hosted, local-first CV and cover letter generator. 
+            Your self-hosted, local-first CV and cover letter generator.
             Keep your data private while leveraging AI to land your dream job.
           {/if}
         </p>
@@ -112,10 +112,10 @@
         </div>
       </div>
       <!-- Decorative background elements -->
-      <div class="absolute -right-20 -top-20 h-[300px] w-[300px] rounded-full bg-primary/20 blur-[80px] pointer-events-none"></div>
-      <div class="absolute -bottom-32 left-1/2 h-[250px] w-[400px] -translate-x-1/2 rounded-full bg-purple-500/20 blur-[80px] pointer-events-none"></div>
+      <div class="absolute -right-20 -top-20 h-75 w-75 rounded-full bg-primary/20 blur-[80px] pointer-events-none"></div>
+      <div class="absolute -bottom-32 left-1/2 h-62.5 w-100 -translate-x-1/2 rounded-full bg-purple-500/20 blur-[80px] pointer-events-none"></div>
     </div>
-  
+
     <div>
       <h2 class="text-2xl font-bold tracking-tight mb-6 flex items-center gap-2">
         <ArrowRight class="w-6 h-6 text-primary" />
@@ -125,8 +125,8 @@
         {#each displayedCards as card}
           {@const isRestricted = !isOnboarded && card.step > 2}
           <Card class="relative overflow-hidden group {isRestricted ? 'opacity-75 grayscale-[0.5]' : 'hover:shadow-xl hover:border-primary/50 hover:-translate-y-1'} transition-all duration-300 bg-card">
-            <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-primary/5 to-transparent rounded-bl-full pointer-events-none -z-0"></div>
-            
+            <div class="absolute top-0 right-0 w-24 h-24 bg-linear-to-b from-primary/5 to-transparent rounded-bl-full pointer-events-none z-0"></div>
+
             <CardHeader class="relative z-10 pb-4">
               <div class="flex items-start justify-between mb-4">
                 <div class="flex items-center justify-center w-12 h-12 rounded-xl {card.bg} {card.color} shadow-sm {isRestricted ? '' : 'group-hover:scale-110'} transition-transform duration-300">
@@ -142,7 +142,7 @@
                 <Lock class="w-4 h-4 text-muted-foreground" />
               {/if}
             </CardTitle>
-            <CardDescription class="text-sm line-clamp-2 min-h-[40px]">
+            <CardDescription class="text-sm line-clamp-2 min-h-10">
               {#if isRestricted}
                 Complete your profile setup first to unlock this feature.
               {:else}
@@ -154,9 +154,9 @@
             {/if}
           </CardHeader>
           <CardContent class="relative z-10">
-            <Button 
-              href={isRestricted ? undefined : card.href} 
-              variant="outline" 
+            <Button
+              href={isRestricted ? undefined : card.href}
+              variant="outline"
               disabled={isRestricted}
               class="w-full transition-all duration-300 {isRestricted ? '' : 'group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-transparent group-hover:shadow-md'}"
             >

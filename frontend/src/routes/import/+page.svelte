@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { importCvFile, importCvText, saveProfile } from '$lib/api';
   import { activeProfile } from '$lib/activeProfile.svelte';
+  import { importCvFile, importCvText, saveProfile } from '$lib/api';
   import { Button } from '$lib/components/ui/button';
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
-  import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '$lib/components/ui/card';
-  import { FileText, Upload, Type, Sparkles, Save, CheckCircle2 } from '@lucide/svelte';
   import type { ProfileData } from '$lib/types';
+  import { CircleCheck, FileText, Save, Sparkles, Type, Upload } from '@lucide/svelte';
 
   type Tab = 'file' | 'text';
   let tab: Tab = $state('file');
@@ -98,7 +98,7 @@
         </button>
       </div>
     </CardHeader>
-    
+
     <CardContent class="space-y-6">
       {#if tab === 'file'}
         <div class="space-y-3">
@@ -113,7 +113,7 @@
                     file:bg-primary file:text-primary-foreground file:px-4 file:py-2.5 file:text-sm file:font-medium
                     hover:file:bg-primary/90 cursor-pointer border rounded-md p-1"
             />
-            <Button onclick={handleImport} disabled={loading || !file} size="lg" class="w-full sm:w-auto shadow-sm min-w-[140px]">
+            <Button onclick={handleImport} disabled={loading || !file} size="lg" class="w-full sm:w-auto shadow-sm min-w-35">
               {#if loading}
                 <Sparkles class="w-4 h-4 mr-2 animate-pulse" /> Extracting…
               {:else}
@@ -133,7 +133,7 @@
             class="bg-background/50 resize-y font-mono text-sm leading-relaxed"
           />
           <div class="flex justify-end pt-2">
-            <Button onclick={handleImport} disabled={loading || !pastedText.trim()} size="lg" class="shadow-sm min-w-[140px]">
+            <Button onclick={handleImport} disabled={loading || !pastedText.trim()} size="lg" class="shadow-sm min-w-35">
               {#if loading}
                 <Sparkles class="w-4 h-4 mr-2 animate-pulse" /> Extracting…
               {:else}
@@ -159,7 +159,7 @@
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
           <div>
             <CardTitle class="flex items-center gap-2 text-lg text-green-700 dark:text-green-400">
-              <CheckCircle2 class="w-5 h-5" />
+              <CircleCheck class="w-5 h-5" />
               Extraction Successful
             </CardTitle>
             <CardDescription class="mt-1">Review the extracted data below before saving it to your profile.</CardDescription>
@@ -169,7 +169,7 @@
             {saving ? 'Saving…' : 'Save to Profile'}
           </Button>
         </CardHeader>
-        
+
         <CardContent>
           {#if successMsg}
             <div class="mb-6 p-3 rounded-md bg-green-500/20 text-green-700 dark:text-green-400 text-sm font-medium">

@@ -1,20 +1,18 @@
 <script lang="ts">
+  import { beforeNavigate, invalidateAll } from '$app/navigation';
+  import { activeProfile } from '$lib/activeProfile.svelte';
   import { getProfile, saveProfile } from '$lib/api';
+  import CvImporter from '$lib/components/CvImporter.svelte';
+  import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
+  import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
-  import { Separator } from '$lib/components/ui/separator';
-  import { Textarea } from '$lib/components/ui/textarea';
-  import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
-  import { User, Save, Plus, Trash2, Building2, GraduationCap, FolderGit2, Award, FileUp, Sparkles as SparklesIcon, RefreshCw } from '@lucide/svelte';
-  import type { ProfileData, Project, WorkExperience } from '$lib/types';
-  import CvImporter from '$lib/components/CvImporter.svelte';
-  import { activeProfile } from '$lib/activeProfile.svelte';
-  import { invalidateAll, beforeNavigate } from '$app/navigation';
-  import { toastState } from '$lib/toast.svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
-  import { Badge } from '$lib/components/ui/badge';
-  import { X } from '@lucide/svelte';
+  import { Textarea } from '$lib/components/ui/textarea';
+  import { toastState } from '$lib/toast.svelte';
+  import type { ProfileData, Project, WorkExperience } from '$lib/types';
+  import { Award, Building2, FileUp, FolderGit2, GraduationCap, Plus, RefreshCw, Save, Sparkles as SparklesIcon, Trash2, User, X } from '@lucide/svelte';
 
   let profile: ProfileData = $state({
     name: '',
@@ -242,7 +240,7 @@
           <SparklesIcon class="w-4 h-4 mr-2 text-primary" />
           {showImporter ? 'Cancel' : 'AI Sync'}
         </Button>
-        
+
         <Button onclick={handleSave} disabled={saving || loading} size="sm" class="shadow-sm h-9 {isDirty ? 'border-yellow-400' : ''}">
           <Save class="w-4 h-4 mr-2" />
           {saving ? 'Saving…' : isDirty ? 'Save Changes •' : 'Save Changes'}
@@ -293,13 +291,13 @@
 
   <div class="lg:flex lg:gap-10 items-start">
     <!-- Mobile Tabs -->
-    <div class="lg:hidden flex overflow-x-auto pb-4 mb-4 gap-2 no-scrollbar -mx-4 px-4 sticky top-[73px] z-40 bg-background/80 backdrop-blur-md border-b border-border/50">
+    <div class="lg:hidden flex overflow-x-auto pb-4 mb-4 gap-2 no-scrollbar -mx-4 px-4 sticky top-18.25 z-40 bg-background/80 backdrop-blur-md border-b border-border/50">
       {#each sections as section}
         <button
           onclick={() => activeTab = section.id}
           class="whitespace-nowrap flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all
-                 {activeTab === section.id 
-                   ? 'bg-primary text-primary-foreground border-primary shadow-sm font-semibold' 
+                 {activeTab === section.id
+                   ? 'bg-primary text-primary-foreground border-primary shadow-sm font-semibold'
                    : 'bg-muted/50 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground'}"
         >
           <section.icon class="w-4 h-4" />
@@ -315,8 +313,8 @@
           <button
             onclick={() => activeTab = section.id}
             class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
-                   {activeTab === section.id 
-                     ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 translate-x-1' 
+                   {activeTab === section.id
+                     ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20 translate-x-1'
                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
           >
             <section.icon class="w-5 h-5 {activeTab === section.id ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-primary transition-colors'}" />
@@ -414,21 +412,21 @@
                     <div class="lg:col-span-3">
                       <div class="space-y-3">
                         <Label for="skills-input" class="text-xs uppercase tracking-wider font-semibold text-muted-foreground ml-1">Professional Skills</Label>
-                        
+
                         <!-- Integrated Tag Input -->
-                        <div 
-                          class="min-h-[120px] p-3 rounded-2xl border bg-background transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary group cursor-text"
+                        <div
+                          class="min-h-30 p-3 rounded-2xl border bg-background transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary group cursor-text"
                           onclick={() => document.getElementById('skills-input')?.focus()}
                           role="presentation"
                         >
                           <div class="flex flex-wrap gap-2">
                             {#each profile.skills as skill}
-                              <Badge 
-                                variant="secondary" 
+                              <Badge
+                                variant="secondary"
                                 class="pl-3 pr-1.5 py-1.5 gap-1.5 text-sm bg-muted/50 hover:bg-muted border-transparent transition-all hover:scale-[1.02] active:scale-95"
                               >
                                 {skill}
-                                <button 
+                                <button
                                   onclick={(e) => { e.stopPropagation(); removeSkill(skill); }}
                                   class="hover:bg-destructive/10 rounded-full p-0.5 text-muted-foreground hover:text-destructive transition-colors"
                                   title="Remove {skill}"
@@ -437,7 +435,7 @@
                                 </button>
                               </Badge>
                             {/each}
-                            
+
                             <input
                               id="skills-input"
                               bind:value={skillsText}
@@ -449,7 +447,7 @@
                                 }
                               }}
                               placeholder={profile.skills.length === 0 ? "Add a skill (e.g. TypeScript, Project Management)..." : "Add more..."}
-                              class="flex-1 bg-transparent border-none outline-none ring-0 min-w-[120px] py-1.5 text-base placeholder:text-muted-foreground/40"
+                              class="flex-1 bg-transparent border-none outline-none ring-0 min-w-30 py-1.5 text-base placeholder:text-muted-foreground/40"
                             />
                           </div>
                         </div>
@@ -566,7 +564,7 @@
                                 <Label>Institution</Label>
                                 <Input bind:value={edu.institution} placeholder="e.g. Massachusetts Institute of Technology" class="bg-background h-11 text-base placeholder:text-muted-foreground/40" />
                               </div>
-                              
+
                               <div class="grid gap-4 sm:grid-cols-3">
                                 <div class="space-y-2 text-left">
                                   <Label>Degree</Label>
@@ -695,7 +693,7 @@
                                   <Input bind:value={cert.issuer} placeholder="e.g. Amazon Web Services" class="bg-background h-11 text-base placeholder:text-muted-foreground/40" />
                                 </div>
                               </div>
-                              <div class="space-y-2 text-left max-w-[240px]">
+                              <div class="space-y-2 text-left max-w-60">
                                 <Label>Date</Label>
                                 <Input bind:value={cert.date} placeholder="e.g. March 2024" class="bg-background h-10" />
                               </div>

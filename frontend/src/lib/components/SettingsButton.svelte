@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { Settings } from '@lucide/svelte';
   import { getStatus } from '$lib/api';
   import { settingsStore } from '$lib/settingsStore.svelte';
   import type { StatusResponse } from '$lib/types';
+  import { Settings } from '@lucide/svelte';
 
   let status: StatusResponse | null = $state(null);
   let error = $state(false);

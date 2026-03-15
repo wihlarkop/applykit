@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { Settings, Plus, Cpu, CheckCircle, AlertCircle, Pencil } from '@lucide/svelte';
-  import SettingsModal from '$lib/components/SettingsModal.svelte';
   import { getSettings } from '$lib/api';
+  import SettingsModal from '$lib/components/SettingsModal.svelte';
   import { settingsStore } from '$lib/settingsStore.svelte';
   import type { SettingsResponse } from '$lib/types';
+  import { CircleAlert, CircleCheck, Cpu, Pencil, Plus, Settings } from '@lucide/svelte';
 
   let modalOpen = $state(false);
   let settings: SettingsResponse | null = $state(null);
@@ -59,7 +58,7 @@
           <div>
             <p class="text-sm font-medium">{settings.model ?? 'LLM Provider'}</p>
             <div class="flex items-center gap-1.5 mt-0.5">
-              <CheckCircle class="w-3.5 h-3.5 text-green-500" />
+              <CircleCheck class="w-3.5 h-3.5 text-green-500" />
               <span class="text-xs text-muted-foreground">Connected
                 {#if settings.source === 'env'}· from .env{/if}
               </span>
@@ -78,7 +77,7 @@
       <!-- No integration configured -->
       <div class="border border-dashed border-border rounded-lg p-8 bg-card flex flex-col items-center gap-3 text-center">
         <div class="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center">
-          <AlertCircle class="w-5 h-5 text-yellow-500" />
+          <CircleAlert class="w-5 h-5 text-yellow-500" />
         </div>
         <div>
           <p class="text-sm font-medium">No AI integration configured</p>

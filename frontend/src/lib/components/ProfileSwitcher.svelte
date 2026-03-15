@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { profiles } from '$lib/profiles.svelte';
   import { activeProfile } from '$lib/activeProfile.svelte';
   import { getProfile } from '$lib/api';
+  import { profiles } from '$lib/profiles.svelte';
   import ProfileModal from './ProfileModal.svelte';
 
   let dropdownOpen = $state(false);
@@ -34,7 +34,7 @@
   <!-- Trigger button -->
   <button
     onclick={() => dropdownOpen = !dropdownOpen}
-    class="flex items-center gap-2 border rounded-lg px-3 py-2 text-sm font-medium bg-background shadow-sm hover:bg-accent transition-colors min-w-[160px] justify-between"
+    class="flex items-center gap-2 border rounded-lg px-3 py-2 text-sm font-medium bg-background shadow-sm hover:bg-accent transition-colors min-w-40 justify-between"
   >
     <span class="flex items-center gap-2">
       {#if ap}

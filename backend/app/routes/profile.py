@@ -11,9 +11,7 @@ router = APIRouter()
 
 @router.get("/onboarding", response_model=OnboardingStatusResponse)
 def get_onboarding_status(db: Session = Depends(get_db)):
-    profile = (
-        db.query(Profile).filter(Profile.name != None, Profile.name != "").first()
-    )
+    profile = db.query(Profile).filter(Profile.name != None, Profile.name != "").first()
     return OnboardingStatusResponse(is_onboarded=profile is not None)
 
 

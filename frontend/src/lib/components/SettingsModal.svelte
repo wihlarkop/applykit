@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { Eye, EyeOff, CheckCircle, XCircle, Loader2 } from '@lucide/svelte';
-  import { getSettings, updateSettings, testConnection, getModels } from '$lib/api';
+  import { getModels, getSettings, testConnection, updateSettings } from '$lib/api';
   import { settingsStore } from '$lib/settingsStore.svelte';
   import { toastState } from '$lib/toast.svelte';
   import type { ProviderInfo, TestConnectionResponse } from '$lib/types';
+  import { CheckCircle, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
 
   let { open = $bindable(false) }: { open: boolean } = $props();
 

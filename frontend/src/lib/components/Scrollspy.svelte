@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { cn } from '$lib/utils';
 
   interface Section {
@@ -31,7 +30,7 @@
     const handleScroll = () => {
       const offset = 160; // Better alignment with sticky header
       let currentActiveId = sections[0]?.id || '';
-      
+
       for (const section of sections) {
         const element = document.getElementById(section.id);
         if (element) {

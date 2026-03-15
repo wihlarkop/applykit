@@ -1,6 +1,6 @@
 <script lang="ts">
   import { themeState } from '$lib/theme.svelte';
-  import { Sun, Moon } from '@lucide/svelte';
+  import { Moon, Sun } from '@lucide/svelte';
   import { fade, scale } from 'svelte/transition';
 
   let currentTheme = $derived(themeState.current);

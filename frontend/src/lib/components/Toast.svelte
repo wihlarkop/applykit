@@ -1,14 +1,14 @@
 <script lang="ts">
   import { toastState } from '$lib/toast.svelte';
-  import { fly, fade } from 'svelte/transition';
-  import { CheckCircle2, AlertCircle, X, Info } from '@lucide/svelte';
+  import { CircleAlert, CircleCheck, Info, X } from '@lucide/svelte';
+  import { fade, fly } from 'svelte/transition';
   import { Button } from './ui/button';
 
   let { toast } = $props<{ toast: import('$lib/toast.svelte').Toast }>();
 
   const icons = {
-    success: CheckCircle2,
-    error: AlertCircle,
+    success: CircleCheck,
+    error: CircleAlert,
     info: Info
   };
 
@@ -25,9 +25,9 @@
 <div
   in:fly={{ y: 20, duration: 400 }}
   out:fade={{ duration: 200 }}
-  class="flex items-center gap-3 p-4 rounded-xl border-2 shadow-lg backdrop-blur-md min-w-[300px] max-w-md {colorClass}"
+  class="flex items-center gap-3 p-4 rounded-xl border-2 shadow-lg backdrop-blur-md min-w-75 max-w-md {colorClass}"
 >
-  <div class="flex-shrink-0">
+  <div class="shrink-0">
     <Icon class="w-5 h-5" />
   </div>
   <p class="text-sm font-medium flex-1">{toast.message}</p>

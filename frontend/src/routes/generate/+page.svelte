@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { generateCv, generateCvPdf, getProfile } from '$lib/api';
   import { activeProfile } from '$lib/activeProfile.svelte';
+  import { generateCv, generateCvPdf, getProfile } from '$lib/api';
   import CvPreview from '$lib/components/CvPreview.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
-  import { Textarea } from '$lib/components/ui/textarea';
   import { Label } from '$lib/components/ui/label';
-  import { Sparkles, Download, Printer, FileText, Lock, UserRoundPen } from '@lucide/svelte';
-  import { toastState } from '$lib/toast.svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
+  import { Textarea } from '$lib/components/ui/textarea';
+  import { toastState } from '$lib/toast.svelte';
   import type { ProfileData } from '$lib/types';
+  import { Download, FileText, Lock, Printer, Sparkles, UserRoundPen } from '@lucide/svelte';
   import confetti from 'canvas-confetti';
 
   let { data } = $props();
@@ -183,7 +183,7 @@
         <span class="text-primary font-medium">AI is crafting your tailored CV...</span>
       </div>
       <div class="bg-muted/30 p-4 sm:p-8 rounded-xl border shadow-inner">
-        <div class="bg-white dark:bg-zinc-950/40 p-12 space-y-8 rounded-lg shadow-xl mx-auto max-w-[850px] min-h-[600px] transition-colors">
+        <div class="bg-white dark:bg-zinc-950/40 p-12 space-y-8 rounded-lg shadow-xl mx-auto max-w-212.5 min-h-150 transition-colors">
           <div class="space-y-4">
             <Skeleton class="h-10 w-1/3" />
             <Skeleton class="h-4 w-1/4" />
@@ -223,7 +223,7 @@
 
       <div class="bg-muted/30 p-4 sm:p-8 rounded-xl border shadow-inner">
         <div
-          class="border rounded-lg overflow-hidden bg-white dark:bg-zinc-950/40 print:bg-white print:border-0 print:shadow-none shadow-xl mx-auto max-w-[850px] transition-colors"
+          class="border rounded-lg overflow-hidden bg-white dark:bg-zinc-950/40 print:bg-white print:border-0 print:shadow-none shadow-xl mx-auto max-w-212.5 transition-colors"
           bind:this={previewEl}
         >
           <CvPreview {profile} />

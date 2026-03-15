@@ -4,7 +4,7 @@
   let { profile }: { profile: ProfileData } = $props();
 </script>
 
-<div class="cv-preview font-sans text-[13px] leading-snug text-foreground dark:text-zinc-100 print:text-black max-w-[800px] mx-auto p-8 bg-transparent">
+<div class="cv-preview font-sans text-[13px] leading-snug text-foreground dark:text-zinc-100 print:text-black max-w-200 mx-auto p-8 bg-transparent">
   <!-- Header -->
   <div class="text-center mb-4">
     <h1 class="text-2xl font-bold uppercase tracking-wide text-foreground dark:text-white print:text-black">{profile.name}</h1>

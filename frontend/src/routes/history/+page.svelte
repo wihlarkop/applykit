@@ -1,19 +1,19 @@
 <script lang="ts">
-  import {
-    getCvHistory,
-    getCoverLetterHistory,
-    deleteCvHistoryEntry,
-    deleteCoverLetterHistoryEntry,
-  } from '$lib/api';
   import { goto } from '$app/navigation';
-  import { profiles } from '$lib/profiles.svelte';
   import { activeProfile } from '$lib/activeProfile.svelte';
-  import type { GeneratedCVEntry, GeneratedCoverLetterEntry, ProfileData } from '$lib/types';
-  import { Button } from '$lib/components/ui/button';
-  import { Badge } from '$lib/components/ui/badge';
-  import { Sparkles } from '@lucide/svelte';
-  import CvPreview from '$lib/components/CvPreview.svelte';
+  import {
+      deleteCoverLetterHistoryEntry,
+      deleteCvHistoryEntry,
+      getCoverLetterHistory,
+      getCvHistory,
+  } from '$lib/api';
   import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
+  import CvPreview from '$lib/components/CvPreview.svelte';
+  import { Badge } from '$lib/components/ui/badge';
+  import { Button } from '$lib/components/ui/button';
+  import { profiles } from '$lib/profiles.svelte';
+  import type { GeneratedCVEntry, GeneratedCoverLetterEntry, ProfileData } from '$lib/types';
+  import { Sparkles } from '@lucide/svelte';
 
   type Tab = 'cv' | 'cover-letter';
   let tab: Tab = $state('cv');

@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
-  import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '$lib/components/ui/card';
-  import { Sparkles, User, ArrowRight, CheckCircle2, FileText, Mail } from '@lucide/svelte';
-  import CvImporter from '$lib/components/CvImporter.svelte';
   import { goto, invalidateAll } from '$app/navigation';
+  import CvImporter from '$lib/components/CvImporter.svelte';
+  import { Button } from '$lib/components/ui/button';
+  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { toastState } from '$lib/toast.svelte';
+  import { ArrowRight, CheckCircle2, FileText, Mail, Sparkles, User } from '@lucide/svelte';
   import confetti from 'canvas-confetti';
 
   let step = $state<'intro' | 'import' | 'done'>('intro');
@@ -14,7 +14,7 @@
     // Force layout to re-check onboarding status
     await invalidateAll();
     step = 'done';
-    
+
     // Celebrate!
     confetti({
       particleCount: 150,
@@ -31,7 +31,7 @@
 
 <div class="min-h-[80vh] flex items-center justify-center py-10">
   <div class="w-full max-w-4xl space-y-8 px-4">
-    
+
     {#if step === 'intro'}
       <div class="text-center space-y-4 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
         <div class="inline-flex items-center rounded-full border bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-2">
@@ -94,7 +94,7 @@
             <p class="text-muted-foreground text-sm">Paste text or upload a PDF to populate your profile automatically.</p>
           </div>
         </div>
-        
+
         <CvImporter onSaveSuccess={handleOnboarded} />
       </div>
 

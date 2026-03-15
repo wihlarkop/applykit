@@ -123,6 +123,7 @@ class ATSEnhancement(BaseModel):
 
 # --- History schemas ---
 
+
 class GeneratedCVEntry(BaseModel):
     id: int
     created_at: datetime
@@ -161,14 +162,15 @@ class GeneratedCoverLetterListResponse(BaseModel):
 
 # --- Settings schemas ---
 
+
 class SettingsResponse(BaseModel):
-    model: str | None          # Full LiteLLM model string, e.g. "gemini/gemini-2.5-flash"
+    model: str | None  # Full LiteLLM model string, e.g. "gemini/gemini-2.5-flash"
     api_key_configured: bool
     source: Literal["database", "env", "none"]
 
 
 class UpdateSettingsRequest(BaseModel):
-    model: str     # Full LiteLLM model string
+    model: str  # Full LiteLLM model string
     api_key: str
 
 

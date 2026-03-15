@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { generateCoverLetter, generateCoverLetterPdf, getProfile } from '$lib/api';
   import { activeProfile } from '$lib/activeProfile.svelte';
-  import { Button } from '$lib/components/ui/button';
-  import { Textarea } from '$lib/components/ui/textarea';
-  import { Label } from '$lib/components/ui/label';
-  import { Input } from '$lib/components/ui/input';
-  import { Card, CardContent } from '$lib/components/ui/card';
-  import { Mail, Sparkles, Copy, Check, Download, Printer, Lock, UserRoundPen } from '@lucide/svelte';
-  import { toastState } from '$lib/toast.svelte';
-  import { Skeleton } from '$lib/components/ui/skeleton';
+  import { generateCoverLetter, generateCoverLetterPdf, getProfile } from '$lib/api';
   import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
+  import { Button } from '$lib/components/ui/button';
+  import { Card, CardContent } from '$lib/components/ui/card';
+  import { Input } from '$lib/components/ui/input';
+  import { Label } from '$lib/components/ui/label';
+  import { Skeleton } from '$lib/components/ui/skeleton';
+  import { Textarea } from '$lib/components/ui/textarea';
+  import { toastState } from '$lib/toast.svelte';
   import type { ProfileData } from '$lib/types';
+  import { Check, Copy, Download, Lock, Mail, Printer, Sparkles, UserRoundPen } from '@lucide/svelte';
 
   let { data } = $props();
   const isOnboarded = $derived(data.isOnboarded);
@@ -177,26 +177,26 @@
     <div class="space-y-4">
       {#if !coverLetterText && !loading}
         {#if isProfileEmpty}
-          <Card class="border-dashed border-2 border-yellow-400/60 bg-yellow-50/30 dark:bg-yellow-900/10 h-full min-h-[500px] flex items-center justify-center">
+          <Card class="border-dashed border-2 border-yellow-400/60 bg-yellow-50/30 dark:bg-yellow-900/10 h-full min-h-125 flex items-center justify-center">
             <CardContent class="flex flex-col items-center justify-center p-8 text-center">
               <div class="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 rounded-full flex items-center justify-center mb-4">
                 <UserRoundPen class="w-8 h-8" />
               </div>
               <h3 class="text-lg font-bold mb-2">Profile is empty</h3>
-              <p class="text-muted-foreground text-sm max-w-[260px] mb-5">
+              <p class="text-muted-foreground text-sm max-w-65 mb-5">
                 Add your work experience, education, or skills to <strong>{activeProfile.current?.label ?? 'this profile'}</strong> before writing a cover letter.
               </p>
               <Button href="/profile" variant="default" size="sm">Fill in my profile</Button>
             </CardContent>
           </Card>
         {:else}
-          <Card class="border-dashed border-2 bg-muted/30 h-full min-h-[500px] flex items-center justify-center">
+          <Card class="border-dashed border-2 bg-muted/30 h-full min-h-125 flex items-center justify-center">
             <CardContent class="flex flex-col items-center justify-center p-8 text-center">
               <div class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
                 <Mail class="w-8 h-8 opacity-50" />
               </div>
               <h3 class="text-lg font-bold mb-2">No letter generated yet</h3>
-              <p class="text-muted-foreground text-sm max-w-[250px]">
+              <p class="text-muted-foreground text-sm max-w-62.5">
                 Fill out the job description on the left and click generate to create your tailored cover letter.
               </p>
             </CardContent>
@@ -211,7 +211,7 @@
             <span class="text-primary font-medium">AI is crafting your letter...</span>
           </div>
           <Card class="shadow-lg border-primary/10 overflow-hidden">
-            <CardContent class="p-8 space-y-6 bg-white dark:bg-zinc-950/40 transition-colors min-h-[500px]">
+            <CardContent class="p-8 space-y-6 bg-white dark:bg-zinc-950/40 transition-colors min-h-125">
               <div class="space-y-3">
                 <Skeleton class="h-4 w-1/4" />
                 <Skeleton class="h-4 w-1/3" />

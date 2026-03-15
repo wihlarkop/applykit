@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -11,7 +11,10 @@ class Base(DeclarativeBase):
 class Profile(Base):
     __tablename__ = "profile"
 
-    id = Column(Integer, primary_key=True, default=1)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    label = Column(String, nullable=False, default="Default")
+    color = Column(String, nullable=False, default="#6366f1")
+    icon = Column(String, nullable=False, default="💼")
     name = Column(String, nullable=False)
     email = Column(String, nullable=False)
     phone = Column(String, nullable=True)
@@ -39,6 +42,7 @@ class GeneratedCV(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     enhanced = Column(Integer, default=0)           # 0 = false, 1 = true (SQLite bool)
     profile_snapshot = Column(Text, nullable=False)  # JSON string of ProfileData
+    profile_id = Column(Integer, ForeignKey("profile.id"), nullable=True)
 
 
 class GeneratedCoverLetter(Base):
@@ -50,3 +54,4 @@ class GeneratedCoverLetter(Base):
     job_description = Column(Text, nullable=False)
     extra_context = Column(Text, nullable=True)
     cover_letter_text = Column(Text, nullable=False)
+    profile_id = Column(Integer, ForeignKey("profile.id"), nullable=True)

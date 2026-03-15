@@ -4,6 +4,26 @@ This roadmap outlines high-impact frontend improvements and feature expansions f
 
 ---
 
+## 🧹 DX Improvements — FE & BE (Code Quality)
+
+### 1. Remove Redundant Code & Dead Flows
+**Concept**: Audit both frontend and backend for orphaned imports, unused components, duplicate logic, and dead API routes. Remove or consolidate.
+- **FE targets**: unused Svelte components, duplicate fetch patterns, any leftover `StatusIndicator` wiring, redundant `$effect` subscriptions
+- **BE targets**: orphaned route helpers, duplicate `os.getenv` calls (should all go through `get_llm_config`), unused imports after LLM refactor
+
+### 2. Frontend Error Handling Consistency
+**Concept**: Standardize how API errors surface to the user. Currently each page catches errors differently (some toast, some inline). Define one pattern and apply everywhere.
+- **Benefit**: Predictable UX, fewer silent failures, easier to maintain.
+
+### 3. Backend Service Layer Cleanup
+**Concept**: Ensure all business logic lives in `services/`, not in route handlers. Route handlers should only validate input, call services, and return responses.
+- **Targets**: any inline DB queries in routes, any LLM logic not in `services/llm.py`
+
+### 4. Type Safety Audit
+**Concept**: Tighten TypeScript types on the frontend (remove any `any` casts, add missing return types). Tighten Pydantic schemas on the backend (ensure all responses use typed schemas, not `dict`).
+
+---
+
 ## ✨ Premium UX Polish (Immediate Wins)
 
 ### 1. Animated Toast System

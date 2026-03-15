@@ -353,3 +353,44 @@ Full interactive documentation available at `http://localhost:8000/docs` when th
 **PDF export** — two options:
 - **Server-side** via WeasyPrint: produces clean, consistent PDFs. Requires GTK on Windows (see WeasyPrint docs).
 - **Browser print**: always works, no setup needed. Use "Save as PDF" in the print dialog.
+
+---
+
+## Roadmap
+
+Items marked ✅ are already shipped. Everything else is planned or in consideration.
+
+### UX Polish
+| Status | Feature | Description |
+|--------|---------|-------------|
+| ✅ | Animated toast notifications | Floating feedback for every action |
+| ✅ | Skeleton screen loading | Shimmer placeholders during AI generation |
+| ✅ | Profile scrollspy navigation | Sticky sidebar with section highlighting |
+| ✅ | Confetti on first CV generation | Moment of delight after generating |
+| ✅ | Multi-profile support | Separate identities for different target roles |
+| ✅ | Generation history | Browse, preview, and delete past CVs and letters |
+| ⬜ | Real-time CV preview | Split-screen editor with live-updating preview |
+| ⬜ | Dark mode | Deep Night theme with high-contrast accessibility variants |
+
+### AI Features
+| Status | Feature | Description |
+|--------|---------|-------------|
+| ✅ | ATS CV enhancement | AI rewrites bullet points and summary for a target job description |
+| ✅ | Cover letter generation | Tailored cover letter from profile + job description |
+| ✅ | CV import (PDF/DOCX) | AI extracts profile fields from an uploaded file |
+| ⬜ | AI skill gap analysis | Compare profile against a JD and highlight missing keywords |
+| ⬜ | Interactive resume scoring | 0–100 match score with yellow-flag feedback areas |
+| ⬜ | LinkedIn persona optimizer | AI-generated headlines and About sections |
+| ⬜ | Job URL scraper | Paste a job posting URL instead of text — AI extracts the description |
+| ⬜ | Multi-language CV translation | One-click translation of the full profile |
+| ⬜ | Networking outreach generator | LinkedIn cold messages, recruiter emails, post-interview follow-ups |
+| ⬜ | Salary negotiation AI | Market value research + customized negotiation scripts |
+| ⬜ | AI interview coach (voice) | Practice elevator pitch using Web Speech API, get verbal feedback |
+
+### Platform
+| Status | Feature | Description |
+|--------|---------|-------------|
+| ✅ | SQLite support | Zero-config default database |
+| ⬜ | PostgreSQL support | First-class support for production/shared deployments — change `DATABASE_URL` to `postgresql://...` and run `pip install psycopg2-binary` |
+| ⬜ | Job application tracker (Kanban) | Visual board: Applied → Interviewing → Offer → Rejected, linked to generated documents |
+| ⬜ | One-click portfolio generator | Export profile as a static HTML/CSS portfolio site |

@@ -3,7 +3,8 @@
   import SettingsModal from '$lib/components/SettingsModal.svelte';
   import { settingsStore } from '$lib/settingsStore.svelte';
   import type { SettingsResponse } from '$lib/types';
-  import { CircleAlert, CircleCheck, Cpu, Pencil, Plus, Settings } from '@lucide/svelte';
+  import { CircleAlert, CircleCheck, ChevronRight, Cpu, Pencil, Plus, Settings } from '@lucide/svelte';
+  import { page } from '$app/state';
 
   let modalOpen = $state(false);
   let settings: SettingsResponse | null = $state(null);
@@ -25,6 +26,22 @@
 </script>
 
 <div class="max-w-2xl space-y-6">
+  {#if !page.data.isOnboarded}
+    <!-- Setup progress banner -->
+    <div class="rounded-lg border border-border bg-muted/40 px-4 py-3 flex items-center gap-3 text-sm">
+      <span class="flex items-center gap-1.5 font-medium {!page.data.isApiKeyConfigured ? 'text-foreground' : 'text-muted-foreground line-through'}">
+        <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold {!page.data.isApiKeyConfigured ? 'bg-primary text-primary-foreground' : 'bg-green-500 text-white'}">
+          {#if page.data.isApiKeyConfigured}✓{:else}1{/if}
+        </span>
+        Configure AI
+      </span>
+      <ChevronRight class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+      <span class="flex items-center gap-1.5 {page.data.isApiKeyConfigured ? 'font-medium text-foreground' : 'text-muted-foreground'}">
+        <span class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold {page.data.isApiKeyConfigured ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/30 text-muted-foreground'}">2</span>
+        Setup profile
+      </span>
+    </div>
+  {/if}
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-2xl font-bold flex items-center gap-2">

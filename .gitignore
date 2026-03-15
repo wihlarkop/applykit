@@ -217,6 +217,9 @@ frontend/build/
 frontend/.env
 frontend/.env.local
 
+# Superpowers plugin scaffolding
+.superpowers/
+
 # Allow frontend src/lib (matched by Python lib/ rule above)
 !frontend/src/lib/
 !frontend/src/lib/**

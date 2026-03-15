@@ -33,6 +33,10 @@ class Certification(BaseModel):
 
 
 class ProfileData(BaseModel):
+    id: int | None = None
+    label: str = "Default"
+    color: str = "#6366f1"
+    icon: str = "💼"
     name: str
     email: str
     phone: str | None = None
@@ -55,6 +59,32 @@ class ProfileResponse(BaseModel):
     profile: ProfileData | None
 
 
+class ProfileListItem(BaseModel):
+    id: int
+    label: str
+    color: str
+    icon: str
+    name: str
+
+    model_config = {"from_attributes": True}
+
+
+class ProfileListResponse(BaseModel):
+    items: list[ProfileListItem]
+
+
+class CreateProfileRequest(BaseModel):
+    label: str
+    color: str
+    icon: str
+    clone_from_id: int | None = None
+
+
+class GenerateCvRequest(BaseModel):
+    profile_id: int
+    enhance: bool = True
+
+
 class OnboardingStatusResponse(BaseModel):
     is_onboarded: bool
 
@@ -70,6 +100,7 @@ class GenerateCvResponse(BaseModel):
 
 
 class CoverLetterRequest(BaseModel):
+    profile_id: int
     job_description: str
     company_name: str | None = None
     extra_context: str = ""
@@ -94,7 +125,11 @@ class GeneratedCVEntry(BaseModel):
     id: int
     created_at: datetime
     enhanced: bool
-    profile_snapshot: str  # raw JSON — frontend parses if needed
+    profile_snapshot: str
+    profile_id: int | None = None
+    profile_label: str | None = None
+    profile_color: str | None = None
+    profile_icon: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -110,6 +145,10 @@ class GeneratedCoverLetterEntry(BaseModel):
     job_description: str
     extra_context: str | None
     cover_letter_text: str
+    profile_id: int | None = None
+    profile_label: str | None = None
+    profile_color: str | None = None
+    profile_icon: str | None = None
 
     model_config = {"from_attributes": True}
 

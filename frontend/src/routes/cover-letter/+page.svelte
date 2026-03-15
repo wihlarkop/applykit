@@ -81,7 +81,11 @@
     if (!coverLetterText) return;
     downloading = true;
     try {
-      const html = `<div style="font-family:sans-serif;font-size:13px;line-height:1.6;padding:40px;white-space:pre-wrap">${coverLetterText}</div>`;
+      const escaped = coverLetterText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      const html = `<div style="font-family:sans-serif;font-size:13px;line-height:1.6;padding:40px;white-space:pre-wrap">${escaped}</div>`;
       const blob = await generateCoverLetterPdf({ html });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

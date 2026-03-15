@@ -62,15 +62,23 @@
   }
 
   async function handleDeleteCv(id: number) {
-    await deleteCvHistoryEntry(id);
-    cvItems = cvItems.filter((e) => e.id !== id);
-    if (selectedCv?.id === id) selectedCv = null;
+    try {
+      await deleteCvHistoryEntry(id);
+      cvItems = cvItems.filter((e) => e.id !== id);
+      if (selectedCv?.id === id) selectedCv = null;
+    } catch (e: any) {
+      errorMsg = `Failed to delete: ${e.message}`;
+    }
   }
 
   async function handleDeleteCl(id: number) {
-    await deleteCoverLetterHistoryEntry(id);
-    clItems = clItems.filter((e) => e.id !== id);
-    if (selectedCl?.id === id) selectedCl = null;
+    try {
+      await deleteCoverLetterHistoryEntry(id);
+      clItems = clItems.filter((e) => e.id !== id);
+      if (selectedCl?.id === id) selectedCl = null;
+    } catch (e: any) {
+      errorMsg = `Failed to delete: ${e.message}`;
+    }
   }
 
   function parseCvProfile(entry: GeneratedCVEntry): ProfileData {

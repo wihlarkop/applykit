@@ -1,7 +1,10 @@
 import json
+import logging
 import os
 
 from fastapi import APIRouter, Depends, HTTPException
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -83,8 +86,8 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
                 }
             )
             enhanced = True
-        except Exception:
-            pass  # fallback to original profile on any error
+        except Exception as exc:
+            logger.warning("ATS enhancement failed, falling back to original profile: %s", exc)
 
     entry = GeneratedCV(
         enhanced=int(enhanced),

@@ -94,7 +94,7 @@ export interface GenerateCvResponse {
 }
 
 export interface CoverLetterRequest {
-  profile_id?: number;
+  profile_id: number;
   job_description: string;
   company_name?: string | null;
   extra_context?: string;

@@ -97,10 +97,17 @@ def get_profile(profile_id: int, db: Session = Depends(get_db)):
     return profile_to_schema(_get_or_404(db, profile_id))
 
 
+CONTENT_FIELDS = {
+    "name", "email", "phone", "location", "linkedin", "github",
+    "portfolio", "summary", "work_experience", "education", "skills",
+    "projects", "certifications",
+}
+
+
 @router.put("/profiles/{profile_id}", response_model=ProfileData)
 def save_profile(profile_id: int, data: ProfileData, db: Session = Depends(get_db)):
     profile = _get_or_404(db, profile_id)
-    fields = data.model_dump(exclude={"id", "updated_at"})
+    fields = {k: v for k, v in data.model_dump(exclude={"id", "updated_at"}).items() if k in CONTENT_FIELDS}
 
     for key, value in fields.items():
         if key in JSON_FIELDS:

@@ -41,7 +41,7 @@ export const load = async ({ url }) => {
 
     if (url.pathname.startsWith('/onboarding')) return { isOnboarded };
     if (!isOnboarded) {
-      if (url.pathname.startsWith('/profile')) return { isOnboarded };
+      if (url.pathname === '/profile' || url.pathname.startsWith('/profile/')) return { isOnboarded };
       throw redirect(307, '/onboarding');
     }
   } catch (err: any) {

@@ -42,20 +42,6 @@
 
   const isProfileEmpty = $derived(!profile.name && !profile.email && profile.work_experience.length === 0);
 
-  async function loadProfile(id: number) {
-    loading = true;
-    try {
-      const data = await getProfile(id);
-      profile = { ...data };
-      skillsText = '';
-      loadedProfileJson = JSON.stringify({ ...data });
-    } catch (e: any) {
-      toastState.error(`Failed to load profile: ${e.message}`);
-    } finally {
-      loading = false;
-    }
-  }
-
   function commitSkill() {
     const val = skillsText.trim().replace(/,$/, '');
     if (val && !profile.skills.includes(val)) {
@@ -75,9 +61,28 @@
     profile.skills = profile.skills.filter(s => s !== skill);
   }
 
+  let loadSeq = 0;
+
   $effect(() => {
     const ap = activeProfile.current;
-    if (ap) loadProfile(ap.id);
+    if (!ap) return;
+    const seq = ++loadSeq;
+    loading = true;
+    getProfile(ap.id)
+      .then((data) => {
+        if (seq !== loadSeq) return;
+        profile = { ...data };
+        skillsText = '';
+        loadedProfileJson = JSON.stringify({ ...data });
+      })
+      .catch((e: any) => {
+        if (seq !== loadSeq) return;
+        toastState.error(`Failed to load profile: ${e.message}`);
+      })
+      .finally(() => {
+        if (seq !== loadSeq) return;
+        loading = false;
+      });
   });
 
   beforeNavigate(({ cancel }) => {
@@ -111,7 +116,16 @@
   async function onImportSuccess() {
     showImporter = false;
     const ap = activeProfile.current;
-    if (ap) await loadProfile(ap.id);
+    if (ap) {
+      try {
+        const data = await getProfile(ap.id);
+        profile = { ...data };
+        skillsText = '';
+        loadedProfileJson = JSON.stringify({ ...data });
+      } catch (e: any) {
+        toastState.error(`Failed to reload profile: ${e.message}`);
+      }
+    }
     await invalidateAll();
   }
 
@@ -184,7 +198,7 @@
     { id: 'certifications', label: 'Certifications', icon: Award },
   ];
 
-  const profileHealth = $derived(() => {
+  const profileHealth = $derived.by(() => {
     let score = 0;
     if (profile.name) score += 15;
     if (profile.email) score += 10;
@@ -195,9 +209,8 @@
     return score;
   });
 
-  const healthMessage = $derived(() => {
-    const score = profileHealth();
-    if (score === 100) return "Profile is 100% complete!";
+  const healthMessage = $derived.by(() => {
+    if (profileHealth === 100) return "Profile is 100% complete!";
     if (!profile.name || !profile.email) return "Add your name and email to get started.";
     if (profile.work_experience.length === 0) return "Add work experience — it's worth 30%.";
     if (profile.education.length === 0) return "Add your education background.";
@@ -315,12 +328,12 @@
       <div class="mt-8 p-6 rounded-2xl bg-primary/5 border border-primary/10">
         <div class="flex items-center justify-between mb-2">
           <h3 class="text-xs font-bold uppercase tracking-wider text-primary">Profile Health</h3>
-          <span class="text-xs font-bold text-primary">{profileHealth()}%</span>
+          <span class="text-xs font-bold text-primary">{profileHealth}%</span>
         </div>
         <div class="h-2 w-full bg-muted rounded-full overflow-hidden mb-2">
-          <div class="h-full bg-primary transition-all duration-500 ease-out" style="width: {profileHealth()}%"></div>
+          <div class="h-full bg-primary transition-all duration-500 ease-out" style="width: {profileHealth}%"></div>
         </div>
-        <p class="text-[11px] text-muted-foreground leading-relaxed">{healthMessage()}</p>
+        <p class="text-[11px] text-muted-foreground leading-relaxed">{healthMessage}</p>
       </div>
     </aside>
 

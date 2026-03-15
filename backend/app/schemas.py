@@ -156,3 +156,37 @@ class GeneratedCoverLetterEntry(BaseModel):
 
 class GeneratedCoverLetterListResponse(BaseModel):
     items: list[GeneratedCoverLetterEntry]
+
+
+# --- Settings schemas ---
+
+class SettingsResponse(BaseModel):
+    model: str | None          # Full LiteLLM model string, e.g. "gemini/gemini-2.5-flash"
+    api_key_configured: bool
+    source: str                # "database" | "env" | "none"
+
+
+class UpdateSettingsRequest(BaseModel):
+    model: str     # Full LiteLLM model string
+    api_key: str
+
+
+class TestConnectionResponse(BaseModel):
+    ok: bool
+    message: str
+
+
+class ModelOption(BaseModel):
+    value: str
+    label: str
+
+
+class ProviderInfo(BaseModel):
+    id: str
+    label: str
+    models: list[ModelOption]
+    requires_api_key: bool
+
+
+class ModelsResponse(BaseModel):
+    providers: list[ProviderInfo]

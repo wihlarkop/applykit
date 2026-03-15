@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routes import generate, history, import_cv, profile, profiles
+from app.routes import generate, history, import_cv, profile, profiles, settings
 
 
 @asynccontextmanager
@@ -38,6 +38,7 @@ app.include_router(profiles.router, prefix="/api")
 app.include_router(generate.router, prefix="/api")
 app.include_router(history.router, prefix="/api")
 app.include_router(import_cv.router, prefix="/api")
+app.include_router(settings.router, prefix="/api")
 
 
 if __name__ == "__main__":

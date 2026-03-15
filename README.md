@@ -1,5 +1,7 @@
 # ApplyKit
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Self-hosted, local-first CV and cover letter generator powered by AI. Your data stays on your machine — no cloud, no account, no subscription.
 
 ---

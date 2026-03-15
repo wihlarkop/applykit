@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -163,7 +164,7 @@ class GeneratedCoverLetterListResponse(BaseModel):
 class SettingsResponse(BaseModel):
     model: str | None          # Full LiteLLM model string, e.g. "gemini/gemini-2.5-flash"
     api_key_configured: bool
-    source: str                # "database" | "env" | "none"
+    source: Literal["database", "env", "none"]
 
 
 class UpdateSettingsRequest(BaseModel):

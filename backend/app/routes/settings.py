@@ -29,9 +29,9 @@ PROVIDER_LABELS = {
 }
 
 
-def _detect_source(db: Session) -> str:
+def _detect_source(db: Session, db_model: str | None, db_api_key: str | None) -> str:
     """Determine whether the active config comes from the DB, env, or nowhere."""
-    if get_setting(db, "llm_provider") and get_setting(db, "llm_api_key"):
+    if db_model and db_api_key:
         return "database"
     if os.getenv("LLM_PROVIDER", "").strip() and os.getenv("LLM_API_KEY", "").strip():
         return "env"
@@ -40,11 +40,13 @@ def _detect_source(db: Session) -> str:
 
 @router.get("/settings", response_model=SettingsResponse)
 def get_settings(db: Session = Depends(get_db)):
+    db_model = get_setting(db, "llm_provider")
+    db_api_key = get_setting(db, "llm_api_key")
     model, api_key = get_llm_config(db)
     return SettingsResponse(
         model=model or None,
         api_key_configured=bool(api_key),
-        source=_detect_source(db),
+        source=_detect_source(db, db_model, db_api_key),
     )
 
 

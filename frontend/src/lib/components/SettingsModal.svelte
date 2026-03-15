@@ -2,6 +2,7 @@
   import { Eye, EyeOff, CheckCircle, XCircle, Loader2 } from '@lucide/svelte';
   import { getSettings, updateSettings, testConnection, getModels } from '$lib/api';
   import { settingsStore } from '$lib/settingsStore.svelte';
+  import { toastState } from '$lib/toast.svelte';
   import type { ProviderInfo, TestConnectionResponse } from '$lib/types';
 
   let { open = $bindable(false) }: { open: boolean } = $props();
@@ -94,6 +95,7 @@
     try {
       await updateSettings({ model: selectedModel, api_key: keyToSave });
       settingsStore.notify();
+      toastState.success('Settings saved successfully.');
       open = false;
     } catch (e: any) {
       saveError = e?.message ?? 'Failed to save settings.';

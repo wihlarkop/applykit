@@ -205,3 +205,14 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# SQLite database
+*.db
+*.sqlite3
+
+# Frontend (Node / Bun / SvelteKit)
+node_modules/
+.svelte-kit/
+frontend/build/
+frontend/.env
+frontend/.env.local

@@ -4,7 +4,10 @@ class PDFRenderError(Exception):
 
 def html_to_pdf(html: str) -> bytes:
     try:
-        from weasyprint import HTML  # lazy import — only fails if GTK missing AND PDF is requested
+        from weasyprint import (
+            HTML,  # lazy import — only fails if GTK missing AND PDF is requested
+        )
+
         return HTML(string=html).write_pdf()
     except ImportError as e:
         raise PDFRenderError(

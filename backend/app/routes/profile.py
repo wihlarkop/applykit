@@ -1,11 +1,12 @@
 import json
 import os
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Profile
-from app.schemas import ProfileData, ProfileResponse, StatusResponse
+from app.schemas import OnboardingStatusResponse, ProfileData, ProfileResponse, StatusResponse
 from app.utils import profile_to_schema
 
 router = APIRouter()
@@ -23,7 +24,13 @@ def get_profile(db: Session = Depends(get_db)):
 def save_profile(data: ProfileData, db: Session = Depends(get_db)):
     profile = db.query(Profile).filter_by(id=1).first()
     fields = data.model_dump(exclude={"updated_at"})
-    json_fields = {"work_experience", "education", "skills", "projects", "certifications"}
+    json_fields = {
+        "work_experience",
+        "education",
+        "skills",
+        "projects",
+        "certifications",
+    }
 
     if not profile:
         profile = Profile(id=1)
@@ -44,6 +51,13 @@ def save_profile(data: ProfileData, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(profile)
     return profile_to_schema(profile)
+
+
+@router.get("/onboarding", response_model=OnboardingStatusResponse)
+def get_onboarding_status(db: Session = Depends(get_db)):
+    profile = db.query(Profile).filter_by(id=1).first()
+    is_onboarded = bool(profile and profile.name and profile.name.strip())
+    return OnboardingStatusResponse(is_onboarded=is_onboarded)
 
 
 @router.get("/status", response_model=StatusResponse)

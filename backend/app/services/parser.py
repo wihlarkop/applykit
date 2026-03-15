@@ -1,13 +1,12 @@
 import io
-from typing import Optional
 
 MIN_TEXT_LENGTH = 100
 
 
 def extract_text(
-    file_content: Optional[bytes] = None,
-    filename: Optional[str] = None,
-    text: Optional[str] = None,
+    file_content: bytes | None = None,
+    filename: str | None = None,
+    text: str | None = None,
 ) -> str:
     """Extract raw text from a PDF, DOCX, or plain text input."""
     if file_content is not None and filename is not None:
@@ -26,6 +25,7 @@ def extract_text(
 
 def _extract_pdf(content: bytes) -> str:
     import pdfplumber
+
     with pdfplumber.open(io.BytesIO(content)) as pdf:
         pages = [page.extract_text() or "" for page in pdf.pages]
     return "\n".join(pages).strip()
@@ -33,6 +33,7 @@ def _extract_pdf(content: bytes) -> str:
 
 def _extract_docx(content: bytes) -> str:
     from docx import Document
+
     doc = Document(io.BytesIO(content))
     return "\n".join(para.text for para in doc.paragraphs).strip()
 

@@ -1,4 +1,5 @@
 import json
+
 from app.models import Profile
 from app.schemas import ProfileData
 

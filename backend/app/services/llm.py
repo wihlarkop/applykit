@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+
 import litellm
 
 
@@ -21,7 +21,7 @@ def _get_config() -> tuple[str, str]:
     return provider, api_key
 
 
-def call_llm(prompt: str, system: Optional[str] = None, timeout: int = 30) -> str:
+def call_llm(prompt: str, system: str | None = None, timeout: int = 30) -> str:
     provider, api_key = _get_config()
     messages = []
     if system:

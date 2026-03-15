@@ -2,6 +2,8 @@
   import { page } from '$app/stores';
   import StatusIndicator from '$lib/components/StatusIndicator.svelte';
   import Toaster from '$lib/components/Toaster.svelte';
+  import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+  import { themeState } from '$lib/theme.svelte';
   import '../app.css';
 
   let { data, children } = $props();
@@ -14,6 +16,15 @@
     { href: '/cover-letter', label: 'Cover Letter' },
     { href: '/history', label: 'History' },
   ];
+
+  // Dark mode effect
+  $effect(() => {
+    if (typeof document !== 'undefined') {
+      const isDark = themeState.current === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      localStorage.setItem('theme', themeState.current);
+    }
+  });
 </script>
 
 <div class="min-h-screen flex flex-col bg-muted/40">
@@ -40,7 +51,8 @@
       </div>
 
       {#if isOnboarded}
-        <div class="animate-in fade-in duration-500">
+        <div class="flex items-center gap-3 animate-in fade-in duration-500">
+          <ThemeToggle />
           <StatusIndicator />
         </div>
       {/if}

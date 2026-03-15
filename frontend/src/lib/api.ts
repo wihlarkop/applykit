@@ -124,8 +124,8 @@ export const generateCoverLetterPdf = (data: PdfRequest) =>
   });
 
 // CV history
-export const getCvHistory = () =>
-  request<GeneratedCVListResponse>('/history/cv');
+export const getCvHistory = (profileId?: number) =>
+  request<GeneratedCVListResponse>(`/history/cv${profileId != null ? `?profile_id=${profileId}` : ''}`);
 
 export const getCvHistoryEntry = (id: number) =>
   request<GeneratedCVEntry>(`/history/cv/${id}`);
@@ -134,8 +134,8 @@ export const deleteCvHistoryEntry = (id: number) =>
   request<void>(`/history/cv/${id}`, { method: 'DELETE' });
 
 // Cover letter history
-export const getCoverLetterHistory = () =>
-  request<GeneratedCoverLetterListResponse>('/history/cover-letter');
+export const getCoverLetterHistory = (profileId?: number) =>
+  request<GeneratedCoverLetterListResponse>(`/history/cover-letter${profileId != null ? `?profile_id=${profileId}` : ''}`);
 
 export const getCoverLetterHistoryEntry = (id: number) =>
   request<GeneratedCoverLetterEntry>(`/history/cover-letter/${id}`);

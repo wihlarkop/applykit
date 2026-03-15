@@ -32,7 +32,10 @@
 
   $effect(() => {
     const ap = activeProfile.current;
-    if (!ap) { activeProfileData = null; return; }
+    activeProfileData = null;
+    profile = null;
+    enhanced = false;
+    if (!ap) return;
     getProfile(ap.id).then(p => { activeProfileData = p; }).catch(() => {});
   });
 

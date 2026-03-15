@@ -66,15 +66,25 @@
       {#each allProfiles as p}
         <div class="border rounded-xl p-5 bg-card space-y-3">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-2xl" style="background:{p.color}20; border: 1.5px solid {p.color}">
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-2xl shrink-0" style="background:{p.color}20; border: 1.5px solid {p.color}">
               {p.icon}
             </div>
-            <div>
+            <div class="flex-1 min-w-0">
               <div class="font-semibold text-sm">{p.label}</div>
-              <div class="text-xs text-muted-foreground">{p.name || 'No name set'}</div>
+              <div class="text-xs text-muted-foreground truncate">{p.name || 'No name set'}</div>
+              <!-- Completeness bar -->
+              <div class="mt-1.5 flex items-center gap-2">
+                <div class="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    class="h-full rounded-full transition-all"
+                    style="width:{p.completeness}%; background:{p.completeness >= 70 ? '#10b981' : p.completeness >= 40 ? p.color : '#f59e0b'}"
+                  ></div>
+                </div>
+                <span class="text-xs text-muted-foreground shrink-0">{p.completeness}%</span>
+              </div>
             </div>
             {#if activeProfile.current?.id === p.id}
-              <span class="ml-auto text-xs px-2 py-0.5 rounded-full border font-medium" style="border-color:{p.color};color:{p.color}">active</span>
+              <span class="shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium" style="border-color:{p.color};color:{p.color}">active</span>
             {/if}
           </div>
           <div class="flex gap-2">
@@ -99,5 +109,7 @@
 {:else if modalMode === 'edit' && editingProfile}
   {#await getProfile(editingProfile.id) then fullProfile}
     <ProfileModal mode="edit" profile={fullProfile} onclose={closeModal} onsaved={handleSaved} />
+  {:catch}
+    {closeModal()}
   {/await}
 {/if}

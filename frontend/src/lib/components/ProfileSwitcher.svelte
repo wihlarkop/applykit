@@ -62,6 +62,9 @@
           <span class="w-2 h-2 rounded-full shrink-0" style="background:{p.color}"></span>
           <span>{p.icon}</span>
           <span class="truncate flex-1">{p.label}</span>
+          {#if !p.has_content}
+            <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" title="Profile is empty"></span>
+          {/if}
           {#if p.id === ap?.id}
             <span class="text-xs text-muted-foreground">active</span>
           {/if}
@@ -85,5 +88,7 @@
 {:else if modalMode === 'edit' && ap}
   {#await getProfile(ap.id) then profileData}
     <ProfileModal mode="edit" profile={profileData} onclose={closeModal} />
+  {:catch}
+    {closeModal()}
   {/await}
 {/if}

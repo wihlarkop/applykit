@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import {
     getCvHistory,
     getCoverLetterHistory,
     deleteCvHistoryEntry,
     deleteCoverLetterHistoryEntry,
   } from '$lib/api';
+  import { profiles } from '$lib/profiles.svelte';
   import type { GeneratedCVEntry, GeneratedCoverLetterEntry, ProfileData } from '$lib/types';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
@@ -14,6 +14,7 @@
 
   type Tab = 'cv' | 'cover-letter';
   let tab: Tab = $state('cv');
+  let filterProfileId: number | undefined = $state(undefined);
 
   let cvItems: GeneratedCVEntry[] = $state([]);
   let clItems: GeneratedCoverLetterEntry[] = $state([]);
@@ -23,9 +24,18 @@
   let selectedCv: GeneratedCVEntry | null = $state(null);
   let selectedCl: GeneratedCoverLetterEntry | null = $state(null);
 
-  onMount(async () => {
+  const allProfiles = $derived(profiles.all);
+
+  async function loadHistory() {
+    loading = true;
+    errorMsg = '';
+    selectedCv = null;
+    selectedCl = null;
     try {
-      const [cvRes, clRes] = await Promise.all([getCvHistory(), getCoverLetterHistory()]);
+      const [cvRes, clRes] = await Promise.all([
+        getCvHistory(filterProfileId),
+        getCoverLetterHistory(filterProfileId),
+      ]);
       cvItems = cvRes.items;
       clItems = clRes.items;
     } catch (e: any) {
@@ -33,6 +43,12 @@
     } finally {
       loading = false;
     }
+  }
+
+  $effect(() => {
+    // Re-fetch whenever filterProfileId changes (runs on mount too)
+    filterProfileId;
+    loadHistory();
   });
 
   function formatDate(iso: string) {
@@ -66,6 +82,31 @@
 <div class="space-y-6">
   <h1 class="text-2xl font-bold">History</h1>
 
+  <!-- Profile filter -->
+  {#if allProfiles.length > 1}
+    <div class="flex items-center gap-2 flex-wrap">
+      <span class="text-xs text-muted-foreground uppercase tracking-wider">Filter:</span>
+      <button
+        onclick={() => filterProfileId = undefined}
+        class="px-3 py-1 rounded-full text-xs font-medium border transition-colors
+          {filterProfileId == null ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:text-foreground hover:bg-accent'}"
+      >
+        All profiles
+      </button>
+      {#each allProfiles as p}
+        <button
+          onclick={() => filterProfileId = p.id}
+          class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-colors
+            {filterProfileId === p.id ? 'text-white border-transparent' : 'border-border text-muted-foreground hover:text-foreground hover:bg-accent'}"
+          style={filterProfileId === p.id ? `background:${p.color}; border-color:${p.color}` : ''}
+        >
+          <span class="w-1.5 h-1.5 rounded-full" style="background:{filterProfileId === p.id ? 'white' : p.color}"></span>
+          {p.icon} {p.label}
+        </button>
+      {/each}
+    </div>
+  {/if}
+
   <!-- Tabs -->
   <div class="flex gap-2 border-b">
     <button
@@ -92,7 +133,7 @@
 
     {#if tab === 'cv'}
       {#if cvItems.length === 0}
-        <p class="text-muted-foreground">No CVs generated yet. <a href="/generate" class="underline">Generate one</a>.</p>
+        <p class="text-muted-foreground">No CVs generated yet{filterProfileId != null ? ' for this profile' : ''}. <a href="/generate" class="underline">Generate one</a>.</p>
       {:else}
         <div class="grid gap-4 lg:grid-cols-[280px_1fr]">
           <div class="space-y-2">
@@ -152,7 +193,7 @@
 
     {#if tab === 'cover-letter'}
       {#if clItems.length === 0}
-        <p class="text-muted-foreground">No cover letters generated yet. <a href="/cover-letter" class="underline">Write one</a>.</p>
+        <p class="text-muted-foreground">No cover letters generated yet{filterProfileId != null ? ' for this profile' : ''}. <a href="/cover-letter" class="underline">Write one</a>.</p>
       {:else}
         <div class="grid gap-4 lg:grid-cols-[280px_1fr]">
           <div class="space-y-2">

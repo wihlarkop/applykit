@@ -211,7 +211,13 @@
           <User class="w-6 h-6 text-primary" />
           Profile Setup
         </h1>
-        <p class="text-xs text-muted-foreground mt-0.5 font-medium uppercase tracking-wider">Secure your professional baseline.</p>
+        <p class="text-xs text-muted-foreground mt-0.5 font-medium uppercase tracking-wider">
+          {#if activeProfile.current}
+            Editing: <span style="color:{activeProfile.current.color}">{activeProfile.current.icon} {activeProfile.current.label}</span>
+          {:else}
+            Secure your professional baseline.
+          {/if}
+        </p>
       </div>
       <div class="flex items-center gap-2 self-end sm:self-auto">
         <Button variant="outline" size="sm" onclick={() => showImporter = !showImporter} class="shadow-sm h-9">

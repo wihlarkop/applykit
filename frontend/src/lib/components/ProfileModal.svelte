@@ -3,6 +3,7 @@
   import type { ProfileData, CreateProfileRequest } from '$lib/types';
   import { profiles } from '$lib/profiles.svelte';
   import { activeProfile } from '$lib/activeProfile.svelte';
+  import { toastState } from '$lib/toast.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -53,6 +54,9 @@
         profiles.set(fresh.items);
         if (created.id) {
           activeProfile.set({ id: created.id, label: created.label ?? label, color: created.color ?? color, icon: created.icon ?? icon });
+        }
+        if (!cloneEnabled) {
+          toastState.info('Profile created — fill in your details before generating.');
         }
       } else if (mode === 'edit' && profile?.id) {
         const updated = await saveProfile(profile.id, { ...profile, label: label.trim(), color, icon });
@@ -136,7 +140,7 @@
       <div class="space-y-2">
         <label class="flex items-center gap-2 text-sm cursor-pointer">
           <input type="checkbox" bind:checked={cloneEnabled} class="rounded" />
-          Copy data from existing profile
+          Copy work experience, skills &amp; education from another profile
         </label>
         {#if cloneEnabled}
           <select

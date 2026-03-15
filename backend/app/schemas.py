@@ -65,8 +65,8 @@ class ProfileListItem(BaseModel):
     color: str
     icon: str
     name: str
-
-    model_config = {"from_attributes": True}
+    has_content: bool = False
+    completeness: int = 0
 
 
 class ProfileListResponse(BaseModel):

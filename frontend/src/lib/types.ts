@@ -54,6 +54,8 @@ export interface ProfileListItem {
   color: string;
   icon: string;
   name: string;
+  has_content: boolean;
+  completeness: number;
 }
 
 export interface ProfileListResponse {

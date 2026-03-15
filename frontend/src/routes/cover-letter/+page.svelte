@@ -33,7 +33,9 @@
 
   $effect(() => {
     const ap = activeProfile.current;
-    if (!ap) { activeProfileData = null; return; }
+    activeProfileData = null;
+    coverLetterText = '';
+    if (!ap) return;
     getProfile(ap.id).then(p => { activeProfileData = p; }).catch(() => {});
   });
 

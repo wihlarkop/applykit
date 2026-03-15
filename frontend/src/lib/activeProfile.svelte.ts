@@ -16,15 +16,13 @@ function createActiveProfile() {
       profile = p;
       if (browser) localStorage.setItem('activeProfile', JSON.stringify(p));
     },
-    initFromStorage(fallback: ActiveProfile | null) {
-      if (!browser) { profile = fallback; return; }
-      const stored = localStorage.getItem('activeProfile');
-      if (stored) {
-        try { profile = JSON.parse(stored) as ActiveProfile; return; }
-        catch { /* fall through */ }
-      }
-      profile = fallback;
-      if (fallback) localStorage.setItem('activeProfile', JSON.stringify(fallback));
+    // `validated` is already validated by +layout.ts against the live profile list.
+    // We must NOT re-read localStorage here — it may contain a deleted profile ID.
+    initFromStorage(validated: ActiveProfile | null) {
+      profile = validated;
+      if (!browser) return;
+      if (validated) localStorage.setItem('activeProfile', JSON.stringify(validated));
+      else localStorage.removeItem('activeProfile');
     },
     clear() {
       profile = null;

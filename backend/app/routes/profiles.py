@@ -18,6 +18,28 @@ router = APIRouter()
 JSON_FIELDS = {"work_experience", "education", "skills", "projects", "certifications"}
 
 
+def _profile_list_item(p: Profile) -> ProfileListItem:
+    we = json.loads(p.work_experience or "[]")
+    sk = json.loads(p.skills or "[]")
+    ed = json.loads(p.education or "[]")
+    score = 0
+    if p.name: score += 15
+    if p.email: score += 10
+    if p.summary: score += 10
+    if we: score += 30
+    if ed: score += 20
+    if sk: score += 15
+    return ProfileListItem(
+        id=p.id,
+        label=p.label,
+        color=p.color,
+        icon=p.icon,
+        name=p.name,
+        has_content=bool(we or sk or ed),
+        completeness=score,
+    )
+
+
 def _get_or_404(db: Session, profile_id: int) -> Profile:
     profile = db.query(Profile).filter_by(id=profile_id).first()
     if not profile:
@@ -31,7 +53,7 @@ def _get_or_404(db: Session, profile_id: int) -> Profile:
 @router.get("/profiles", response_model=ProfileListResponse)
 def list_profiles(db: Session = Depends(get_db)):
     items = db.query(Profile).order_by(Profile.id).all()
-    return ProfileListResponse(items=items)
+    return ProfileListResponse(items=[_profile_list_item(p) for p in items])
 
 
 @router.post("/profiles", response_model=ProfileData, status_code=201)

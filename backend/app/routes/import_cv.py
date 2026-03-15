@@ -17,9 +17,35 @@ ALLOWED_MIME_TYPES = {
 ALLOWED_EXTENSIONS = {"pdf", "docx"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
-EXTRACT_SYSTEM_PROMPT = """You are a CV parser. Extract all information from the provided CV text and return it as a JSON object matching the schema below. Return only valid JSON with no markdown wrapping or explanation.
+EXTRACT_SYSTEM_PROMPT = """\
+You are a precise CV data extraction engine. Your task is to read raw CV/resume text and extract every piece of information into a structured JSON object.
 
-Schema: {"name": "string", "email": "string", "phone": "string or null", "location": "string or null", "linkedin": "string or null", "github": "string or null", "portfolio": "string or null", "summary": "string or null", "work_experience": [{"company": "string", "role": "string", "start_date": "string", "end_date": "string or null", "bullets": ["string"]}], "education": [{"institution": "string", "degree": "string", "field": "string", "start_date": "string", "end_date": "string or null"}], "skills": ["string"], "projects": [{"name": "string", "description": "string", "tech_stack": ["string"], "link": "string or null"}], "certifications": [{"name": "string", "issuer": "string", "date": "string"}]}"""
+EXTRACTION RULES:
+1. Extract ALL information present — do not skip sections or summarize. If the CV mentions it, capture it.
+2. For work_experience bullets: extract each accomplishment as a separate bullet string. Keep the candidate's original wording. If they wrote paragraphs instead of bullets, break them into individual achievement statements.
+3. For dates: use the format as written (e.g., "Jan 2022", "2022", "March 2020"). If end_date is missing or says "Present"/"Current", set it to null.
+4. For skills: extract individual skills as separate strings, not comma-separated groups. "Python, JavaScript, React" becomes ["Python", "JavaScript", "React"].
+5. If a field is genuinely not present in the CV, use null (for optional strings) or [] (for arrays). Never fabricate data.
+6. For projects: if tech_stack is mentioned alongside a project, extract it. If a link/URL is associated, capture it.
+7. Phone numbers: preserve the original format including country codes.
+8. LinkedIn/GitHub/portfolio: extract full URLs if present, or usernames/paths if that's all that's given.
+
+OUTPUT FORMAT — return ONLY this JSON structure, no markdown, no explanation:
+{
+  "name": "string",
+  "email": "string",
+  "phone": "string or null",
+  "location": "string or null",
+  "linkedin": "string or null",
+  "github": "string or null",
+  "portfolio": "string or null",
+  "summary": "string or null",
+  "work_experience": [{"company": "string", "role": "string", "start_date": "string", "end_date": "string or null", "bullets": ["string"]}],
+  "education": [{"institution": "string", "degree": "string", "field": "string", "start_date": "string", "end_date": "string or null"}],
+  "skills": ["string"],
+  "projects": [{"name": "string", "description": "string", "tech_stack": ["string"], "link": "string or null"}],
+  "certifications": [{"name": "string", "issuer": "string", "date": "string"}]
+}"""
 
 
 @router.post("/import/cv", response_model=ProfileData)

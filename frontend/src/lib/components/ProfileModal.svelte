@@ -53,17 +53,18 @@
         const fresh = await listProfiles();
         profiles.set(fresh.items);
         if (created.id) {
-          activeProfile.set({ id: created.id, label: created.label ?? label, color: created.color ?? color, icon: created.icon ?? icon });
+          activeProfile.set({ id: created.id, label: created.label ?? label, color: created.color ?? color, icon: created.icon ?? icon, name: created.name ?? '' });
         }
         if (!cloneEnabled) {
           toastState.info('Profile created — fill in your details before generating.');
         }
       } else if (mode === 'edit' && profile?.id) {
         const updated = await saveProfile(profile.id, { ...profile, label: label.trim(), color, icon });
-        profiles.upsert({ id: profile.id, label: updated.label ?? label, color: updated.color ?? color, icon: updated.icon ?? icon, name: updated.name });
+        const fresh = await listProfiles();
+        profiles.set(fresh.items);
         const ap = activeProfile.current;
         if (ap?.id === profile.id) {
-          activeProfile.set({ id: profile.id, label: updated.label ?? label, color: updated.color ?? color, icon: updated.icon ?? icon });
+          activeProfile.set({ id: profile.id, label: updated.label ?? label, color: updated.color ?? color, icon: updated.icon ?? icon, name: updated.name ?? '' });
         }
       }
       onsaved?.();

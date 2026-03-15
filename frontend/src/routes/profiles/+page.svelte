@@ -29,7 +29,7 @@
       if (ap?.id === p.id) {
         const remaining = profiles.all;
         if (remaining.length > 0) {
-          activeProfile.set({ id: remaining[0].id, label: remaining[0].label, color: remaining[0].color, icon: remaining[0].icon });
+          activeProfile.set({ id: remaining[0].id, label: remaining[0].label, color: remaining[0].color, icon: remaining[0].icon, name: remaining[0].name });
         } else {
           activeProfile.clear();
           goto('/onboarding');

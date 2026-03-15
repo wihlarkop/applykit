@@ -5,10 +5,13 @@
     deleteCvHistoryEntry,
     deleteCoverLetterHistoryEntry,
   } from '$lib/api';
+  import { goto } from '$app/navigation';
   import { profiles } from '$lib/profiles.svelte';
+  import { activeProfile } from '$lib/activeProfile.svelte';
   import type { GeneratedCVEntry, GeneratedCoverLetterEntry, ProfileData } from '$lib/types';
   import { Button } from '$lib/components/ui/button';
   import { Badge } from '$lib/components/ui/badge';
+  import { Sparkles } from '@lucide/svelte';
   import CvPreview from '$lib/components/CvPreview.svelte';
   import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
 
@@ -77,6 +80,20 @@
   function handlePrint() {
     window.print();
   }
+
+  function handleRegenerate(entry: GeneratedCVEntry) {
+    if (entry.profile_id) {
+      const p = profiles.all.find(p => p.id === entry.profile_id);
+      if (p) activeProfile.set({ id: p.id, label: p.label, color: p.color, icon: p.icon, name: p.name });
+    }
+    goto('/generate');
+  }
+
+  function displayCompany(entry: GeneratedCoverLetterEntry): string {
+    if (entry.company_name) return entry.company_name;
+    const jd = entry.job_description.trim();
+    return jd.length > 45 ? jd.slice(0, 42) + '…' : jd;
+  }
 </script>
 
 <div class="space-y-6">
@@ -114,14 +131,14 @@
         {tab === 'cv' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}"
       onclick={() => { tab = 'cv'; selectedCv = null; }}
     >
-      Generated CVs ({cvItems.length})
+      Generated CVs ({loading ? '…' : cvItems.length})
     </button>
     <button
       class="px-4 py-2 text-sm font-medium transition-colors
         {tab === 'cover-letter' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}"
       onclick={() => { tab = 'cover-letter'; selectedCl = null; }}
     >
-      Cover Letters ({clItems.length})
+      Cover Letters ({loading ? '…' : clItems.length})
     </button>
   </div>
 
@@ -168,6 +185,9 @@
               <div class="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
                 <span class="text-sm text-muted-foreground">{formatDate(selectedCv.created_at)}</span>
                 <div class="flex gap-2">
+                  <Button variant="outline" size="sm" onclick={() => selectedCv && handleRegenerate(selectedCv)}>
+                    <Sparkles class="w-4 h-4 mr-1" /> Regenerate
+                  </Button>
                   <Button variant="outline" size="sm" onclick={handlePrint}>Print</Button>
                   <Button
                     variant="destructive"
@@ -204,7 +224,7 @@
                   {selectedCl?.id === entry.id ? 'border-primary bg-accent' : 'bg-card'}"
               >
                 <div class="text-sm font-medium truncate">
-                  {entry.company_name ?? 'Unknown Company'}
+                  {displayCompany(entry)}
                 </div>
                 {#if entry.profile_color && entry.profile_icon}
                   <span class="flex items-center gap-1 text-xs text-muted-foreground">
@@ -221,7 +241,7 @@
             <div class="border rounded-lg overflow-hidden bg-white dark:bg-zinc-950/40 print:bg-white shadow-sm transition-colors">
               <div class="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
                 <div>
-                  <span class="text-sm font-medium">{selectedCl.company_name ?? 'Unknown Company'}</span>
+                  <span class="text-sm font-medium">{displayCompany(selectedCl)}</span>
                   <span class="text-xs text-muted-foreground ml-2">{formatDate(selectedCl.created_at)}</span>
                 </div>
                 <div class="flex gap-2">

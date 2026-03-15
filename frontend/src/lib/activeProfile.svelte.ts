@@ -5,6 +5,7 @@ export type ActiveProfile = {
   label: string;
   color: string;
   icon: string;
+  name: string;
 };
 
 function createActiveProfile() {

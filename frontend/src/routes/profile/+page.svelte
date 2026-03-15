@@ -10,7 +10,7 @@
   import type { ProfileData, Project, WorkExperience } from '$lib/types';
   import CvImporter from '$lib/components/CvImporter.svelte';
   import { activeProfile } from '$lib/activeProfile.svelte';
-  import { invalidateAll } from '$app/navigation';
+  import { invalidateAll, beforeNavigate } from '$app/navigation';
   import { toastState } from '$lib/toast.svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { Badge } from '$lib/components/ui/badge';
@@ -37,6 +37,8 @@
   let saving = $state(false);
   let showImporter = $state(false);
   let activeTab = $state('personal-info');
+  let loadedProfileJson = $state('');
+  const isDirty = $derived(loadedProfileJson !== '' && JSON.stringify(profile) !== loadedProfileJson);
 
   const isProfileEmpty = $derived(!profile.name && !profile.email && profile.work_experience.length === 0);
 
@@ -46,6 +48,7 @@
       const data = await getProfile(id);
       profile = { ...data };
       skillsText = '';
+      loadedProfileJson = JSON.stringify({ ...data });
     } catch (e: any) {
       toastState.error(`Failed to load profile: ${e.message}`);
     } finally {
@@ -53,14 +56,18 @@
     }
   }
 
+  function commitSkill() {
+    const val = skillsText.trim().replace(/,$/, '');
+    if (val && !profile.skills.includes(val)) {
+      profile.skills = [...profile.skills, val];
+      skillsText = '';
+    }
+  }
+
   function addSkill(e: KeyboardEvent) {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault();
-      const val = skillsText.trim().replace(/,$/, '');
-      if (val && !profile.skills.includes(val)) {
-        profile.skills = [...profile.skills, val];
-        skillsText = '';
-      }
+      commitSkill();
     }
   }
 
@@ -73,6 +80,18 @@
     if (ap) loadProfile(ap.id);
   });
 
+  beforeNavigate(({ cancel }) => {
+    if (isDirty && !confirm('You have unsaved changes. Leave this page?')) {
+      cancel();
+    }
+  });
+
+  $effect(() => {
+    const handler = (e: BeforeUnloadEvent) => { if (isDirty) e.preventDefault(); };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  });
+
   async function handleSave() {
     const ap = activeProfile.current;
     if (!ap) return;
@@ -80,6 +99,7 @@
     try {
       await saveProfile(ap.id, profile);
       toastState.success('Profile saved successfully!');
+      loadedProfileJson = JSON.stringify(profile);
       await invalidateAll();
     } catch (e: any) {
       toastState.error(`Save failed: ${e.message}`);
@@ -166,38 +186,23 @@
 
   const profileHealth = $derived(() => {
     let score = 0;
-    
-    // Personal Info (25%)
-    if (profile.name && profile.email && profile.summary) score += 25;
-    else if (profile.name || profile.email) score += 10;
-
-    // Skills (15%) - 3+ skills for full credit
-    if (profile.skills.length >= 3) score += 15;
-    else if (profile.skills.length > 0) score += 5;
-
-    // Experience (20%)
-    if (profile.work_experience.length > 0) score += 20;
-
-    // Education (15%)
-    if (profile.education.length > 0) score += 15;
-
-    // Projects (15%)
-    if (profile.projects.length > 0) score += 15;
-
-    // Certifications (10%)
-    if (profile.certifications.length > 0) score += 10;
-
+    if (profile.name) score += 15;
+    if (profile.email) score += 10;
+    if (profile.summary) score += 10;
+    if (profile.work_experience.length > 0) score += 30;
+    if (profile.education.length > 0) score += 20;
+    if (profile.skills.length > 0) score += 15;
     return score;
   });
 
   const healthMessage = $derived(() => {
     const score = profileHealth();
     if (score === 100) return "Profile is 100% complete!";
-    if (profile.work_experience.length === 0) return "Add work experience to boost strength.";
-    if (profile.skills.length < 3) return "Add at least 3 skills for a stronger profile.";
-    if (profile.projects.length === 0) return "Showcase a project to highlight your work.";
-    if (profile.certifications.length === 0) return "Add certifications for extra validation.";
-    if (!profile.summary) return "Add a summary to introduce yourself.";
+    if (!profile.name || !profile.email) return "Add your name and email to get started.";
+    if (profile.work_experience.length === 0) return "Add work experience — it's worth 30%.";
+    if (profile.education.length === 0) return "Add your education background.";
+    if (profile.skills.length === 0) return "Add skills to complete your profile.";
+    if (!profile.summary) return "Add a professional summary to reach 100%.";
     return "Complete more sections to reach 100%.";
   });
 </script>
@@ -225,9 +230,9 @@
           {showImporter ? 'Cancel' : 'AI Sync'}
         </Button>
         
-        <Button onclick={handleSave} disabled={saving || loading} size="sm" class="shadow-sm h-9">
+        <Button onclick={handleSave} disabled={saving || loading} size="sm" class="shadow-sm h-9 {isDirty ? 'border-yellow-400' : ''}">
           <Save class="w-4 h-4 mr-2" />
-          {saving ? 'Saving…' : 'Save Changes'}
+          {saving ? 'Saving…' : isDirty ? 'Save Changes •' : 'Save Changes'}
         </Button>
       </div>
     </div>
@@ -435,7 +440,10 @@
                             />
                           </div>
                         </div>
-                        <p class="text-[11px] text-muted-foreground ml-1">Press <kbd class="px-1.5 py-0.5 rounded border bg-muted font-sans text-[10px]">Enter</kbd> or <kbd class="px-1.5 py-0.5 rounded border bg-muted font-sans text-[10px]">,</kbd> to add a skill.</p>
+                        <div class="flex items-center justify-between ml-1">
+                          <p class="text-[11px] text-muted-foreground">Press <kbd class="px-1.5 py-0.5 rounded border bg-muted font-sans text-[10px]">Enter</kbd> or <kbd class="px-1.5 py-0.5 rounded border bg-muted font-sans text-[10px]">,</kbd> to add · or</p>
+                          <Button type="button" variant="outline" size="sm" onclick={commitSkill} class="h-7 text-xs px-3">Add</Button>
+                        </div>
                       </div>
                     </div>
                   </div>

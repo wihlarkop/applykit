@@ -4,10 +4,13 @@
   import { User, FileText, Sparkles, Mail, ArrowRight, Lock } from '@lucide/svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { activeProfile } from '$lib/activeProfile.svelte';
+  import { profiles } from '$lib/profiles.svelte';
 
   let { data } = $props();
   const isOnboarded = $derived(data.isOnboarded);
   const profile = $derived(activeProfile.current);
+  const activeProfileItem = $derived(profiles.all.find(p => p.id === activeProfile.current?.id));
+  const isActiveEmpty = $derived(activeProfileItem != null && !activeProfileItem.has_content);
 
   const cards = [
     {
@@ -68,8 +71,8 @@
         <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight mb-4 text-foreground">
           {#if isOnboarded === undefined}
             <Skeleton class="h-12 w-64 rounded-xl" />
-          {:else if isOnboarded && profile?.label}
-            Ready for the next role, <span class="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-500">{profile.label}</span>?
+          {:else if isOnboarded && (profile?.name || profile?.label)}
+            Ready for the next role, <span class="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-500">{profile.name || profile.label}</span>?
           {:else}
             Welcome to <span class="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-500">ApplyKit</span>
           {/if}
@@ -141,6 +144,9 @@
                 {card.description}
               {/if}
             </CardDescription>
+            {#if isOnboarded && isActiveEmpty && (card.href === '/generate' || card.href === '/cover-letter')}
+              <span class="inline-flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400 font-medium mt-1"><span>⚠</span> Profile is empty</span>
+            {/if}
           </CardHeader>
           <CardContent class="relative z-10">
             <Button 

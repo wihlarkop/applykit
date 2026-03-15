@@ -10,7 +10,7 @@
   const ap = $derived(activeProfile.current);
   const allProfiles = $derived(profiles.all);
 
-  function switchProfile(p: { id: number; label: string; color: string; icon: string }) {
+  function switchProfile(p: { id: number; label: string; color: string; icon: string; name: string }) {
     activeProfile.set(p);
     dropdownOpen = false;
   }

@@ -1,4 +1,5 @@
 import { redirect } from '@sveltejs/kit';
+import { browser } from '$app/environment';
 import { getOnboardingStatus, listProfiles, createProfile } from '$lib/api';
 import { profiles } from '$lib/profiles.svelte';
 import { activeProfile } from '$lib/activeProfile.svelte';
@@ -24,15 +25,16 @@ export const load = async ({ url }) => {
       profiles.set(res.items);
 
       // Validate stored active profile or fall back to first
-      const stored = typeof localStorage !== 'undefined'
-        ? localStorage.getItem('activeProfile')
-        : null;
-      const storedProfile = stored ? JSON.parse(stored) : null;
-      const validStored = storedProfile && res.items.some((p) => p.id === storedProfile.id);
-      const fallback = res.items[0]
-        ? { id: res.items[0].id, label: res.items[0].label, color: res.items[0].color, icon: res.items[0].icon }
-        : null;
-      activeProfile.initFromStorage(validStored ? storedProfile : fallback);
+      let storedId: number | null = null;
+      if (browser) {
+        try {
+          const raw = localStorage.getItem('activeProfile');
+          if (raw) storedId = JSON.parse(raw)?.id ?? null;
+        } catch { /* corrupted localStorage — ignore */ }
+      }
+      const activeItem = (storedId != null ? res.items.find(p => p.id === storedId) : null) ?? res.items[0] ?? null;
+      const validated = activeItem ? { id: activeItem.id, label: activeItem.label, color: activeItem.color, icon: activeItem.icon, name: activeItem.name } : null;
+      activeProfile.initFromStorage(validated);
     } catch (e) {
       console.warn('Could not load profiles', e);
     }

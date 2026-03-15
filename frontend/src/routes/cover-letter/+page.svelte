@@ -23,20 +23,26 @@
   let downloading = $state(false);
   let copied = $state(false);
   let activeProfileData: ProfileData | null = $state(null);
+  let profileLoading = $state(true);
 
   const isProfileEmpty = $derived(
-    !activeProfileData ||
-    (activeProfileData.work_experience.length === 0 &&
-     activeProfileData.skills.length === 0 &&
-     activeProfileData.education.length === 0)
+    !profileLoading &&
+    (!activeProfileData ||
+     (activeProfileData.work_experience.length === 0 &&
+      activeProfileData.skills.length === 0 &&
+      activeProfileData.education.length === 0))
   );
 
   $effect(() => {
     const ap = activeProfile.current;
     activeProfileData = null;
     coverLetterText = '';
-    if (!ap) return;
-    getProfile(ap.id).then(p => { activeProfileData = p; }).catch(() => {});
+    profileLoading = true;
+    if (!ap) { profileLoading = false; return; }
+    getProfile(ap.id)
+      .then(p => { activeProfileData = p; })
+      .catch(() => {})
+      .finally(() => { profileLoading = false; });
   });
 
   async function handleGenerate() {
@@ -151,7 +157,7 @@
             </div>
           {/if}
 
-          <Button onclick={handleGenerate} disabled={loading || !jobDescription.trim() || !isOnboarded || isProfileEmpty} class="w-full shadow-md" size="lg">
+          <Button onclick={handleGenerate} disabled={loading || !jobDescription.trim() || !isOnboarded || isProfileEmpty || profileLoading} class="w-full shadow-md" size="lg">
             {#if !isOnboarded}
               <Lock class="w-4 h-4 mr-2" /> Locked
             {:else if loading}

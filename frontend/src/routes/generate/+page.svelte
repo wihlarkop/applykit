@@ -22,12 +22,14 @@
   let previewEl: HTMLDivElement | undefined = $state(undefined);
   let jobDescription = $state('');
   let activeProfileData: ProfileData | null = $state(null);
+  let profileLoading = $state(true);
 
   const isProfileEmpty = $derived(
-    !activeProfileData ||
-    (activeProfileData.work_experience.length === 0 &&
-     activeProfileData.skills.length === 0 &&
-     activeProfileData.education.length === 0)
+    !profileLoading &&
+    (!activeProfileData ||
+     (activeProfileData.work_experience.length === 0 &&
+      activeProfileData.skills.length === 0 &&
+      activeProfileData.education.length === 0))
   );
 
   $effect(() => {
@@ -35,8 +37,12 @@
     activeProfileData = null;
     profile = null;
     enhanced = false;
-    if (!ap) return;
-    getProfile(ap.id).then(p => { activeProfileData = p; }).catch(() => {});
+    profileLoading = true;
+    if (!ap) { profileLoading = false; return; }
+    getProfile(ap.id)
+      .then(p => { activeProfileData = p; })
+      .catch(() => {})
+      .finally(() => { profileLoading = false; });
   });
 
   async function handleGenerate() {
@@ -108,7 +114,7 @@
             {downloading ? 'Downloading…' : 'Download PDF'}
           </Button>
         {/if}
-        <Button onclick={handleGenerate} disabled={loading || !isOnboarded || isProfileEmpty} size="sm" class="shadow-md h-9">
+        <Button onclick={handleGenerate} disabled={loading || !isOnboarded || isProfileEmpty || profileLoading} size="sm" class="shadow-md h-9">
           {#if !isOnboarded}
             <Lock class="w-4 h-4 mr-2" /> Locked
           {:else}

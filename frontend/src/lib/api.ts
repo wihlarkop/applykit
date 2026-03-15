@@ -13,6 +13,10 @@ import type {
   ProfileListResponse,
   CreateProfileRequest,
   GenerateCvRequest,
+  SettingsResponse,
+  UpdateSettingsRequest,
+  TestConnectionResponse,
+  ModelsResponse,
 } from './types';
 
 const BASE_URL = 'http://localhost:8000/api';
@@ -146,3 +150,16 @@ export const getCoverLetterHistoryEntry = (id: number) =>
 
 export const deleteCoverLetterHistoryEntry = (id: number) =>
   request<void>(`/history/cover-letter/${id}`, { method: 'DELETE' });
+
+// Settings
+export const getSettings = () =>
+  request<SettingsResponse>('/settings');
+
+export const updateSettings = (data: UpdateSettingsRequest) =>
+  request<SettingsResponse>('/settings', { method: 'PUT', body: JSON.stringify(data) });
+
+export const testConnection = (data: UpdateSettingsRequest) =>
+  request<TestConnectionResponse>('/settings/test', { method: 'POST', body: JSON.stringify(data) });
+
+export const getModels = () =>
+  request<ModelsResponse>('/settings/models');

@@ -144,3 +144,36 @@ export interface GeneratedCoverLetterEntry {
 export interface GeneratedCoverLetterListResponse {
   items: GeneratedCoverLetterEntry[];
 }
+
+// Settings
+export interface SettingsResponse {
+  model: string | null;
+  api_key_configured: boolean;
+  source: 'database' | 'env' | 'none';
+}
+
+export interface UpdateSettingsRequest {
+  model: string;
+  api_key: string;
+}
+
+export interface TestConnectionResponse {
+  ok: boolean;
+  message: string;
+}
+
+export interface ModelOption {
+  value: string;
+  label: string;
+}
+
+export interface ProviderInfo {
+  id: string;
+  label: string;
+  models: ModelOption[];
+  requires_api_key: boolean;
+}
+
+export interface ModelsResponse {
+  providers: ProviderInfo[];
+}

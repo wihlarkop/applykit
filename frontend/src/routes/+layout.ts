@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, isRedirect } from '@sveltejs/kit';
 import { browser } from '$app/environment';
 import { getOnboardingStatus, getStatus, listProfiles, createProfile } from '$lib/api';
 import { profiles } from '$lib/profiles.svelte';
@@ -55,7 +55,7 @@ export const load = async ({ url }) => {
       throw redirect(307, '/onboarding');
     }
   } catch (err: any) {
-    if (err?.status === 307) throw err;
+    if (isRedirect(err)) throw err;
     console.warn('Could not check onboarding status. Allowing navigation.', err);
   }
 

@@ -120,7 +120,7 @@
         <span class="text-primary font-medium">AI is crafting your tailored CV...</span>
       </div>
       <div class="bg-muted/30 p-4 sm:p-8 rounded-xl border shadow-inner">
-        <div class="bg-white p-12 space-y-8 rounded-lg shadow-xl mx-auto max-w-[850px] min-h-[600px]">
+        <div class="bg-white dark:bg-zinc-950/40 p-12 space-y-8 rounded-lg shadow-xl mx-auto max-w-[850px] min-h-[600px] transition-colors">
           <div class="space-y-4">
             <Skeleton class="h-10 w-1/3" />
             <Skeleton class="h-4 w-1/4" />
@@ -160,7 +160,7 @@
 
       <div class="bg-muted/30 p-4 sm:p-8 rounded-xl border shadow-inner">
         <div
-          class="border rounded-lg overflow-hidden bg-white print:border-0 print:shadow-none shadow-xl mx-auto max-w-[850px]"
+          class="border rounded-lg overflow-hidden bg-white dark:bg-zinc-950/40 print:bg-white print:border-0 print:shadow-none shadow-xl mx-auto max-w-[850px] transition-colors"
           bind:this={previewEl}
         >
           <CvPreview {profile} />

@@ -158,7 +158,7 @@
             <span class="text-primary font-medium">AI is crafting your letter...</span>
           </div>
           <Card class="shadow-lg border-primary/10 overflow-hidden">
-            <CardContent class="p-8 space-y-6 bg-white min-h-[500px]">
+            <CardContent class="p-8 space-y-6 bg-white dark:bg-zinc-950/40 transition-colors min-h-[500px]">
               <div class="space-y-3">
                 <Skeleton class="h-4 w-1/4" />
                 <Skeleton class="h-4 w-1/3" />
@@ -204,7 +204,7 @@
 
           <Card class="shadow-lg border-primary/10">
             <CardContent class="p-0">
-              <div class="overflow-hidden bg-white rounded-xl print:border-0">
+              <div class="overflow-hidden bg-white dark:bg-zinc-950/40 print:bg-white rounded-xl print:border-0 transition-colors">
                 <CoverLetterPreview text={coverLetterText} />
               </div>
             </CardContent>

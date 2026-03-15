@@ -115,7 +115,7 @@
           </div>
 
           {#if selectedCv}
-            <div class="border rounded-lg overflow-hidden bg-white">
+            <div class="border rounded-lg overflow-hidden bg-white dark:bg-zinc-950/40 print:bg-white shadow-sm transition-colors">
               <div class="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
                 <span class="text-sm text-muted-foreground">{formatDate(selectedCv.created_at)}</span>
                 <div class="flex gap-2">
@@ -163,7 +163,7 @@
           </div>
 
           {#if selectedCl}
-            <div class="border rounded-lg overflow-hidden bg-white">
+            <div class="border rounded-lg overflow-hidden bg-white dark:bg-zinc-950/40 print:bg-white shadow-sm transition-colors">
               <div class="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
                 <div>
                   <span class="text-sm font-medium">{selectedCl.company_name ?? 'Unknown Company'}</span>

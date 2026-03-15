@@ -4,6 +4,7 @@
   import { toastState } from '$lib/toast.svelte';
   import type { ProviderInfo, TestConnectionResponse } from '$lib/types';
   import { CheckCircle, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
+  import { invalidateAll } from '$app/navigation';
 
   let { open = $bindable(false) }: { open: boolean } = $props();
 
@@ -97,6 +98,7 @@
       settingsStore.notify();
       toastState.success('Settings saved successfully.');
       open = false;
+      await invalidateAll();
     } catch (e: any) {
       saveError = e?.message ?? 'Failed to save settings.';
     } finally {

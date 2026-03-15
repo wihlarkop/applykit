@@ -55,3 +55,10 @@ class GeneratedCoverLetter(Base):
     extra_context = Column(Text, nullable=True)
     cover_letter_text = Column(Text, nullable=False)
     profile_id = Column(Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True)
+
+
+class AppSetting(Base):
+    __tablename__ = "app_setting"
+
+    key = Column(String, primary_key=True)
+    value = Column(Text, nullable=False)

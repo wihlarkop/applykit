@@ -4,7 +4,8 @@
   import { toastState } from '$lib/toast.svelte';
   import type { ProviderInfo, TestConnectionResponse } from '$lib/types';
   import { CheckCircle, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
-  import { invalidateAll } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
+  import { page } from '$app/state';
 
   let { open = $bindable(false) }: { open: boolean } = $props();
 
@@ -99,6 +100,10 @@
       toastState.success('Settings saved successfully.');
       open = false;
       await invalidateAll();
+      // Forward to onboarding if this was the first-time setup
+      if (!page.data.isOnboarded) {
+        await goto('/onboarding');
+      }
     } catch (e: any) {
       saveError = e?.message ?? 'Failed to save settings.';
     } finally {

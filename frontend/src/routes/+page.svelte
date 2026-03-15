@@ -5,6 +5,7 @@
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { activeProfile } from '$lib/activeProfile.svelte';
   import { profiles } from '$lib/profiles.svelte';
+  import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 
   let { data } = $props();
   const isOnboarded = $derived(data.isOnboarded);
@@ -62,6 +63,10 @@
   </script>
   
   <div class="space-y-10 pb-10">
+    <div class="flex justify-end px-2 py-2 text-xs">
+      <StatusIndicator />
+    </div>
+
     <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-8 sm:p-12 border shadow-sm">
       <div class="relative z-10 max-w-2xl">
         <div class="inline-flex items-center rounded-full border bg-background/50 px-3 py-1 text-sm font-medium mb-6 backdrop-blur-sm">

@@ -1,12 +1,14 @@
 import json
-import os
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
+from sqlalchemy.orm import Session
 
+from app.database import get_db
 from app.schemas import ProfileData
 from app.services.llm import APIKeyNotConfiguredError, LLMCallError, call_llm
 from app.services.parser import extract_text, validate_extracted_text
+from app.services.settings import get_llm_config
 
 router = APIRouter()
 
@@ -52,21 +54,18 @@ OUTPUT FORMAT — return ONLY this JSON structure, no markdown, no explanation:
 async def import_cv(
     file: UploadFile | None = File(None),
     text: str | None = Form(None),
+    db: Session = Depends(get_db),
 ):
-    # Check API key early
-    if (
-        not os.getenv("LLM_API_KEY", "").strip()
-        or not os.getenv("LLM_PROVIDER", "").strip()
-    ):
+    provider, api_key = get_llm_config(db)
+    if not provider or not api_key:
         raise HTTPException(
             status_code=400,
             detail={
-                "detail": "LLM_API_KEY not configured. See README.",
+                "detail": "LLM not configured. Set provider and API key in Settings.",
                 "code": "API_KEY_NOT_CONFIGURED",
             },
         )
 
-    # Extract text — file takes precedence over text
     raw_text: str
     if file is not None:
         content = await file.read()
@@ -114,19 +113,23 @@ async def import_cv(
             detail={"detail": str(e), "code": "FILE_PARSE_FAILED"},
         ) from e
 
-    # Call LLM to extract profile fields
     try:
-        llm_output = call_llm(raw_text, system=EXTRACT_SYSTEM_PROMPT)
+        llm_output = call_llm(
+            raw_text,
+            system=EXTRACT_SYSTEM_PROMPT,
+            provider=provider,
+            api_key=api_key,
+        )
     except APIKeyNotConfiguredError as e:
         raise HTTPException(
-            status_code=400, detail={"detail": str(e), "code": "API_KEY_NOT_CONFIGURED"}
+            status_code=400,
+            detail={"detail": str(e), "code": "API_KEY_NOT_CONFIGURED"},
         ) from e
     except LLMCallError as e:
         raise HTTPException(
             status_code=502, detail={"detail": str(e), "code": "LLM_CALL_FAILED"}
         ) from e
 
-    # Strip markdown wrappers and validate JSON output
     cleaned = (
         llm_output.strip()
         .removeprefix("```json")

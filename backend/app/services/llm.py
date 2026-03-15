@@ -1,5 +1,3 @@
-import os
-
 import litellm
 
 
@@ -11,18 +9,17 @@ class LLMCallError(Exception):
     pass
 
 
-def _get_config() -> tuple[str, str]:
-    provider = os.getenv("LLM_PROVIDER", "").strip()
-    api_key = os.getenv("LLM_API_KEY", "").strip()
+def call_llm(
+    prompt: str,
+    system: str | None = None,
+    timeout: int = 30,
+    provider: str = "",
+    api_key: str = "",
+) -> str:
     if not provider or not api_key:
         raise APIKeyNotConfiguredError(
-            "LLM_API_KEY not configured. See README for setup instructions."
+            "LLM not configured. Set provider and API key in Settings."
         )
-    return provider, api_key
-
-
-def call_llm(prompt: str, system: str | None = None, timeout: int = 30) -> str:
-    provider, api_key = _get_config()
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
@@ -38,5 +35,7 @@ def call_llm(prompt: str, system: str | None = None, timeout: int = 30) -> str:
         if not content:
             raise LLMCallError("LLM returned an empty response.")
         return content
+    except (APIKeyNotConfiguredError, LLMCallError):
+        raise
     except Exception as e:
         raise LLMCallError(str(e)) from e

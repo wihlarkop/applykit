@@ -3,11 +3,9 @@
   import { getStatus } from '$lib/api';
   import { settingsStore } from '$lib/settingsStore.svelte';
   import type { StatusResponse } from '$lib/types';
-  import SettingsModal from './SettingsModal.svelte';
 
   let status: StatusResponse | null = $state(null);
   let error = $state(false);
-  let modalOpen = $state(false);
 
   async function loadStatus() {
     try {
@@ -19,7 +17,7 @@
   }
 
   $effect(() => {
-    settingsStore.version; // re-fetch when settings are saved
+    settingsStore.version;
     loadStatus();
   });
 
@@ -30,8 +28,8 @@
   });
 </script>
 
-<button
-  onclick={() => (modalOpen = true)}
+<a
+  href="/settings"
   class="relative flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
   title="Settings"
   aria-label="Settings"
@@ -42,6 +40,4 @@
       class="absolute top-0.5 right-0.5 w-2 h-2 rounded-full {dotColor} ring-1 ring-background"
     ></span>
   {/if}
-</button>
-
-<SettingsModal bind:open={modalOpen} />
+</a>

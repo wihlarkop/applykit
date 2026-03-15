@@ -42,7 +42,7 @@ class GeneratedCV(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     enhanced = Column(Integer, default=0)           # 0 = false, 1 = true (SQLite bool)
     profile_snapshot = Column(Text, nullable=False)  # JSON string of ProfileData
-    profile_id = Column(Integer, ForeignKey("profile.id"), nullable=True)
+    profile_id = Column(Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True)
 
 
 class GeneratedCoverLetter(Base):
@@ -54,4 +54,4 @@ class GeneratedCoverLetter(Base):
     job_description = Column(Text, nullable=False)
     extra_context = Column(Text, nullable=True)
     cover_letter_text = Column(Text, nullable=False)
-    profile_id = Column(Integer, ForeignKey("profile.id"), nullable=True)
+    profile_id = Column(Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True)

@@ -34,6 +34,9 @@ def call_llm(prompt: str, system: str | None = None, timeout: int = 30) -> str:
             api_key=api_key,
             timeout=timeout,
         )
-        return response.choices[0].message.content
+        content = response.choices[0].message.content if response.choices else None
+        if not content:
+            raise LLMCallError("LLM returned an empty response.")
+        return content
     except Exception as e:
         raise LLMCallError(str(e)) from e

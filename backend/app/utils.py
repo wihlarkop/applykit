@@ -4,6 +4,13 @@ from app.models import Profile
 from app.schemas import ProfileData
 
 
+def _safe_json(value: str | None, fallback: list) -> list:
+    try:
+        return json.loads(value or "[]")
+    except (json.JSONDecodeError, TypeError):
+        return fallback
+
+
 def profile_to_schema(p: Profile) -> ProfileData:
     return ProfileData(
         id=p.id,
@@ -18,10 +25,10 @@ def profile_to_schema(p: Profile) -> ProfileData:
         github=p.github,
         portfolio=p.portfolio,
         summary=p.summary,
-        work_experience=json.loads(p.work_experience or "[]"),
-        education=json.loads(p.education or "[]"),
-        skills=json.loads(p.skills or "[]"),
-        projects=json.loads(p.projects or "[]"),
-        certifications=json.loads(p.certifications or "[]"),
+        work_experience=_safe_json(p.work_experience, []),
+        education=_safe_json(p.education, []),
+        skills=_safe_json(p.skills, []),
+        projects=_safe_json(p.projects, []),
+        certifications=_safe_json(p.certifications, []),
         updated_at=p.updated_at,
     )

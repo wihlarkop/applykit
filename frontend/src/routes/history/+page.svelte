@@ -23,35 +23,34 @@
   let clItems: GeneratedCoverLetterEntry[] = $state([]);
   let loading = $state(true);
   let errorMsg = $state('');
+  let loadSeq = 0;
 
   let selectedCv: GeneratedCVEntry | null = $state(null);
   let selectedCl: GeneratedCoverLetterEntry | null = $state(null);
 
   const allProfiles = $derived(profiles.all);
 
-  async function loadHistory() {
+  $effect(() => {
+    const profileId = filterProfileId;
+    const seq = ++loadSeq;
     loading = true;
     errorMsg = '';
     selectedCv = null;
     selectedCl = null;
-    try {
-      const [cvRes, clRes] = await Promise.all([
-        getCvHistory(filterProfileId),
-        getCoverLetterHistory(filterProfileId),
-      ]);
-      cvItems = cvRes.items;
-      clItems = clRes.items;
-    } catch (e: any) {
-      errorMsg = e.message;
-    } finally {
-      loading = false;
-    }
-  }
-
-  $effect(() => {
-    // Re-fetch whenever filterProfileId changes (runs on mount too)
-    filterProfileId;
-    loadHistory();
+    Promise.all([getCvHistory(profileId), getCoverLetterHistory(profileId)])
+      .then(([cvRes, clRes]) => {
+        if (seq !== loadSeq) return;
+        cvItems = cvRes.items;
+        clItems = clRes.items;
+      })
+      .catch((e: any) => {
+        if (seq !== loadSeq) return;
+        errorMsg = e.message;
+      })
+      .finally(() => {
+        if (seq !== loadSeq) return;
+        loading = false;
+      });
   });
 
   function formatDate(iso: string) {
@@ -81,12 +80,24 @@
     }
   }
 
-  function parseCvProfile(entry: GeneratedCVEntry): ProfileData {
-    return JSON.parse(entry.profile_snapshot) as ProfileData;
+  function parseCvProfile(entry: GeneratedCVEntry): ProfileData | null {
+    try {
+      return JSON.parse(entry.profile_snapshot) as ProfileData;
+    } catch {
+      return null;
+    }
   }
 
   function handlePrint() {
     window.print();
+  }
+
+  async function handleCopyCl() {
+    try {
+      await navigator.clipboard.writeText(selectedCl?.cover_letter_text ?? '');
+    } catch {
+      errorMsg = 'Failed to copy to clipboard.';
+    }
   }
 
   function handleRegenerate(entry: GeneratedCVEntry) {
@@ -207,7 +218,11 @@
                 </div>
               </div>
               <div class="overflow-auto max-h-[70vh]">
-                <CvPreview profile={parseCvProfile(selectedCv)} />
+                {#if parseCvProfile(selectedCv)}
+                  <CvPreview profile={parseCvProfile(selectedCv)!} />
+                {:else}
+                  <p class="p-8 text-sm text-destructive">Could not parse CV snapshot.</p>
+                {/if}
               </div>
             </div>
           {:else}
@@ -256,7 +271,7 @@
                   <Button
                     variant="outline"
                     size="sm"
-                    onclick={() => navigator.clipboard.writeText(selectedCl?.cover_letter_text ?? '')}
+                    onclick={handleCopyCl}
                   >
                     Copy
                   </Button>

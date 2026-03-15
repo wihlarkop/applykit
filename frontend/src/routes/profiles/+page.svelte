@@ -17,6 +17,7 @@
   function openCreate() { modalMode = 'create'; editingProfile = null; }
   function openEdit(p: ProfileListItem) { editingProfile = p; modalMode = 'edit'; }
   function closeModal() { modalMode = null; editingProfile = null; }
+  function closeModalWithError(msg: string) { modalMode = null; editingProfile = null; error = msg; }
 
   async function handleDelete(p: ProfileListItem) {
     if (!confirm(`Delete profile "${p.label}"? This cannot be undone.`)) return;
@@ -109,7 +110,7 @@
 {:else if modalMode === 'edit' && editingProfile}
   {#await getProfile(editingProfile.id) then fullProfile}
     <ProfileModal mode="edit" profile={fullProfile} onclose={closeModal} onsaved={handleSaved} />
-  {:catch}
-    {closeModal()}
+  {:catch e}
+    {closeModalWithError(e?.message ?? 'Failed to load profile for editing')}
   {/await}
 {/if}

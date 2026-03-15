@@ -3,10 +3,11 @@
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { User, FileText, Sparkles, Mail, ArrowRight, Lock } from '@lucide/svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
+  import { activeProfile } from '$lib/activeProfile.svelte';
 
   let { data } = $props();
   const isOnboarded = $derived(data.isOnboarded);
-  const profile = $derived(data.profile);
+  const profile = $derived(activeProfile.current);
 
   const cards = [
     {
@@ -67,8 +68,8 @@
         <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight mb-4 text-foreground">
           {#if isOnboarded === undefined}
             <Skeleton class="h-12 w-64 rounded-xl" />
-          {:else if isOnboarded && profile?.name}
-            Ready for the next role, <span class="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-500">{profile.name}</span>?
+          {:else if isOnboarded && profile?.label}
+            Ready for the next role, <span class="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-500">{profile.label}</span>?
           {:else}
             Welcome to <span class="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-500">ApplyKit</span>
           {/if}

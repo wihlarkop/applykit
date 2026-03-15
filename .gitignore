@@ -216,3 +216,7 @@ node_modules/
 frontend/build/
 frontend/.env
 frontend/.env.local
+
+# Allow frontend src/lib (matched by Python lib/ rule above)
+!frontend/src/lib/
+!frontend/src/lib/**

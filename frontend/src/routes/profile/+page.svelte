@@ -8,8 +8,8 @@
   import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { User, Save, Plus, Trash2, Building2, GraduationCap, FolderGit2, Award, FileUp, Sparkles as SparklesIcon, RefreshCw } from '@lucide/svelte';
   import type { ProfileData, Project, WorkExperience } from '$lib/types';
-  import { onMount } from 'svelte';
   import CvImporter from '$lib/components/CvImporter.svelte';
+  import { activeProfile } from '$lib/activeProfile.svelte';
   import { invalidateAll } from '$app/navigation';
   import { toastState } from '$lib/toast.svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
@@ -40,14 +40,12 @@
 
   const isProfileEmpty = $derived(!profile.name && !profile.email && profile.work_experience.length === 0);
 
-  async function loadProfile() {
+  async function loadProfile(id: number) {
     loading = true;
     try {
-      const res = await getProfile();
-      if (res.profile) {
-        profile = { ...res.profile };
-        skillsText = ''; // Keep input empty initially, tags handle the state
-      }
+      const data = await getProfile(id);
+      profile = { ...data };
+      skillsText = '';
     } catch (e: any) {
       toastState.error(`Failed to load profile: ${e.message}`);
     } finally {
@@ -70,12 +68,17 @@
     profile.skills = profile.skills.filter(s => s !== skill);
   }
 
-  onMount(loadProfile);
+  $effect(() => {
+    const ap = activeProfile.current;
+    if (ap) loadProfile(ap.id);
+  });
 
   async function handleSave() {
+    const ap = activeProfile.current;
+    if (!ap) return;
     saving = true;
     try {
-      await saveProfile(profile);
+      await saveProfile(ap.id, profile);
       toastState.success('Profile saved successfully!');
       await invalidateAll();
     } catch (e: any) {
@@ -87,7 +90,8 @@
 
   async function onImportSuccess() {
     showImporter = false;
-    await loadProfile();
+    const ap = activeProfile.current;
+    if (ap) await loadProfile(ap.id);
     await invalidateAll();
   }
 
@@ -159,6 +163,43 @@
     { id: 'projects', label: 'Projects', icon: FolderGit2 },
     { id: 'certifications', label: 'Certifications', icon: Award },
   ];
+
+  const profileHealth = $derived(() => {
+    let score = 0;
+    
+    // Personal Info (25%)
+    if (profile.name && profile.email && profile.summary) score += 25;
+    else if (profile.name || profile.email) score += 10;
+
+    // Skills (15%) - 3+ skills for full credit
+    if (profile.skills.length >= 3) score += 15;
+    else if (profile.skills.length > 0) score += 5;
+
+    // Experience (20%)
+    if (profile.work_experience.length > 0) score += 20;
+
+    // Education (15%)
+    if (profile.education.length > 0) score += 15;
+
+    // Projects (15%)
+    if (profile.projects.length > 0) score += 15;
+
+    // Certifications (10%)
+    if (profile.certifications.length > 0) score += 10;
+
+    return score;
+  });
+
+  const healthMessage = $derived(() => {
+    const score = profileHealth();
+    if (score === 100) return "Profile is 100% complete!";
+    if (profile.work_experience.length === 0) return "Add work experience to boost strength.";
+    if (profile.skills.length < 3) return "Add at least 3 skills for a stronger profile.";
+    if (profile.projects.length === 0) return "Showcase a project to highlight your work.";
+    if (profile.certifications.length === 0) return "Add certifications for extra validation.";
+    if (!profile.summary) return "Add a summary to introduce yourself.";
+    return "Complete more sections to reach 100%.";
+  });
 </script>
 
 <div class="space-y-8 max-w-6xl pb-20 relative px-4 mx-auto">
@@ -261,11 +302,14 @@
       </div>
 
       <div class="mt-8 p-6 rounded-2xl bg-primary/5 border border-primary/10">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-primary mb-2">Profile Health</h3>
-        <div class="h-2 w-full bg-muted rounded-full overflow-hidden mb-2">
-          <div class="h-full bg-primary" style="width: 80%"></div>
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-primary">Profile Health</h3>
+          <span class="text-xs font-bold text-primary">{profileHealth()}%</span>
         </div>
-        <p class="text-[11px] text-muted-foreground">Add certifications to reach 100% profile strength.</p>
+        <div class="h-2 w-full bg-muted rounded-full overflow-hidden mb-2">
+          <div class="h-full bg-primary transition-all duration-500 ease-out" style="width: {profileHealth()}%"></div>
+        </div>
+        <p class="text-[11px] text-muted-foreground leading-relaxed">{healthMessage()}</p>
       </div>
     </aside>
 

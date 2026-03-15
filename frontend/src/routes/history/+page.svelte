@@ -104,11 +104,19 @@
               >
                 <div class="flex items-center justify-between gap-2">
                   <span class="text-sm font-medium truncate">{formatDate(entry.created_at)}</span>
-                  {#if entry.enhanced}
-                    <Badge variant="default" class="text-xs shrink-0">AI</Badge>
-                  {:else}
-                    <Badge variant="secondary" class="text-xs shrink-0">Raw</Badge>
-                  {/if}
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    {#if entry.profile_color && entry.profile_icon}
+                      <span class="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span class="w-2 h-2 rounded-full" style="background:{entry.profile_color}"></span>
+                        {entry.profile_icon}
+                      </span>
+                    {/if}
+                    {#if entry.enhanced}
+                      <Badge variant="default" class="text-xs">AI</Badge>
+                    {:else}
+                      <Badge variant="secondary" class="text-xs">Raw</Badge>
+                    {/if}
+                  </div>
                 </div>
               </button>
             {/each}
@@ -157,6 +165,12 @@
                 <div class="text-sm font-medium truncate">
                   {entry.company_name ?? 'Unknown Company'}
                 </div>
+                {#if entry.profile_color && entry.profile_icon}
+                  <span class="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span class="w-2 h-2 rounded-full" style="background:{entry.profile_color}"></span>
+                    {entry.profile_icon}
+                  </span>
+                {/if}
                 <div class="text-xs text-muted-foreground mt-0.5">{formatDate(entry.created_at)}</div>
               </button>
             {/each}

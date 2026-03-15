@@ -5,8 +5,10 @@
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
   import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '$lib/components/ui/card';
-  import { FileText, Upload, Type, Sparkles, Save, CheckCircle2 } from '@lucide/svelte';
+  import { Upload, Type, Sparkles, Save, CheckCircle2 } from '@lucide/svelte';
   import type { ProfileData } from '$lib/types';
+
+  let { onSaveSuccess } = $props<{ onSaveSuccess?: () => void }>();
 
   type Tab = 'file' | 'text';
   let tab: Tab = $state('file');
@@ -24,11 +26,13 @@
     file = input.files?.[0] ?? null;
     errorMsg = '';
     preview = null;
+    successMsg = '';
   }
 
   async function handleImport() {
     errorMsg = '';
     preview = null;
+    successMsg = '';
     loading = true;
     try {
       if (tab === 'file') {
@@ -53,7 +57,8 @@
     errorMsg = '';
     try {
       await saveProfile(ap.id, preview);
-      successMsg = 'Profile saved from import!';
+      successMsg = 'Profile successfully updated!';
+      if (onSaveSuccess) onSaveSuccess();
     } catch (e: any) {
       errorMsg = e.message;
     } finally {
@@ -62,23 +67,9 @@
   }
 </script>
 
-<div class="space-y-8 max-w-3xl pb-10 relative">
-  <!-- Sticky Header -->
-  <div class="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border -mx-4 px-4 py-4 mb-8">
-    <div class="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4 max-w-3xl mx-auto">
-      <div>
-        <h1 class="text-2xl font-bold flex items-center gap-2">
-          <FileText class="w-6 h-6 text-primary" />
-          Import CV
-        </h1>
-        <p class="text-xs text-muted-foreground mt-0.5">Quickly populate your profile by extracting data from an existing CV using AI.</p>
-      </div>
-    </div>
-  </div>
-
-  <Card class="shadow-sm border-primary/20">
+<div class="space-y-6">
+  <Card class="shadow-sm border-primary/20 bg-background/50 backdrop-blur-sm">
     <CardHeader class="pb-4">
-      <!-- Tab toggle -->
       <div class="flex gap-2">
         <button
           class="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all rounded-md
@@ -111,7 +102,7 @@
               oninput={handleFileInput}
               class="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border-0
                     file:bg-primary file:text-primary-foreground file:px-4 file:py-2.5 file:text-sm file:font-medium
-                    hover:file:bg-primary/90 cursor-pointer border rounded-md p-1"
+                    hover:file:bg-primary/90 cursor-pointer border rounded-md p-1 bg-background"
             />
             <Button onclick={handleImport} disabled={loading || !file} size="lg" class="w-full sm:w-auto shadow-sm min-w-[140px]">
               {#if loading}
@@ -145,65 +136,69 @@
       {/if}
 
       {#if errorMsg}
-        <div class="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">
+        <div class="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20 animate-in fade-in zoom-in-95 duration-200">
           {errorMsg}
         </div>
       {/if}
     </CardContent>
   </Card>
 
-  <!-- Preview -->
   {#if preview}
     <div class="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <Card class="shadow-sm border-green-500/20 bg-green-500/5">
-        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
+      <Card class="shadow-md border-green-500/20 bg-green-500/5 overflow-hidden">
+        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4 bg-green-500/10">
           <div>
             <CardTitle class="flex items-center gap-2 text-lg text-green-700 dark:text-green-400">
               <CheckCircle2 class="w-5 h-5" />
               Extraction Successful
             </CardTitle>
-            <CardDescription class="mt-1">Review the extracted data below before saving it to your profile.</CardDescription>
+            <CardDescription class="mt-1 text-green-600/80">Review your profile components extracted by AI.</CardDescription>
           </div>
-          <Button onclick={handleSave} disabled={saving} size="sm" class="bg-green-600 hover:bg-green-700 text-white shadow-sm">
+          <Button onclick={handleSave} disabled={saving} size="sm" class="bg-green-600 hover:bg-green-700 text-white shadow-sm px-6">
             <Save class="w-4 h-4 mr-2" />
-            {saving ? 'Saving…' : 'Save to Profile'}
+            {saving ? 'Saving…' : 'Save & Continue'}
           </Button>
         </CardHeader>
         
-        <CardContent>
+        <CardContent class="pt-6">
           {#if successMsg}
-            <div class="mb-6 p-3 rounded-md bg-green-500/20 text-green-700 dark:text-green-400 text-sm font-medium">
+            <div class="mb-6 p-3 rounded-md bg-green-500/20 text-green-700 dark:text-green-400 text-sm font-medium animate-in fade-in duration-300">
               {successMsg}
             </div>
           {/if}
 
           <div class="space-y-6">
-            <div class="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2 bg-background p-4 rounded-lg border">
-              <div><span class="font-semibold text-muted-foreground w-20 inline-block">Name:</span> <span>{preview.name || '—'}</span></div>
-              <div><span class="font-semibold text-muted-foreground w-20 inline-block">Email:</span> <span>{preview.email || '—'}</span></div>
-              <div><span class="font-semibold text-muted-foreground w-20 inline-block">Phone:</span> <span>{preview.phone || '—'}</span></div>
-              <div><span class="font-semibold text-muted-foreground w-20 inline-block">Location:</span> <span>{preview.location || '—'}</span></div>
+            <div class="grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2 bg-background/50 p-4 rounded-xl border border-green-500/10">
+              <div class="flex flex-col gap-1">
+                <span class="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">Full Name</span>
+                <span class="font-medium text-foreground">{preview.name || '—'}</span>
+              </div>
+              <div class="flex flex-col gap-1">
+                <span class="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">Email Address</span>
+                <span class="font-medium text-foreground">{preview.email || '—'}</span>
+              </div>
+              <div class="flex flex-col gap-1">
+                <span class="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">Phone Number</span>
+                <span class="font-medium text-foreground">{preview.phone || '—'}</span>
+              </div>
+              <div class="flex flex-col gap-1">
+                <span class="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">Location</span>
+                <span class="font-medium text-foreground">{preview.location || '—'}</span>
+              </div>
             </div>
 
-            {#if preview.summary}
-              <div class="text-sm bg-background p-4 rounded-lg border">
-                <span class="font-semibold text-muted-foreground">Professional Summary</span>
-                <p class="mt-2 text-foreground leading-relaxed">{preview.summary}</p>
-              </div>
-            {/if}
-
             <div class="grid gap-4 sm:grid-cols-3">
-              <div class="text-sm bg-background p-4 rounded-lg border text-center">
-                <div class="text-2xl font-bold text-primary mb-1">{preview.work_experience.length}</div>
-                <div class="text-muted-foreground font-medium">Work Entries</div>
+              <div class="bg-background/50 p-4 rounded-xl border border-green-500/10 text-center flex flex-col items-center justify-center">
+                <div class="text-3xl font-black text-primary/80">{preview.work_experience.length}</div>
+                <div class="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">Experience Items</div>
               </div>
-              <div class="text-sm bg-background p-4 rounded-lg border text-center">
-                <div class="text-2xl font-bold text-purple-500 mb-1">{preview.education.length}</div>
-                <div class="text-muted-foreground font-medium">Education Entries</div>
+              <div class="bg-background/50 p-4 rounded-xl border border-green-500/10 text-center flex flex-col items-center justify-center">
+                <div class="text-3xl font-black text-purple-500/80">{preview.education.length}</div>
+                <div class="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">Education Items</div>
               </div>
-              <div class="text-sm bg-background p-4 rounded-lg border text-center">
-                <div class="text-2xl font-bold text-amber-500 mb-1">{preview.skills.length}</div>
-                <div class="text-muted-foreground font-medium">Skills Found</div>
+              <div class="bg-background/50 p-4 rounded-xl border border-green-500/10 text-center flex flex-col items-center justify-center">
+                <div class="text-3xl font-black text-amber-500/80">{preview.skills.length}</div>
+                <div class="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">Skills Detected</div>
               </div>
             </div>
           </div>

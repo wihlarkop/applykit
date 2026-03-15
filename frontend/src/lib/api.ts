@@ -4,13 +4,15 @@ import type {
   GenerateCvResponse,
   PdfRequest,
   ProfileData,
-  ProfileResponse,
   StatusResponse,
   OnboardingStatusResponse,
   GeneratedCVEntry,
   GeneratedCVListResponse,
   GeneratedCoverLetterEntry,
   GeneratedCoverLetterListResponse,
+  ProfileListResponse,
+  CreateProfileRequest,
+  GenerateCvRequest,
 } from './types';
 
 const BASE_URL = 'http://localhost:8000/api';
@@ -33,14 +35,20 @@ async function request<T>(
 }
 
 // Profile
-export const getProfile = () =>
-  request<ProfileResponse>('/profile');
+export const listProfiles = () =>
+  request<ProfileListResponse>('/profiles');
 
-export const saveProfile = (data: ProfileData) =>
-  request<ProfileResponse>('/profile', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+export const createProfile = (data: CreateProfileRequest) =>
+  request<ProfileData>('/profiles', { method: 'POST', body: JSON.stringify(data) });
+
+export const getProfile = (profileId: number) =>
+  request<ProfileData>(`/profiles/${profileId}`);
+
+export const saveProfile = (profileId: number, data: ProfileData) =>
+  request<ProfileData>(`/profiles/${profileId}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteProfile = (profileId: number) =>
+  request<void>(`/profiles/${profileId}`, { method: 'DELETE' });
 
 export const getOnboardingStatus = () =>
   request<OnboardingStatusResponse>('/onboarding');
@@ -79,8 +87,8 @@ export const importCvText = (text: string) => {
 };
 
 // Generate CV
-export const generateCv = () =>
-  request<GenerateCvResponse>('/generate/cv', { method: 'POST' });
+export const generateCv = (data: GenerateCvRequest) =>
+  request<GenerateCvResponse>('/generate/cv', { method: 'POST', body: JSON.stringify(data) });
 
 export const generateCvPdf = (data: PdfRequest) =>
   fetch(`${BASE_URL}/generate/cv/pdf`, {

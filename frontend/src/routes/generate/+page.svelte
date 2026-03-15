@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { generateCv, generateCvPdf } from '$lib/api';
+  import { generateCv, generateCvPdf, getProfile } from '$lib/api';
+  import { activeProfile } from '$lib/activeProfile.svelte';
   import CvPreview from '$lib/components/CvPreview.svelte';
-  import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
-  import { Sparkles, Download, Printer, FileText, Lock } from '@lucide/svelte';
+  import { Textarea } from '$lib/components/ui/textarea';
+  import { Label } from '$lib/components/ui/label';
+  import { Sparkles, Download, Printer, FileText, Lock, UserRoundPen } from '@lucide/svelte';
   import { toastState } from '$lib/toast.svelte';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import type { ProfileData } from '$lib/types';
@@ -18,12 +20,29 @@
   let loading = $state(false);
   let downloading = $state(false);
   let previewEl: HTMLDivElement | undefined = $state(undefined);
+  let jobDescription = $state('');
+  let activeProfileData: ProfileData | null = $state(null);
+
+  const isProfileEmpty = $derived(
+    !activeProfileData ||
+    (activeProfileData.work_experience.length === 0 &&
+     activeProfileData.skills.length === 0 &&
+     activeProfileData.education.length === 0)
+  );
+
+  $effect(() => {
+    const ap = activeProfile.current;
+    if (!ap) { activeProfileData = null; return; }
+    getProfile(ap.id).then(p => { activeProfileData = p; }).catch(() => {});
+  });
 
   async function handleGenerate() {
+    const ap = activeProfile.current;
+    if (!ap) return;
     loading = true;
     profile = null;
     try {
-      const res = await generateCv();
+      const res = await generateCv({ profile_id: ap.id, enhance: true, job_description: jobDescription.trim() || null });
       profile = res.profile;
       enhanced = res.enhanced;
       toastState.success('CV Generated Successfully!');
@@ -83,15 +102,15 @@
           </Button>
           <Button variant="outline" size="sm" onclick={handleDownloadPdf} disabled={downloading} class="shadow-sm">
             <Download class="w-4 h-4 mr-2" />
-            {downloading ? 'Down...' : 'Download PDF'}
+            {downloading ? 'Downloading…' : 'Download PDF'}
           </Button>
         {/if}
-        <Button onclick={handleGenerate} disabled={loading || !isOnboarded} size="sm" class="shadow-md h-9">
+        <Button onclick={handleGenerate} disabled={loading || !isOnboarded || isProfileEmpty} size="sm" class="shadow-md h-9">
           {#if !isOnboarded}
             <Lock class="w-4 h-4 mr-2" /> Locked
           {:else}
             <Sparkles class="w-4 h-4 mr-2 {loading ? 'animate-pulse' : ''}" />
-            {loading ? 'Gener...' : 'Generate ATS CV'}
+            {loading ? 'Generating…' : 'Generate ATS CV'}
           {/if}
         </Button>
       </div>
@@ -99,18 +118,53 @@
   </div>
 
 
+  <!-- Job Description + Profile Context -->
+  <div class="grid sm:grid-cols-[1fr_auto] gap-4 items-start">
+    <div class="space-y-2">
+      <Label for="jd" class="font-semibold">Job Description <span class="text-muted-foreground text-xs font-normal">(optional — helps AI tailor your CV)</span></Label>
+      <Textarea
+        id="jd"
+        bind:value={jobDescription}
+        placeholder="Paste the job posting here to get a CV tailored to this specific role…"
+        rows={4}
+        class="bg-background/50 resize-y max-h-[30vh]"
+      />
+    </div>
+    {#if activeProfile.current}
+      <div class="flex items-center gap-2 sm:mt-7 px-3 py-2 rounded-lg bg-muted/50 border text-sm shrink-0">
+        <span class="text-base leading-none">{activeProfile.current.icon}</span>
+        <span class="font-medium">{activeProfile.current.label}</span>
+      </div>
+    {/if}
+  </div>
+
   {#if !profile && !loading}
-    <Card class="border-dashed border-2 bg-muted/30">
-      <CardContent class="flex flex-col items-center justify-center py-16 text-center">
-        <div class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
-          <FileText class="w-8 h-8" />
-        </div>
-        <h3 class="text-xl font-bold mb-2">Ready to generate your CV?</h3>
-        <p class="text-muted-foreground max-w-md mx-auto">
-          Click the "Generate ATS CV" button above to dynamically create a beautifully formatted resume. If your API key is configured, AI will enhance your bullet points for ATS systems.
-        </p>
-      </CardContent>
-    </Card>
+    {#if isProfileEmpty}
+      <Card class="border-dashed border-2 border-yellow-400/60 bg-yellow-50/30 dark:bg-yellow-900/10">
+        <CardContent class="flex flex-col items-center justify-center py-16 text-center">
+          <div class="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 rounded-full flex items-center justify-center mb-4">
+            <UserRoundPen class="w-8 h-8" />
+          </div>
+          <h3 class="text-xl font-bold mb-2">Profile is empty</h3>
+          <p class="text-muted-foreground max-w-sm mx-auto mb-5">
+            Add your work experience, education, or skills to <strong>{activeProfile.current?.label ?? 'this profile'}</strong> before generating a CV.
+          </p>
+          <Button href="/profile" variant="default">Fill in my profile</Button>
+        </CardContent>
+      </Card>
+    {:else}
+      <Card class="border-dashed border-2 bg-muted/30">
+        <CardContent class="flex flex-col items-center justify-center py-16 text-center">
+          <div class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
+            <FileText class="w-8 h-8" />
+          </div>
+          <h3 class="text-xl font-bold mb-2">Ready to generate your CV?</h3>
+          <p class="text-muted-foreground max-w-md mx-auto">
+            Click the "Generate ATS CV" button above to dynamically create a beautifully formatted resume. If your API key is configured, AI will enhance your bullet points for ATS systems.
+          </p>
+        </CardContent>
+      </Card>
+    {/if}
   {/if}
 
   {#if loading}

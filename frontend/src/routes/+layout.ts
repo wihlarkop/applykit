@@ -1,46 +1,51 @@
 import { redirect } from '@sveltejs/kit';
-import { getOnboardingStatus, getProfile } from '$lib/api';
+import { getOnboardingStatus, listProfiles, createProfile } from '$lib/api';
+import { profiles } from '$lib/profiles.svelte';
+import { activeProfile } from '$lib/activeProfile.svelte';
 
 export const ssr = false;
 
 export const load = async ({ url }) => {
-  let isOnboarded = true; // Default to true if check fails to not hard-block
-  let profile = null;
+  let isOnboarded = true;
 
   try {
     const status = await getOnboardingStatus();
     isOnboarded = status.is_onboarded;
-    
-    if (isOnboarded) {
-      try {
-        const profileRes = await getProfile();
-        profile = profileRes.profile;
-      } catch (e) {
-        console.warn("Could not fetch profile", e);
+
+    try {
+      let res = await listProfiles();
+
+      // Fresh install: no profiles yet — create the default one
+      if (res.items.length === 0) {
+        await createProfile({ label: 'Default', color: '#6366f1', icon: '💼' });
+        res = await listProfiles();
       }
+
+      profiles.set(res.items);
+
+      // Validate stored active profile or fall back to first
+      const stored = typeof localStorage !== 'undefined'
+        ? localStorage.getItem('activeProfile')
+        : null;
+      const storedProfile = stored ? JSON.parse(stored) : null;
+      const validStored = storedProfile && res.items.some((p) => p.id === storedProfile.id);
+      const fallback = res.items[0]
+        ? { id: res.items[0].id, label: res.items[0].label, color: res.items[0].color, icon: res.items[0].icon }
+        : null;
+      activeProfile.initFromStorage(validStored ? storedProfile : fallback);
+    } catch (e) {
+      console.warn('Could not load profiles', e);
     }
 
-    // Always allow access to onboarding
-    if (url.pathname.startsWith('/onboarding')) {
-      return { isOnboarded, profile };
-    }
-
+    if (url.pathname.startsWith('/onboarding')) return { isOnboarded };
     if (!isOnboarded) {
-      // Allow manual profile setup but nothing else
-      if (url.pathname.startsWith('/profile')) {
-        return { isOnboarded, profile };
-      }
+      if (url.pathname.startsWith('/profile')) return { isOnboarded };
       throw redirect(307, '/onboarding');
     }
   } catch (err: any) {
-    // Re-throw SvelteKit redirects
-    if (err && err.status === 307) {
-      throw err;
-    }
-    
-    // If the API hasn't been implemented yet (404), or backend is down, log it but don't hard block.
-    console.warn("Could not check onboarding status. Allowing navigation.", err);
+    if (err?.status === 307) throw err;
+    console.warn('Could not check onboarding status. Allowing navigation.', err);
   }
 
-  return { isOnboarded, profile };
+  return { isOnboarded };
 };

@@ -28,6 +28,10 @@ export interface Certification {
 }
 
 export interface ProfileData {
+  id?: number | null;
+  label?: string;
+  color?: string;
+  icon?: string;
   name: string;
   email: string;
   phone?: string | null;
@@ -42,6 +46,31 @@ export interface ProfileData {
   projects: Project[];
   certifications: Certification[];
   updated_at?: string | null;
+}
+
+export interface ProfileListItem {
+  id: number;
+  label: string;
+  color: string;
+  icon: string;
+  name: string;
+}
+
+export interface ProfileListResponse {
+  items: ProfileListItem[];
+}
+
+export interface CreateProfileRequest {
+  label: string;
+  color: string;
+  icon: string;
+  clone_from_id?: number | null;
+}
+
+export interface GenerateCvRequest {
+  profile_id: number;
+  enhance?: boolean;
+  job_description?: string | null;
 }
 
 export interface ProfileResponse {
@@ -63,9 +92,10 @@ export interface GenerateCvResponse {
 }
 
 export interface CoverLetterRequest {
+  profile_id?: number;
   job_description: string;
-  extra_context?: string;
   company_name?: string | null;
+  extra_context?: string;
 }
 
 export interface CoverLetterResponse {
@@ -85,7 +115,11 @@ export interface GeneratedCVEntry {
   id: number;
   created_at: string;
   enhanced: boolean;
-  profile_snapshot: string; // JSON string — parse with JSON.parse() when needed
+  profile_snapshot: string;
+  profile_id?: number | null;
+  profile_label?: string | null;
+  profile_color?: string | null;
+  profile_icon?: string | null;
 }
 
 export interface GeneratedCVListResponse {
@@ -99,6 +133,10 @@ export interface GeneratedCoverLetterEntry {
   job_description: string;
   extra_context: string | null;
   cover_letter_text: string;
+  profile_id?: number | null;
+  profile_label?: string | null;
+  profile_color?: string | null;
+  profile_icon?: string | null;
 }
 
 export interface GeneratedCoverLetterListResponse {

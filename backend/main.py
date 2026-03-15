@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routes import generate, history, import_cv, profile
+from app.routes import generate, history, import_cv, profile, profiles
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ async def http_exception_handler(request, exc):
 
 
 app.include_router(profile.router, prefix="/api")
+app.include_router(profiles.router, prefix="/api")
 app.include_router(generate.router, prefix="/api")
 app.include_router(history.router, prefix="/api")
 app.include_router(import_cv.router, prefix="/api")

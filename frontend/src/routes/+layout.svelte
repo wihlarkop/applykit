@@ -1,8 +1,9 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import StatusIndicator from '$lib/components/StatusIndicator.svelte';
   import Toaster from '$lib/components/Toaster.svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+  import ProfileSwitcher from '$lib/components/ProfileSwitcher.svelte';
+  import SettingsButton from '$lib/components/SettingsButton.svelte';
   import { themeState } from '$lib/theme.svelte';
   import '../app.css';
 
@@ -14,6 +15,7 @@
     { href: '/profile', label: 'Profile' },
     { href: '/generate', label: 'Generate CV' },
     { href: '/cover-letter', label: 'Cover Letter' },
+    { href: '/profiles', label: 'Profiles' },
     { href: '/history', label: 'History' },
   ];
 
@@ -28,7 +30,7 @@
 </script>
 
 <div class="min-h-screen flex flex-col bg-muted/40">
-  <header class="border-b bg-card">
+  <header class="sticky top-0 z-[60] border-b bg-card">
     <div class="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-8">
         <a href={isOnboarded ? "/" : "/onboarding"} class="font-bold text-lg tracking-tight hover:text-primary transition-colors">ApplyKit</a>
@@ -52,8 +54,9 @@
 
       {#if isOnboarded}
         <div class="flex items-center gap-3 animate-in fade-in duration-500">
+          <ProfileSwitcher />
           <ThemeToggle />
-          <StatusIndicator />
+          <SettingsButton />
         </div>
       {/if}
     </div>

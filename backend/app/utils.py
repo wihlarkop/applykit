@@ -6,6 +6,10 @@ from app.schemas import ProfileData
 
 def profile_to_schema(p: Profile) -> ProfileData:
     return ProfileData(
+        id=p.id,
+        label=p.label,
+        color=p.color,
+        icon=p.icon,
         name=p.name,
         email=p.email,
         phone=p.phone,

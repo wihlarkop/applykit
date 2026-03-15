@@ -83,6 +83,7 @@ class CreateProfileRequest(BaseModel):
 class GenerateCvRequest(BaseModel):
     profile_id: int
     enhance: bool = True
+    job_description: str | None = None
 
 
 class OnboardingStatusResponse(BaseModel):

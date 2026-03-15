@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Settings } from '@lucide/svelte';
   import SettingsModal from '$lib/components/SettingsModal.svelte';
+  import StatusIndicator from '$lib/components/StatusIndicator.svelte';
 
   // Open the modal automatically when the page loads
   let modalOpen = $state(true);
@@ -14,6 +15,8 @@
     </h1>
     <p class="text-sm text-muted-foreground mt-1">Configure your AI provider and API key.</p>
   </div>
+
+  <StatusIndicator />
 
   <p class="text-sm text-muted-foreground">
     Use the settings panel — or click the ⚙ gear icon in the top navigation bar.

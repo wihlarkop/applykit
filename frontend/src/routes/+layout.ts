@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import { browser } from '$app/environment';
-import { getOnboardingStatus, listProfiles, createProfile } from '$lib/api';
+import { getOnboardingStatus, getStatus, listProfiles, createProfile } from '$lib/api';
 import { profiles } from '$lib/profiles.svelte';
 import { activeProfile } from '$lib/activeProfile.svelte';
 
@@ -8,10 +8,12 @@ export const ssr = false;
 
 export const load = async ({ url }) => {
   let isOnboarded = true;
+  let isApiKeyConfigured = true; // fail open — if /api/status unreachable, don't lock users out
 
   try {
-    const status = await getOnboardingStatus();
-    isOnboarded = status.is_onboarded;
+    const [onboarding, llmStatus] = await Promise.all([getOnboardingStatus(), getStatus()]);
+    isOnboarded = onboarding.is_onboarded;
+    isApiKeyConfigured = llmStatus.api_key_configured;
 
     try {
       let res = await listProfiles();
@@ -39,9 +41,17 @@ export const load = async ({ url }) => {
       console.warn('Could not load profiles', e);
     }
 
-    if (url.pathname.startsWith('/onboarding')) return { isOnboarded };
-    if (!isOnboarded) {
-      if (url.pathname === '/profile' || url.pathname.startsWith('/profile/')) return { isOnboarded };
+    const onSettings = url.pathname.startsWith('/settings');
+    const onOnboarding = url.pathname.startsWith('/onboarding');
+    const onProfile = url.pathname === '/profile' || url.pathname.startsWith('/profile/');
+
+    // Gate 1: API key must be configured
+    if (!isApiKeyConfigured && !onSettings) {
+      throw redirect(307, '/settings');
+    }
+
+    // Gate 2: Profile must exist (onboarding)
+    if (!isOnboarded && !onSettings && !onOnboarding && !onProfile) {
       throw redirect(307, '/onboarding');
     }
   } catch (err: any) {
@@ -49,5 +59,5 @@ export const load = async ({ url }) => {
     console.warn('Could not check onboarding status. Allowing navigation.', err);
   }
 
-  return { isOnboarded };
+  return { isOnboarded, isApiKeyConfigured };
 };

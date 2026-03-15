@@ -32,7 +32,7 @@ color = Column(String, nullable=False, default="#6366f1")  # hex color
 icon  = Column(String, nullable=False, default="💼")        # emoji
 ```
 
-- `id` column: remove `default=1`, keep as `Integer, primary_key=True, autoincrement=True`
+- `id` column: remove `default=1` **in the Python model only** — this is not a DDL change. SQLite `INTEGER PRIMARY KEY` is already an alias for `rowid` and auto-assigns IDs without `AUTOINCREMENT`. No table recreation needed.
 - Existing row (id=1) backfilled with defaults in migration
 
 ### GeneratedCV — new column
@@ -101,7 +101,10 @@ class CoverLetterRequest(BaseModel):
     extra_context: str = ""
 ```
 
-Both routes load the profile from DB using `profile_id`, generate content, and save history with `profile_id`.
+**Important — function signature changes in `generate.py`:**
+- `generate_cv()` currently takes no request body (reads `id=1` from DB). It must be updated to accept `req: GenerateCvRequest` as a body parameter, and replace the hardcoded `id=1` lookup with `db.query(Profile).filter_by(id=req.profile_id).first()` (raise 404 if not found).
+- `generate_cover_letter()` already accepts `req: CoverLetterRequest` — add `profile_id` to that schema and update the profile lookup the same way.
+- Both routes save `profile_id` to the history entry after generation.
 
 ### Onboarding endpoint
 
@@ -136,9 +139,41 @@ class GenerateCvRequest(BaseModel):
     enhance: bool = True
 ```
 
-`ProfileData` gains `label`, `color`, `icon`, `id` fields.
+**Updated `ProfileData`** — gains four new fields (all optional so `import_cv.py` which returns a parsed-but-not-saved profile object is unaffected):
 
-History schemas gain `profile_id: int | None` and `profile_label: str | None`, `profile_color: str | None`, `profile_icon: str | None` for display on the history page (joined at query time).
+```python
+class ProfileData(BaseModel):
+    id: int | None = None          # None when not yet saved (e.g. import preview)
+    label: str = "Default"
+    color: str = "#6366f1"
+    icon: str = "💼"
+    name: str
+    email: str
+    # ... all existing fields unchanged ...
+    model_config = {"from_attributes": True}
+```
+
+**`PUT /api/profiles/{id}` contract:** accepts `ProfileData` body including `label`, `color`, and `icon`. The path `{id}` is authoritative — any `id` field in the body is ignored. All fields (professional data + identity) are updated in a single call. No separate identity endpoint.
+
+**Updated history schemas** — gain profile identity fields for display:
+
+```python
+class GeneratedCVEntry(BaseModel):
+    # existing fields...
+    profile_id: int | None = None
+    profile_label: str | None = None
+    profile_color: str | None = None
+    profile_icon: str | None = None
+
+class GeneratedCoverLetterEntry(BaseModel):
+    # existing fields...
+    profile_id: int | None = None
+    profile_label: str | None = None
+    profile_color: str | None = None
+    profile_icon: str | None = None
+```
+
+History routes join profile data at query time to populate these fields.
 
 ---
 
@@ -146,10 +181,10 @@ History schemas gain `profile_id: int | None` and `profile_label: str | None`, `
 
 Single migration `add_multi_profile_support`:
 
-1. Add `label VARCHAR NOT NULL DEFAULT 'Default'` to `profile`
+1. Add `label VARCHAR NOT NULL DEFAULT 'Default'` to `profile` (use `batch_alter_table` for SQLite)
 2. Add `color VARCHAR NOT NULL DEFAULT '#6366f1'` to `profile`
 3. Add `icon VARCHAR NOT NULL DEFAULT '💼'` to `profile`
-4. Make `profile.id` autoincrement (requires SQLite table recreation via `batch_alter_table`)
+4. **No DDL change for `profile.id`** — remove `default=1` from the Python model only; SQLite `INTEGER PRIMARY KEY` already auto-assigns IDs.
 5. Add `profile_id INTEGER REFERENCES profile(id)` (nullable) to `generated_cv`
 6. Add `profile_id INTEGER REFERENCES profile(id)` (nullable) to `generated_cover_letter`
 
@@ -162,7 +197,8 @@ Single migration `add_multi_profile_support`:
 | File | Purpose |
 |------|---------|
 | `src/lib/activeProfile.svelte.ts` | Svelte 5 `$state` store — active profile, persisted to localStorage |
-| `src/lib/components/ProfileSwitcher.svelte` | Dropdown button showing active profile; lists all profiles; opens create modal |
+| `src/lib/profiles.svelte.ts` | Svelte 5 `$state` store — full list of `ProfileListItem[]`, loaded once in `+layout.ts` and shared app-wide |
+| `src/lib/components/ProfileSwitcher.svelte` | Dropdown button showing active profile; reads from `profiles` store; opens create modal |
 | `src/lib/components/ProfileModal.svelte` | Create/edit modal — label input, 8 color swatches, 8 icon tiles, clone option, live preview |
 | `src/routes/profiles/+page.svelte` | Profile management page — list all profiles, edit/delete per card, New Profile button |
 
@@ -172,12 +208,34 @@ Single migration `add_multi_profile_support`:
 |------|--------|
 | `src/lib/types.ts` | Add `ProfileListItem`, `ProfileListResponse`, `CreateProfileRequest`, `GenerateCvRequest`; add `id`, `label`, `color`, `icon` to `ProfileData`; add `profile_id/label/color/icon` to history types |
 | `src/lib/api.ts` | Add `listProfiles`, `createProfile`, `getProfile`, `saveProfile`, `deleteProfile`; update `generateCv`, `generateCoverLetter` to include `profile_id` |
-| `src/routes/+layout.ts` | Fetch profiles list; initialize `activeProfile` store from localStorage or first profile |
+| `src/routes/+layout.ts` | Remove old `getProfile()` call and `profile` prop. Fetch `listProfiles()`; populate `profiles` store; initialize `activeProfile` store from localStorage (validate stored id exists) or fall back to first profile. Pages load their own profile data directly by active `profile_id`. |
 | `src/routes/+layout.svelte` | Add "Profiles" nav link |
 | `src/routes/profile/+page.svelte` | Add `<ProfileSwitcher />` at top; load/save by active `profile_id` |
 | `src/routes/generate/+page.svelte` | Add `<ProfileSwitcher />` at top; pass `profile_id` in generate request |
 | `src/routes/cover-letter/+page.svelte` | Add `<ProfileSwitcher />` at top; pass `profile_id` in cover letter request |
 | `src/routes/history/+page.svelte` | Show color dot + icon badge on each history entry |
+
+### `profiles.svelte.ts` design
+
+```typescript
+import type { ProfileListItem } from './types';
+
+function createProfilesStore() {
+  let list = $state<ProfileListItem[]>([]);
+  return {
+    get all() { return list; },
+    set(items: ProfileListItem[]) { list = items; },
+    remove(id: number) { list = list.filter(p => p.id !== id); },
+    upsert(item: ProfileListItem) {
+      const idx = list.findIndex(p => p.id === item.id);
+      if (idx >= 0) list[idx] = item; else list = [...list, item];
+    }
+  };
+}
+export const profiles = createProfilesStore();
+```
+
+`ProfileSwitcher` imports `profiles.all` directly — no prop drilling needed.
 
 ### `activeProfile.svelte.ts` design
 

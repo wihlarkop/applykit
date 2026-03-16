@@ -72,8 +72,8 @@
             <div class="w-14 h-14 bg-muted text-muted-foreground rounded-2xl flex items-center justify-center mb-4 border shadow-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors">
               <User class="w-8 h-8" />
             </div>
-            <CardTitle class="text-2xl">Manual Setup</CardTitle>
-            <CardDescription class="text-base">Prefer doing it yourself? Enter your information manually step-by-step. You can always change it later.</CardDescription>
+            <CardTitle class="text-2xl">Starting Fresh?</CardTitle>
+            <CardDescription class="text-base">No CV yet? Enter your information step-by-step. Takes about 5 minutes and you can always update it later.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onclick={startManual} variant="outline" class="w-full h-12 text-lg rounded-xl">

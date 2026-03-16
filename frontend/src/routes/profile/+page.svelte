@@ -1,5 +1,6 @@
 <script lang="ts">
   import { beforeNavigate, invalidateAll } from '$app/navigation';
+  import { page } from '$app/state';
   import { activeProfile } from '$lib/activeProfile.svelte';
   import { getProfile, saveProfile } from '$lib/api';
   import CvImporter from '$lib/components/CvImporter.svelte';
@@ -223,6 +224,11 @@
   <div class="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border -mx-4 px-4 py-4 mb-8">
     <div class="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4 max-w-6xl mx-auto">
       <div>
+        {#if !page.data.isOnboarded}
+          <a href="/onboarding" class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1 transition-colors">
+            ← Back to setup
+          </a>
+        {/if}
         <h1 class="text-2xl font-bold flex items-center gap-2">
           <User class="w-6 h-6 text-primary" />
           Profile Setup

@@ -68,7 +68,7 @@ Deleting an application sets `application_id = NULL` on all linked documents —
 - **Date range**: `All time | This week | This month | Last 3 months` — filters by `applied_date`
 - **Match score**: `All | High (≥70%) | Medium (40–69%) | Low (<40%)` — filters applications that have a linked cover letter with a match_score
 
-All filters are server-side query params on `GET /api/applications`.
+All filters are server-side query params on `GET /api/applications`. Match score filtering uses `match_min` and `match_max` params (see Section 2).
 
 ### Kanban Board
 
@@ -108,7 +108,7 @@ Column header colors: Applied = muted, Interviewing = amber, Offer = green, Reje
 
 ### Card Interactions
 
-- **Drag and drop**: drag card to another column → `PATCH /api/applications/{id}` with new status. Uses `@dnd-kit/core`.
+- **Drag and drop**: drag card to another column → `PATCH /api/applications/{id}` with new status. Uses `svelte-dnd-action` (SvelteKit-compatible, MIT license).
 - **Status dropdown**: small dropdown on each card as fallback for status change → same PATCH call
 - **Click card**: opens detail panel
 
@@ -138,10 +138,11 @@ Slides in from the right when a card is clicked. Does not navigate away from the
 └─────────────────────────────────┘
 ```
 
-- Status dropdown in panel also calls `PATCH /api/applications/{id}`
-- Notes textarea: auto-saves on blur or via Save button → `PATCH /api/applications/{id}`
+- All fields (company_name, role_title, status, applied_date, job_url, notes) are editable inline in the panel
+- Status dropdown calls `PATCH /api/applications/{id}` immediately on change
+- All other fields auto-save on blur → `PATCH /api/applications/{id}`
 - Linked document rows link to the respective history detail view
-- Delete prompts a confirmation dialog; on confirm calls `DELETE /api/applications/{id}`
+- Delete prompts a confirmation dialog; on confirm calls `DELETE /api/applications/{id}` → returns `200 { "deleted": 1 }`
 
 ### Add Application (inline)
 
@@ -196,7 +197,7 @@ class ApplicationEntry(BaseModel):
     id: int
     company_name: str
     role_title: str
-    status: str
+    status: ApplicationStatus
     job_url: str | None
     notes: str | None
     applied_date: date | None
@@ -222,10 +223,12 @@ status:       str | None
 search:       str | None      (searches company_name + role_title)
 date_from:    date | None
 date_to:      date | None
+match_min:    int | None      (0–100, filters by linked cover letter match_score)
+match_max:    int | None
 sort:         "date_desc" | "date_asc"   default: date_desc
 ```
 
-Returns all matching applications (no pagination) — Kanban drag-and-drop requires full column data client-side.
+Returns all matching applications (no pagination) — Kanban drag-and-drop requires full column data client-side. No pagination is intentional for v1; a reasonable upper bound is ~500 applications before performance degrades, which is acceptable for a personal job tracker.
 
 `match_score` on `ApplicationEntry` is read from the most recently linked `generated_cover_letter` row where `match_score IS NOT NULL`.
 
@@ -240,7 +243,7 @@ tracker_role_title: str | None = None  # required if add_to_tracker=True and rol
 ```
 
 If `add_to_tracker=True`:
-1. Backend creates an `Application` record using `company_name` from the request, `tracker_role_title`, `job_url`, and today's date as `applied_date`
+1. Backend creates an `Application` record using `company_name` from `CoverLetterRequest.company_name` (already present in the existing schema), `tracker_role_title` (empty string if null), `job_url` from `CoverLetterRequest.job_url`, and today's date as `applied_date`
 2. Links the generated cover letter to the new application via `application_id`
 3. Returns `application_id` in the cover letter response
 
@@ -270,7 +273,8 @@ Appears between the tone selector and the Generate button:
 - When checked: role title input and applied date field expand (animate in)
 - Role title: autofilled if URL was scraped from Greenhouse or Lever (API returns job title); blank otherwise
 - Applied date: defaults to today
-- Fields are optional for the checkbox — role_title is required but user can type it; applied_date has a default
+- `role_title` is optional — if left blank, the Application is created with an empty string; the user can edit it later in the detail panel
+- `applied_date` has a default of today and is always submitted
 
 ---
 
@@ -311,7 +315,8 @@ User opens card detail
   → edits notes → PATCH on blur
 
 User filters by "This month" + "High match"
-  → GET /api/applications?date_from=2026-03-01&date_to=2026-03-31 (match_min handled client-side from returned match_score)
+  → GET /api/applications?date_from=2026-03-01&date_to=2026-03-31&match_min=70
+  → server filters by applied_date range and match_score on linked cover letter
 ```
 
 ---

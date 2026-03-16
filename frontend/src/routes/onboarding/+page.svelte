@@ -4,7 +4,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { toastState } from '$lib/toast.svelte';
-  import { ArrowRight, CheckCircle2, FileText, Mail, Sparkles, User } from '@lucide/svelte';
+  import { ArrowRight, CheckCircle2, Sparkles, User } from '@lucide/svelte';
   import confetti from 'canvas-confetti';
 
   let step = $state<'intro' | 'import' | 'done'>('intro');
@@ -110,26 +110,7 @@
           </p>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto pt-6">
-          <div class="p-6 rounded-2xl border bg-card hover:border-primary transition-colors text-left flex flex-col gap-3">
-            <div class="w-10 h-10 bg-purple-500/10 text-purple-500 rounded-lg flex items-center justify-center">
-              <FileText class="w-5 h-5" />
-            </div>
-            <h3 class="font-bold">Next Step: ATS CV</h3>
-            <p class="text-sm text-muted-foreground">Apply your profile to modern, clean CV templates.</p>
-            <Button href="/generate" variant="secondary" size="sm" class="mt-2">Generate CV</Button>
-          </div>
-          <div class="p-6 rounded-2xl border bg-card hover:border-primary transition-colors text-left flex flex-col gap-3">
-            <div class="w-10 h-10 bg-emerald-500/10 text-emerald-500 rounded-lg flex items-center justify-center">
-              <Mail class="w-5 h-5" />
-            </div>
-            <h3 class="font-bold">Next Step: Cover Letter</h3>
-            <p class="text-sm text-muted-foreground">Write targeted letters for specific job descriptions.</p>
-            <Button href="/cover-letter" variant="secondary" size="sm" class="mt-2">Write Letter</Button>
-          </div>
-        </div>
-
-        <div class="pt-8">
+        <div class="pt-4">
           <Button href="/" size="lg" class="rounded-full px-12 h-12 shadow-md">
             Go to Dashboard
             <ArrowRight class="ml-2 w-5 h-5" />

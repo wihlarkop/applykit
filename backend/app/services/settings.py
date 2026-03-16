@@ -1,5 +1,3 @@
-import os
-
 from sqlalchemy.orm import Session
 
 from app.models import AppSetting
@@ -67,7 +65,7 @@ def set_setting(db: Session, key: str, value: str) -> None:
 
 
 def get_llm_config(db: Session) -> tuple[str, str]:
-    """Return (model_string, api_key). DB takes precedence over env vars."""
-    model = get_setting(db, "llm_provider") or os.getenv("LLM_PROVIDER", "").strip()
-    api_key = get_setting(db, "llm_api_key") or os.getenv("LLM_API_KEY", "").strip()
+    """Return (model_string, api_key) from DB only."""
+    model = get_setting(db, "llm_provider") or ""
+    api_key = get_setting(db, "llm_api_key") or ""
     return model, api_key

@@ -1,5 +1,3 @@
-import os
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -29,12 +27,10 @@ PROVIDER_LABELS = {
 }
 
 
-def _detect_source(db: Session, db_model: str | None, db_api_key: str | None) -> str:
-    """Determine whether the active config comes from the DB, env, or nowhere."""
+def _detect_source(db_model: str | None, db_api_key: str | None) -> str:
+    """Determine whether the active config comes from the DB or nowhere."""
     if db_model and db_api_key:
         return "database"
-    if os.getenv("LLM_PROVIDER", "").strip() and os.getenv("LLM_API_KEY", "").strip():
-        return "env"
     return "none"
 
 
@@ -46,7 +42,7 @@ def get_settings(db: Session = Depends(get_db)):
     return SettingsResponse(
         model=model or None,
         api_key_configured=bool(api_key),
-        source=_detect_source(db, db_model, db_api_key),
+        source=_detect_source(db_model, db_api_key),
     )
 
 

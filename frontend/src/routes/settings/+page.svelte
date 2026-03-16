@@ -42,21 +42,12 @@
       </span>
     </div>
   {/if}
-  <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-2xl font-bold flex items-center gap-2">
-        <Settings class="w-6 h-6 text-primary" />
-        Settings
-      </h1>
-      <p class="text-sm text-muted-foreground mt-1">Manage your AI integrations.</p>
-    </div>
-    <button
-      onclick={() => (modalOpen = true)}
-      class="flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90 transition-colors"
-    >
-      <Plus class="w-4 h-4" />
-      Add Integration
-    </button>
+  <div>
+    <h1 class="text-2xl font-bold flex items-center gap-2">
+      <Settings class="w-6 h-6 text-primary" />
+      Settings
+    </h1>
+    <p class="text-sm text-muted-foreground mt-1">Manage your AI integrations.</p>
   </div>
 
   <!-- Integrations list -->

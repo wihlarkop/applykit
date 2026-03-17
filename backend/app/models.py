@@ -45,6 +45,7 @@ class GeneratedCV(Base):
     profile_id = Column(
         Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True
     )
+    application_status = Column(String, nullable=True, default=None)
 
 
 class GeneratedCoverLetter(Base):
@@ -59,6 +60,11 @@ class GeneratedCoverLetter(Base):
     profile_id = Column(
         Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True
     )
+    job_url = Column(String, nullable=True)
+    match_score = Column(Integer, nullable=True)
+    fit_analysis = Column(Text, nullable=True)  # JSON string of FitAnalysisResponse
+    tone = Column(String, nullable=False, default="professional")
+    application_status = Column(String, nullable=True, default=None)
 
 
 class AppSetting(Base):

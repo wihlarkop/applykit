@@ -193,3 +193,16 @@ class ProviderInfo(BaseModel):
 
 class ModelsResponse(BaseModel):
     providers: list[ProviderInfo]
+
+
+# --- Scraper schemas ---
+
+
+class ScrapeJobRequest(BaseModel):
+    url: str
+
+
+class ScrapeJobResponse(BaseModel):
+    job_description: str
+    company_name: str | None
+    source: Literal["greenhouse_api", "lever_api", "jina", "crawl4ai"]

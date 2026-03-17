@@ -2,7 +2,7 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -16,7 +16,7 @@ from app.schemas import (
     PdfRequest,
     ProfileData,
 )
-from app.services.llm import APIKeyNotConfiguredError, LLMCallError, call_llm
+from app.services.llm import APIKeyNotConfiguredError, LLMCallError, call_llm, stream_llm
 from app.services.pdf import PDFRenderError, html_to_pdf
 from app.services.settings import get_llm_config
 from app.utils import format_profile_for_llm, profile_to_schema
@@ -24,6 +24,13 @@ from app.utils import format_profile_for_llm, profile_to_schema
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+TONE_PROMPTS = {
+    "professional": "Write in a formal, polished tone.",
+    "enthusiastic": "Write in an energetic, passionate tone that conveys genuine excitement.",
+    "concise": "Write concisely — aim for under 200 words. No filler.",
+    "creative": "Write in a distinctive, memorable style that stands out.",
+}
 
 ATS_SYSTEM_PROMPT = """\
 You are a senior technical recruiter and CV optimization specialist. Your job is to rewrite a candidate's CV content so it passes ATS (Applicant Tracking System) filters and impresses human reviewers.
@@ -93,6 +100,14 @@ def _build_cover_letter_prompt(p: ProfileData, req: CoverLetterRequest) -> str:
         parts.append(
             f"\nSPECIAL INSTRUCTIONS FROM CANDIDATE:\n{req.extra_context.strip()}"
         )
+    if req.fit_context and req.fit_context.strip():
+        parts.append(
+            f"\nAdditional context from the candidate: {req.fit_context.strip()}.\n"
+            "Use this to guide emphasis — do not fabricate experience, but frame existing "
+            "experience to address these points where honest."
+        )
+    tone_modifier = TONE_PROMPTS.get(req.tone or "professional", TONE_PROMPTS["professional"])
+    parts.append(f"\nTONE INSTRUCTION: {tone_modifier}")
     return "\n".join(parts)
 
 
@@ -166,42 +181,49 @@ def generate_cv_pdf(req: PdfRequest):
     )
 
 
-@router.post("/generate/cover-letter", response_model=CoverLetterResponse)
-def generate_cover_letter(req: CoverLetterRequest, db: Session = Depends(get_db)):
+@router.post("/generate/cover-letter")
+async def generate_cover_letter(req: CoverLetterRequest, db: Session = Depends(get_db)):
     profile = _get_profile_or_404(db, req.profile_id)
     profile_data = profile_to_schema(profile)
-
     provider, api_key = get_llm_config(db)
-    prompt = _build_cover_letter_prompt(profile_data, req)
 
-    try:
-        text = call_llm(
-            prompt,
-            system=COVER_LETTER_SYSTEM_PROMPT,
-            provider=provider,
-            api_key=api_key,
-        )
-    except APIKeyNotConfiguredError as e:
+    if not provider or not api_key:
         raise HTTPException(
             status_code=400,
-            detail={"detail": str(e), "code": "API_KEY_NOT_CONFIGURED"},
-        ) from e
-    except LLMCallError as e:
-        raise HTTPException(
-            status_code=502, detail={"detail": str(e), "code": "LLM_CALL_FAILED"}
-        ) from e
+            detail={"detail": "LLM not configured.", "code": "API_KEY_NOT_CONFIGURED"},
+        )
 
-    entry = GeneratedCoverLetter(
-        company_name=req.company_name,
-        job_description=req.job_description,
-        extra_context=req.extra_context or None,
-        cover_letter_text=text,
-        profile_id=req.profile_id,
-    )
-    db.add(entry)
-    db.commit()
+    prompt = _build_cover_letter_prompt(profile_data, req)
 
-    return CoverLetterResponse(cover_letter_text=text)
+    async def event_stream():
+        accumulated = []
+        try:
+            async for chunk in stream_llm(prompt, system=COVER_LETTER_SYSTEM_PROMPT, provider=provider, api_key=api_key):
+                accumulated.append(chunk)
+                yield f"data: {chunk}\n\n"
+        except Exception as e:
+            yield f"data: [ERROR] {e}\n\n"
+            return
+
+        # Per spec: yield [DONE] first, then DB write
+        yield "data: [DONE]\n\n"
+
+        full_text = "".join(accumulated)
+        entry = GeneratedCoverLetter(
+            company_name=req.company_name,
+            job_description=req.job_description,
+            extra_context=req.extra_context or None,
+            cover_letter_text=full_text,
+            profile_id=req.profile_id,
+            job_url=req.job_url,
+            tone=req.tone or "professional",
+            match_score=req.match_score,
+            fit_analysis=req.fit_analysis_json,
+        )
+        db.add(entry)
+        db.commit()
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.post("/generate/cover-letter/pdf")

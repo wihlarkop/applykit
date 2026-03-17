@@ -394,14 +394,12 @@
                   class="flex-1 text-left border rounded-lg p-3 transition-colors hover:bg-accent
                     {selectedCl?.id === entry.id ? 'border-primary bg-accent' : 'bg-card'}"
                 >
+                  <!-- Row 1: company + badges -->
                   <div class="flex items-center justify-between gap-2">
-                    <span class="text-sm font-medium truncate">{displayCompany(entry)}</span>
+                    <span class="text-sm font-semibold truncate">{displayCompany(entry)}</span>
                     <div class="flex items-center gap-1.5 shrink-0">
                       {#if entry.match_score !== null}
-                        <span class="text-xs px-1.5 py-0.5 rounded font-medium
-                          {entry.match_score >= 70 ? 'bg-green-500/10 text-green-600'
-                           : entry.match_score >= 40 ? 'bg-yellow-500/10 text-yellow-600'
-                           : 'bg-red-500/10 text-red-600'}">{entry.match_score}%</span>
+                        <span class="text-xs px-1.5 py-0.5 rounded font-medium {scoreColor(entry.match_score)}">{entry.match_score}%</span>
                       {/if}
                       {#if entry.tone && entry.tone !== 'professional'}
                         <span class="text-xs bg-muted border border-border rounded px-1.5 py-0.5 capitalize">{entry.tone}</span>
@@ -414,20 +412,45 @@
                       {/if}
                     </div>
                   </div>
-                  <div class="text-xs text-muted-foreground mt-0.5">{formatDate(entry.created_at)}</div>
-                  <!-- Status dropdown -->
-                  <div class="mt-2 flex items-center gap-2" role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-                    <select
-                      class="text-xs bg-background border border-border rounded px-2 py-1"
-                      value={entry.application_status ?? ''}
-                      onchange={(e) => handleClStatusChange(entry.id, (e.target as HTMLSelectElement).value || null)}
-                    >
-                      {#each STATUS_OPTIONS as opt}
-                        <option value={opt.value ?? ''} disabled={!opt.value && !!entry.application_id}>{opt.label}</option>
-                      {/each}
-                    </select>
+
+                  <!-- Row 2: role snippet + date -->
+                  <div class="flex items-center justify-between mt-0.5 gap-2">
+                    {#if displayRole(entry)}
+                      <span class="text-xs text-muted-foreground truncate flex-1">{displayRole(entry)}</span>
+                    {/if}
+                    <span class="text-xs text-muted-foreground shrink-0 ml-auto">{formatDateShort(entry.created_at)}</span>
+                  </div>
+
+                  <!-- Row 3: match score bar -->
+                  {#if entry.match_score !== null}
+                    <div class="mt-2 bg-muted rounded-full h-1 overflow-hidden">
+                      <div class="h-1 rounded-full {scoreBarColor(entry.match_score)}" style="width:{entry.match_score}%"></div>
+                    </div>
+                  {/if}
+
+                  <!-- Row 4: status pipeline + tracked badge -->
+                  <!-- Uses span[role=button] to avoid nesting <button> inside <button> (invalid HTML) -->
+                  <div
+                    class="mt-2 flex items-center gap-1 flex-wrap"
+                    role="presentation"
+                    onclick={(e) => e.stopPropagation()}
+                    onkeydown={(e) => e.stopPropagation()}
+                  >
+                    {#each STATUS_PIPELINE as s}
+                      {#if entry.application_status === s.value}
+                        <span class="text-xs px-2 py-0.5 rounded-full font-medium {s.activeClass}">{s.label}</span>
+                      {:else}
+                        <span
+                          role="button"
+                          tabindex="0"
+                          class="text-xs px-2 py-0.5 rounded-full border border-border text-muted-foreground hover:bg-accent transition-colors cursor-pointer"
+                          onclick={() => handleClStatusChange(entry.id, s.value)}
+                          onkeydown={(e) => e.key === 'Enter' && handleClStatusChange(entry.id, s.value)}
+                        >{s.label}</span>
+                      {/if}
+                    {/each}
                     {#if entry.application_id}
-                      <a href="/tracker" class="text-[10px] text-primary hover:underline" title="View in Tracker">📌 Tracked</a>
+                      <a href="/tracker" class="text-[10px] text-primary hover:underline ml-1" title="View in Tracker">📌 Tracked →</a>
                     {/if}
                   </div>
                 </button>

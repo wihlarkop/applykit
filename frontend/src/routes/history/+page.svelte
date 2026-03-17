@@ -2,10 +2,14 @@
   import { goto } from '$app/navigation';
   import { activeProfile } from '$lib/activeProfile.svelte';
   import {
+      bulkDeleteCoverLetters,
+      bulkDeleteCvs,
       deleteCoverLetterHistoryEntry,
       deleteCvHistoryEntry,
       getCoverLetterHistory,
       getCvHistory,
+      updateCoverLetterStatus,
+      updateCvStatus,
   } from '$lib/api';
   import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
   import CvPreview from '$lib/components/CvPreview.svelte';
@@ -28,7 +32,60 @@
   let selectedCv: GeneratedCVEntry | null = $state(null);
   let selectedCl: GeneratedCoverLetterEntry | null = $state(null);
 
+  // Cover letter filters
+  let clSearch = $state('');
+  let clMatchFilter = $state<'all' | 'high' | 'medium' | 'low'>('all');
+  let clSort = $state<'date_desc' | 'date_asc' | 'match_desc' | 'company_asc'>('date_desc');
+  let clTotal = $state(0);
+  let clSearchTimer: ReturnType<typeof setTimeout>;
+
+  // Bulk delete
+  let selectedClIds = $state<Set<number>>(new Set());
+  let selectedCvIds = $state<Set<number>>(new Set());
+  let confirmBulkDelete = $state(false);
+
+  // Status options
+  const STATUS_OPTIONS = [
+    { value: null, label: '—' },
+    { value: 'applied', label: 'Applied' },
+    { value: 'interviewing', label: 'Interviewing' },
+    { value: 'offer', label: 'Offer' },
+    { value: 'rejected', label: 'Rejected' },
+  ];
+
   const allProfiles = $derived(profiles.all);
+
+  async function loadCoverLetters() {
+    const filters: any = { sort: clSort };
+    if (filterProfileId != null) filters.profile_id = filterProfileId;
+    if (clSearch) filters.search = clSearch;
+    if (clMatchFilter === 'high') filters.match_min = 70;
+    else if (clMatchFilter === 'medium') { filters.match_min = 40; filters.match_max = 69; }
+    else if (clMatchFilter === 'low') filters.match_max = 39;
+    const res = await getCoverLetterHistory(filters);
+    clItems = res.items;
+    clTotal = res.total;
+  }
+
+  async function handleClStatusChange(id: number, status: string | null) {
+    try {
+      const updated = await updateCoverLetterStatus(id, status);
+      clItems = clItems.map((e) => (e.id === id ? updated : e));
+    } catch (e: any) {
+      errorMsg = `Failed to update status: ${e.message}`;
+    }
+  }
+
+  async function handleBulkDeleteCl() {
+    try {
+      await bulkDeleteCoverLetters([...selectedClIds]);
+      clItems = clItems.filter((e) => !selectedClIds.has(e.id));
+      selectedClIds = new Set();
+      confirmBulkDelete = false;
+    } catch (e: any) {
+      errorMsg = `Failed to delete: ${e.message}`;
+    }
+  }
 
   $effect(() => {
     const profileId = filterProfileId;
@@ -37,11 +94,11 @@
     errorMsg = '';
     selectedCv = null;
     selectedCl = null;
-    Promise.all([getCvHistory(profileId), getCoverLetterHistory(profileId)])
-      .then(([cvRes, clRes]) => {
+    // CV tab — simple call unchanged
+    getCvHistory(profileId !== undefined ? { profile_id: profileId } : {})
+      .then((r) => {
         if (seq !== loadSeq) return;
-        cvItems = cvRes.items;
-        clItems = clRes.items;
+        cvItems = r.items;
       })
       .catch((e: any) => {
         if (seq !== loadSeq) return;
@@ -51,6 +108,8 @@
         if (seq !== loadSeq) return;
         loading = false;
       });
+    // Cover letter tab — use filter-aware loader
+    loadCoverLetters();
   });
 
   function formatDate(iso: string) {
@@ -238,25 +297,104 @@
       {#if clItems.length === 0}
         <p class="text-muted-foreground">No cover letters generated yet{filterProfileId != null ? ' for this profile' : ''}. <a href="/cover-letter" class="underline">Write one</a>.</p>
       {:else}
+        <!-- Filter bar -->
+        <div class="flex items-center gap-2 flex-wrap mb-4">
+          <input
+            class="flex-1 min-w-[160px] bg-card border border-border rounded-md px-3 py-1.5 text-sm"
+            placeholder="🔍 Search company or role..."
+            bind:value={clSearch}
+            oninput={() => { clearTimeout(clSearchTimer); clSearchTimer = setTimeout(loadCoverLetters, 300); }}
+          />
+          <select
+            class="bg-card border border-border rounded-md px-2 py-1.5 text-sm"
+            bind:value={clMatchFilter}
+            onchange={loadCoverLetters}
+          >
+            <option value="all">All matches</option>
+            <option value="high">High (≥70%)</option>
+            <option value="medium">Medium (40–69%)</option>
+            <option value="low">Low (&lt;40%)</option>
+          </select>
+          <select
+            class="bg-card border border-border rounded-md px-2 py-1.5 text-sm"
+            bind:value={clSort}
+            onchange={loadCoverLetters}
+          >
+            <option value="date_desc">Newest first</option>
+            <option value="date_asc">Oldest first</option>
+            <option value="match_desc">Best match</option>
+            <option value="company_asc">Company A–Z</option>
+          </select>
+          {#if selectedClIds.size > 0}
+            <button
+              onclick={() => (confirmBulkDelete = true)}
+              class="px-3 py-1.5 text-sm bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90"
+            >Delete selected ({selectedClIds.size})</button>
+          {/if}
+        </div>
+
+        {#if confirmBulkDelete}
+          <div class="border border-destructive/30 rounded-lg p-3 bg-destructive/5 flex items-center gap-3 mb-3">
+            <p class="text-sm flex-1">Delete {selectedClIds.size} cover letter(s)?</p>
+            <button onclick={handleBulkDeleteCl} class="text-sm text-destructive underline">Confirm</button>
+            <button onclick={() => (confirmBulkDelete = false)} class="text-sm text-muted-foreground underline">Cancel</button>
+          </div>
+        {/if}
+
         <div class="grid gap-4 lg:grid-cols-[280px_1fr]">
           <div class="space-y-2">
             {#each clItems as entry}
-              <button
-                onclick={() => selectedCl = entry}
-                class="w-full text-left border rounded-lg p-3 transition-colors hover:bg-accent
-                  {selectedCl?.id === entry.id ? 'border-primary bg-accent' : 'bg-card'}"
-              >
-                <div class="text-sm font-medium truncate">
-                  {displayCompany(entry)}
-                </div>
-                {#if entry.profile_color && entry.profile_icon}
-                  <span class="flex items-center gap-1 text-xs text-muted-foreground">
-                    <span class="w-2 h-2 rounded-full" style="background:{entry.profile_color}"></span>
-                    {entry.profile_icon}
-                  </span>
-                {/if}
-                <div class="text-xs text-muted-foreground mt-0.5">{formatDate(entry.created_at)}</div>
-              </button>
+              <div class="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  class="mt-3 rounded"
+                  checked={selectedClIds.has(entry.id)}
+                  onchange={() => {
+                    const s = new Set(selectedClIds);
+                    if (s.has(entry.id)) s.delete(entry.id); else s.add(entry.id);
+                    selectedClIds = s;
+                  }}
+                />
+                <button
+                  onclick={() => selectedCl = entry}
+                  class="flex-1 text-left border rounded-lg p-3 transition-colors hover:bg-accent
+                    {selectedCl?.id === entry.id ? 'border-primary bg-accent' : 'bg-card'}"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-sm font-medium truncate">{displayCompany(entry)}</span>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      {#if entry.match_score !== null}
+                        <span class="text-xs px-1.5 py-0.5 rounded font-medium
+                          {entry.match_score >= 70 ? 'bg-green-500/10 text-green-600'
+                           : entry.match_score >= 40 ? 'bg-yellow-500/10 text-yellow-600'
+                           : 'bg-red-500/10 text-red-600'}">{entry.match_score}%</span>
+                      {/if}
+                      {#if entry.tone && entry.tone !== 'professional'}
+                        <span class="text-xs bg-muted border border-border rounded px-1.5 py-0.5 capitalize">{entry.tone}</span>
+                      {/if}
+                      {#if entry.profile_color && entry.profile_icon}
+                        <span class="flex items-center gap-1 text-xs text-muted-foreground">
+                          <span class="w-2 h-2 rounded-full" style="background:{entry.profile_color}"></span>
+                          {entry.profile_icon}
+                        </span>
+                      {/if}
+                    </div>
+                  </div>
+                  <div class="text-xs text-muted-foreground mt-0.5">{formatDate(entry.created_at)}</div>
+                  <!-- Status dropdown -->
+                  <div class="mt-2" onclick={(e) => e.stopPropagation()}>
+                    <select
+                      class="text-xs bg-background border border-border rounded px-2 py-1"
+                      value={entry.application_status ?? ''}
+                      onchange={(e) => handleClStatusChange(entry.id, (e.target as HTMLSelectElement).value || null)}
+                    >
+                      {#each STATUS_OPTIONS as opt}
+                        <option value={opt.value ?? ''}>{opt.label}</option>
+                      {/each}
+                    </select>
+                  </div>
+                </button>
+              </div>
             {/each}
           </div>
 

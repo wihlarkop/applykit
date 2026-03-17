@@ -11,12 +11,12 @@ async def scrape_job(body: ScrapeJobRequest):
     try:
         result = await scrape_job_url(body.url)
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception:
         raise HTTPException(
             status_code=422,
             detail="Could not extract job posting. Please paste the text manually.",
-        )
+        ) from None
     return ScrapeJobResponse(
         job_description=result.job_description,
         company_name=result.company_name,

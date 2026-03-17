@@ -375,7 +375,7 @@
           </div>
         {/if}
 
-        <div class="grid gap-4 md:grid-cols-[280px_1fr]">
+        <div class="grid gap-4 {selectedCl ? 'md:grid-cols-[280px_1fr]' : ''}">
           <div class="space-y-2 {selectedCl ? 'hidden md:block' : ''}">
             {#each clItems as entry}
               <div class="flex items-start gap-2">
@@ -607,10 +607,6 @@
                   </div>
                 {/if}
               </div>
-            </div>
-          {:else}
-            <div class="border rounded-lg p-8 text-center text-muted-foreground">
-              Select an entry to preview.
             </div>
           {/if}
         </div>

@@ -375,241 +375,249 @@
           </div>
         {/if}
 
-        <div class="grid gap-4 {selectedCl ? 'md:grid-cols-[280px_1fr]' : ''}">
-          <div class="space-y-2 {selectedCl ? 'hidden md:block' : ''}">
-            {#each clItems as entry}
-              <div class="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  class="mt-3 rounded"
-                  checked={selectedClIds.has(entry.id)}
-                  onchange={() => {
-                    const s = new Set(selectedClIds);
-                    if (s.has(entry.id)) s.delete(entry.id); else s.add(entry.id);
-                    selectedClIds = s;
-                  }}
-                />
-                <button
-                  onclick={() => selectedCl = entry}
-                  class="flex-1 text-left border rounded-lg p-3 transition-colors hover:bg-accent
-                    {selectedCl?.id === entry.id ? 'border-primary bg-accent' : 'bg-card'}"
+        <!-- List (always full width) -->
+        <div class="space-y-2">
+          {#each clItems as entry}
+            <div class="flex items-start gap-2">
+              <input
+                type="checkbox"
+                class="mt-3 rounded"
+                checked={selectedClIds.has(entry.id)}
+                onchange={() => {
+                  const s = new Set(selectedClIds);
+                  if (s.has(entry.id)) s.delete(entry.id); else s.add(entry.id);
+                  selectedClIds = s;
+                }}
+              />
+              <button
+                onclick={() => selectedCl = entry}
+                class="flex-1 text-left border rounded-lg p-3 transition-colors hover:bg-accent
+                  {selectedCl?.id === entry.id ? 'border-primary bg-accent' : 'bg-card'}"
+              >
+                <!-- Row 1: company + badges -->
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-sm font-semibold truncate">{displayCompany(entry)}</span>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    {#if entry.match_score !== null}
+                      <span class="text-xs px-1.5 py-0.5 rounded font-medium {scoreColor(entry.match_score)}">{entry.match_score}%</span>
+                    {/if}
+                    {#if entry.tone && entry.tone !== 'professional'}
+                      <span class="text-xs bg-muted border border-border rounded px-1.5 py-0.5 capitalize">{entry.tone}</span>
+                    {/if}
+                    {#if entry.profile_color && entry.profile_icon}
+                      <span class="flex items-center gap-1 text-xs text-muted-foreground">
+                        <span class="w-2 h-2 rounded-full" style="background:{entry.profile_color}"></span>
+                        {entry.profile_icon}
+                      </span>
+                    {/if}
+                  </div>
+                </div>
+
+                <!-- Row 2: role snippet + date -->
+                <div class="flex items-center justify-between mt-0.5 gap-2">
+                  {#if displayRole(entry)}
+                    <span class="text-xs text-muted-foreground truncate flex-1">{displayRole(entry)}</span>
+                  {/if}
+                  <span class="text-xs text-muted-foreground shrink-0 ml-auto">{formatDateShort(entry.created_at)}</span>
+                </div>
+
+                <!-- Row 3: match score bar -->
+                {#if entry.match_score !== null}
+                  <div class="mt-2 bg-muted rounded-full h-1 overflow-hidden">
+                    <div class="h-1 rounded-full {scoreBarColor(entry.match_score)}" style="width:{entry.match_score}%"></div>
+                  </div>
+                {/if}
+
+                <!-- Row 4: status pipeline + tracked badge -->
+                <div
+                  class="mt-2 flex items-center gap-1 flex-wrap"
+                  role="presentation"
+                  onclick={(e) => e.stopPropagation()}
+                  onkeydown={(e) => e.stopPropagation()}
                 >
-                  <!-- Row 1: company + badges -->
-                  <div class="flex items-center justify-between gap-2">
-                    <span class="text-sm font-semibold truncate">{displayCompany(entry)}</span>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                      {#if entry.match_score !== null}
-                        <span class="text-xs px-1.5 py-0.5 rounded font-medium {scoreColor(entry.match_score)}">{entry.match_score}%</span>
-                      {/if}
-                      {#if entry.tone && entry.tone !== 'professional'}
-                        <span class="text-xs bg-muted border border-border rounded px-1.5 py-0.5 capitalize">{entry.tone}</span>
-                      {/if}
-                      {#if entry.profile_color && entry.profile_icon}
-                        <span class="flex items-center gap-1 text-xs text-muted-foreground">
-                          <span class="w-2 h-2 rounded-full" style="background:{entry.profile_color}"></span>
-                          {entry.profile_icon}
-                        </span>
-                      {/if}
-                    </div>
-                  </div>
-
-                  <!-- Row 2: role snippet + date -->
-                  <div class="flex items-center justify-between mt-0.5 gap-2">
-                    {#if displayRole(entry)}
-                      <span class="text-xs text-muted-foreground truncate flex-1">{displayRole(entry)}</span>
+                  {#each STATUS_PIPELINE as s}
+                    {#if entry.application_status === s.value}
+                      <span class="text-xs px-2 py-0.5 rounded-full font-medium {s.activeClass}">{s.label}</span>
+                    {:else}
+                      <span
+                        role="button"
+                        tabindex="0"
+                        class="text-xs px-2 py-0.5 rounded-full border border-border text-muted-foreground hover:bg-accent transition-colors cursor-pointer"
+                        onclick={() => handleClStatusChange(entry.id, s.value)}
+                        onkeydown={(e) => e.key === 'Enter' && handleClStatusChange(entry.id, s.value)}
+                      >{s.label}</span>
                     {/if}
-                    <span class="text-xs text-muted-foreground shrink-0 ml-auto">{formatDateShort(entry.created_at)}</span>
-                  </div>
-
-                  <!-- Row 3: match score bar -->
-                  {#if entry.match_score !== null}
-                    <div class="mt-2 bg-muted rounded-full h-1 overflow-hidden">
-                      <div class="h-1 rounded-full {scoreBarColor(entry.match_score)}" style="width:{entry.match_score}%"></div>
-                    </div>
-                  {/if}
-
-                  <!-- Row 4: status pipeline + tracked badge -->
-                  <!-- Uses span[role=button] to avoid nesting <button> inside <button> (invalid HTML) -->
-                  <div
-                    class="mt-2 flex items-center gap-1 flex-wrap"
-                    role="presentation"
-                    onclick={(e) => e.stopPropagation()}
-                    onkeydown={(e) => e.stopPropagation()}
-                  >
-                    {#each STATUS_PIPELINE as s}
-                      {#if entry.application_status === s.value}
-                        <span class="text-xs px-2 py-0.5 rounded-full font-medium {s.activeClass}">{s.label}</span>
-                      {:else}
-                        <span
-                          role="button"
-                          tabindex="0"
-                          class="text-xs px-2 py-0.5 rounded-full border border-border text-muted-foreground hover:bg-accent transition-colors cursor-pointer"
-                          onclick={() => handleClStatusChange(entry.id, s.value)}
-                          onkeydown={(e) => e.key === 'Enter' && handleClStatusChange(entry.id, s.value)}
-                        >{s.label}</span>
-                      {/if}
-                    {/each}
-                    {#if entry.application_id}
-                      <a href="/tracker" class="text-[10px] text-primary hover:underline ml-1" title="View in Tracker">📌 Tracked →</a>
-                    {/if}
-                  </div>
-                </button>
-              </div>
-            {/each}
-          </div>
-
-          {#if selectedCl}
-            <div class="border rounded-lg overflow-hidden bg-white dark:bg-zinc-950/40 print:bg-white shadow-sm transition-colors">
-              <!-- Row 1: identity + actions -->
-              <div class="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
-                <div class="min-w-0 flex-1">
-                  <span class="text-sm font-semibold">{displayCompany(selectedCl)}</span>
-                  {#if displayRole(selectedCl)}
-                    <span class="text-xs text-muted-foreground ml-2 truncate">{displayRole(selectedCl)}</span>
+                  {/each}
+                  {#if entry.application_id}
+                    <a href="/tracker" class="text-[10px] text-primary hover:underline ml-1" title="View in Tracker">📌 Tracked →</a>
                   {/if}
                 </div>
-                <div class="flex gap-2 shrink-0">
-                  <Button variant="ghost" size="sm" class="md:hidden" onclick={() => selectedCl = null}>← Back</Button>
-                  <Button variant="outline" size="sm" onclick={handleCopyCl}>Copy</Button>
-                  <Button variant="outline" size="sm" onclick={handlePrint}>Print</Button>
-                  <Button variant="destructive" size="sm" onclick={() => selectedCl && handleDeleteCl(selectedCl.id)}>Delete</Button>
-                </div>
+              </button>
+            </div>
+          {/each}
+        </div>
+
+        <!-- Preview drawer: fixed right panel, overlays the page -->
+        {#if selectedCl}
+          <!-- Backdrop -->
+          <div
+            class="fixed inset-0 bg-black/30 z-40"
+            role="presentation"
+            onclick={() => selectedCl = null}
+            onkeydown={(e) => e.key === 'Escape' && (selectedCl = null)}
+          ></div>
+
+          <!-- Drawer panel -->
+          <div class="fixed top-0 right-0 h-full w-full max-w-2xl bg-background border-l shadow-xl z-50 flex flex-col print:static print:shadow-none print:border-0">
+            <!-- Row 1: identity + actions -->
+            <div class="flex items-center justify-between gap-2 p-3 border-b bg-muted/30 shrink-0">
+              <div class="min-w-0 flex-1">
+                <span class="text-sm font-semibold">{displayCompany(selectedCl)}</span>
+                {#if displayRole(selectedCl)}
+                  <span class="text-xs text-muted-foreground ml-2 truncate">{displayRole(selectedCl)}</span>
+                {/if}
               </div>
-
-              <!-- Row 2: metadata strip -->
-              <div class="flex items-center gap-2 px-3 py-1.5 bg-muted/10 border-b text-xs flex-wrap">
-                {#if selectedCl.match_score !== null}
-                  <span class="px-1.5 py-0.5 rounded font-medium {scoreColor(selectedCl.match_score)}">{selectedCl.match_score}% match</span>
-                {/if}
-                {#if selectedCl.tone && selectedCl.tone !== 'professional'}
-                  <span class="bg-muted border border-border rounded px-1.5 py-0.5 capitalize">{selectedCl.tone}</span>
-                {/if}
-                {#if selectedCl.application_status}
-                  {@const sp = STATUS_PIPELINE.find(p => p.value === selectedCl!.application_status)}
-                  {#if sp}
-                    <span class="px-2 py-0.5 rounded-full font-medium {sp.activeClass}">● {sp.label}</span>
-                  {/if}
-                {/if}
-                {#if selectedCl.application_id}
-                  <a href="/tracker" class="text-primary hover:underline">📌 Tracker →</a>
-                {/if}
-                <span class="text-muted-foreground ml-auto">{formatDate(selectedCl.created_at)}</span>
-              </div>
-
-              <!-- Tab bar (only when fit_analysis is available) -->
-              {#if selectedCl.fit_analysis}
-                <div class="flex border-b">
-                  <button
-                    class="px-4 py-2 text-sm font-medium transition-colors
-                      {previewTab === 'letter' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}"
-                    onclick={() => (previewTab = 'letter')}
-                  >📄 Cover Letter</button>
-                  <button
-                    class="px-4 py-2 text-sm font-medium transition-colors
-                      {previewTab === 'analysis' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}"
-                    onclick={() => (previewTab = 'analysis')}
-                  >📊 Fit Analysis</button>
-                </div>
-              {/if}
-
-              <!-- Content -->
-              <div class="overflow-auto max-h-[70vh]">
-                {#if previewTab === 'letter' || !selectedCl.fit_analysis}
-                  <CoverLetterPreview text={selectedCl.cover_letter_text} />
-                {:else}
-                  <!-- Fit Analysis -->
-                  <div class="p-4 space-y-4">
-
-                    <!-- Match score bar -->
-                    <div>
-                      <div class="flex justify-between text-xs mb-1.5">
-                        <span class="font-semibold text-muted-foreground uppercase tracking-wide">Match Score</span>
-                        <span class="font-bold {scoreColor(selectedCl.fit_analysis.match_score)}">{selectedCl.fit_analysis.match_score}%</span>
-                      </div>
-                      <div class="bg-muted rounded-full h-2 overflow-hidden">
-                        <div
-                          class="h-2 rounded-full {scoreBarColor(selectedCl.fit_analysis.match_score)}"
-                          style="width:{selectedCl.fit_analysis.match_score}%"
-                        ></div>
-                      </div>
-                    </div>
-
-                    <!-- Strengths / Gaps -->
-                    {#if selectedCl.fit_analysis.pros.length > 0 || selectedCl.fit_analysis.cons.length > 0}
-                      <div class="grid grid-cols-2 gap-3">
-                        {#if selectedCl.fit_analysis.pros.length > 0}
-                          <div class="border border-green-500/20 bg-green-500/5 rounded-lg p-3">
-                            <p class="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">✓ Strengths</p>
-                            <ul class="space-y-1">
-                              {#each selectedCl.fit_analysis.pros as pro}
-                                <li class="text-xs text-muted-foreground">· {pro}</li>
-                              {/each}
-                            </ul>
-                          </div>
-                        {/if}
-                        {#if selectedCl.fit_analysis.cons.length > 0}
-                          <div class="border border-red-500/20 bg-red-500/5 rounded-lg p-3">
-                            <p class="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2">✗ Gaps</p>
-                            <ul class="space-y-1">
-                              {#each selectedCl.fit_analysis.cons as con}
-                                <li class="text-xs text-muted-foreground">· {con}</li>
-                              {/each}
-                            </ul>
-                          </div>
-                        {/if}
-                      </div>
-                    {/if}
-
-                    <!-- Missing Keywords -->
-                    {#if selectedCl.fit_analysis.missing_keywords.length > 0}
-                      <div>
-                        <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Missing Keywords</p>
-                        <div class="flex flex-wrap gap-1.5">
-                          {#each selectedCl.fit_analysis.missing_keywords as kw}
-                            <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">{kw}</span>
-                          {/each}
-                        </div>
-                      </div>
-                    {/if}
-
-                    <!-- Red Flags -->
-                    {#if selectedCl.fit_analysis.red_flags.length > 0}
-                      <div class="border border-amber-500/20 bg-amber-500/5 rounded-lg p-3">
-                        <p class="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-2">⚠ Red Flags</p>
-                        <ul class="space-y-1">
-                          {#each selectedCl.fit_analysis.red_flags as flag}
-                            <li class="text-xs text-muted-foreground">· {flag}</li>
-                          {/each}
-                        </ul>
-                      </div>
-                    {/if}
-
-                    <!-- Suggested Emphasis -->
-                    {#if selectedCl.fit_analysis.suggested_emphasis}
-                      <div>
-                        <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Suggested Emphasis</p>
-                        <p class="text-xs text-muted-foreground">{selectedCl.fit_analysis.suggested_emphasis}</p>
-                      </div>
-                    {/if}
-
-                    <!-- Interview Questions -->
-                    {#if selectedCl.fit_analysis.interview_questions.length > 0}
-                      <div>
-                        <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Interview Questions</p>
-                        <ol class="space-y-1.5 list-decimal list-inside">
-                          {#each selectedCl.fit_analysis.interview_questions as q}
-                            <li class="text-xs text-muted-foreground">{q}</li>
-                          {/each}
-                        </ol>
-                      </div>
-                    {/if}
-
-                  </div>
-                {/if}
+              <div class="flex gap-2 shrink-0">
+                <Button variant="outline" size="sm" onclick={handleCopyCl}>Copy</Button>
+                <Button variant="outline" size="sm" onclick={handlePrint}>Print</Button>
+                <Button variant="destructive" size="sm" onclick={() => selectedCl && handleDeleteCl(selectedCl.id)}>Delete</Button>
+                <Button variant="ghost" size="sm" onclick={() => selectedCl = null}>✕</Button>
               </div>
             </div>
-          {/if}
-        </div>
+
+            <!-- Row 2: metadata strip -->
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-muted/10 border-b text-xs flex-wrap shrink-0">
+              {#if selectedCl.match_score !== null}
+                <span class="px-1.5 py-0.5 rounded font-medium {scoreColor(selectedCl.match_score)}">{selectedCl.match_score}% match</span>
+              {/if}
+              {#if selectedCl.tone && selectedCl.tone !== 'professional'}
+                <span class="bg-muted border border-border rounded px-1.5 py-0.5 capitalize">{selectedCl.tone}</span>
+              {/if}
+              {#if selectedCl.application_status}
+                {@const sp = STATUS_PIPELINE.find(p => p.value === selectedCl!.application_status)}
+                {#if sp}
+                  <span class="px-2 py-0.5 rounded-full font-medium {sp.activeClass}">● {sp.label}</span>
+                {/if}
+              {/if}
+              {#if selectedCl.application_id}
+                <a href="/tracker" class="text-primary hover:underline">📌 Tracker →</a>
+              {/if}
+              <span class="text-muted-foreground ml-auto">{formatDate(selectedCl.created_at)}</span>
+            </div>
+
+            <!-- Tab bar (only when fit_analysis is available) -->
+            {#if selectedCl.fit_analysis}
+              <div class="flex border-b shrink-0">
+                <button
+                  class="px-4 py-2 text-sm font-medium transition-colors
+                    {previewTab === 'letter' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+                  onclick={() => (previewTab = 'letter')}
+                >📄 Cover Letter</button>
+                <button
+                  class="px-4 py-2 text-sm font-medium transition-colors
+                    {previewTab === 'analysis' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+                  onclick={() => (previewTab = 'analysis')}
+                >📊 Fit Analysis</button>
+              </div>
+            {/if}
+
+            <!-- Content -->
+            <div class="overflow-y-auto flex-1">
+              {#if previewTab === 'letter' || !selectedCl.fit_analysis}
+                <CoverLetterPreview text={selectedCl.cover_letter_text} />
+              {:else}
+                <!-- Fit Analysis -->
+                <div class="p-4 space-y-4">
+
+                  <!-- Match score bar -->
+                  <div>
+                    <div class="flex justify-between text-xs mb-1.5">
+                      <span class="font-semibold text-muted-foreground uppercase tracking-wide">Match Score</span>
+                      <span class="font-bold {scoreColor(selectedCl.fit_analysis.match_score)}">{selectedCl.fit_analysis.match_score}%</span>
+                    </div>
+                    <div class="bg-muted rounded-full h-2 overflow-hidden">
+                      <div
+                        class="h-2 rounded-full {scoreBarColor(selectedCl.fit_analysis.match_score)}"
+                        style="width:{selectedCl.fit_analysis.match_score}%"
+                      ></div>
+                    </div>
+                  </div>
+
+                  <!-- Strengths / Gaps -->
+                  {#if selectedCl.fit_analysis.pros.length > 0 || selectedCl.fit_analysis.cons.length > 0}
+                    <div class="grid grid-cols-2 gap-3">
+                      {#if selectedCl.fit_analysis.pros.length > 0}
+                        <div class="border border-green-500/20 bg-green-500/5 rounded-lg p-3">
+                          <p class="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">✓ Strengths</p>
+                          <ul class="space-y-1">
+                            {#each selectedCl.fit_analysis.pros as pro}
+                              <li class="text-xs text-muted-foreground">· {pro}</li>
+                            {/each}
+                          </ul>
+                        </div>
+                      {/if}
+                      {#if selectedCl.fit_analysis.cons.length > 0}
+                        <div class="border border-red-500/20 bg-red-500/5 rounded-lg p-3">
+                          <p class="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2">✗ Gaps</p>
+                          <ul class="space-y-1">
+                            {#each selectedCl.fit_analysis.cons as con}
+                              <li class="text-xs text-muted-foreground">· {con}</li>
+                            {/each}
+                          </ul>
+                        </div>
+                      {/if}
+                    </div>
+                  {/if}
+
+                  <!-- Missing Keywords -->
+                  {#if selectedCl.fit_analysis.missing_keywords.length > 0}
+                    <div>
+                      <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Missing Keywords</p>
+                      <div class="flex flex-wrap gap-1.5">
+                        {#each selectedCl.fit_analysis.missing_keywords as kw}
+                          <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">{kw}</span>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
+
+                  <!-- Red Flags -->
+                  {#if selectedCl.fit_analysis.red_flags.length > 0}
+                    <div class="border border-amber-500/20 bg-amber-500/5 rounded-lg p-3">
+                      <p class="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-2">⚠ Red Flags</p>
+                      <ul class="space-y-1">
+                        {#each selectedCl.fit_analysis.red_flags as flag}
+                          <li class="text-xs text-muted-foreground">· {flag}</li>
+                        {/each}
+                      </ul>
+                    </div>
+                  {/if}
+
+                  <!-- Suggested Emphasis -->
+                  {#if selectedCl.fit_analysis.suggested_emphasis}
+                    <div>
+                      <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Suggested Emphasis</p>
+                      <p class="text-xs text-muted-foreground">{selectedCl.fit_analysis.suggested_emphasis}</p>
+                    </div>
+                  {/if}
+
+                  <!-- Interview Questions -->
+                  {#if selectedCl.fit_analysis.interview_questions.length > 0}
+                    <div>
+                      <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Interview Questions</p>
+                      <ol class="space-y-1.5 list-decimal list-inside">
+                        {#each selectedCl.fit_analysis.interview_questions as q}
+                          <li class="text-xs text-muted-foreground">{q}</li>
+                        {/each}
+                      </ol>
+                    </div>
+                  {/if}
+
+                </div>
+              {/if}
+            </div>
+          </div>
+        {/if}
       {/if}
     {/if}
 

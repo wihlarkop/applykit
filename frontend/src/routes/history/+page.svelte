@@ -382,7 +382,7 @@
                   </div>
                   <div class="text-xs text-muted-foreground mt-0.5">{formatDate(entry.created_at)}</div>
                   <!-- Status dropdown -->
-                  <div class="mt-2" onclick={(e) => e.stopPropagation()}>
+                  <div class="mt-2" role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
                     <select
                       class="text-xs bg-background border border-border rounded px-2 py-1"
                       value={entry.application_status ?? ''}

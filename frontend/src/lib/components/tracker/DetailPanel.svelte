@@ -60,8 +60,9 @@
   <div class="flex-1 overflow-y-auto p-4 space-y-4">
     <!-- Status -->
     <div>
-      <label class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Status</label>
+      <label for="dp-status" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Status</label>
       <select
+        id="dp-status"
         class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
         value={app.status}
         onchange={(e) => patch({ status: (e.target as HTMLSelectElement).value as ApplicationStatus })}
@@ -74,8 +75,9 @@
 
     <!-- Company -->
     <div>
-      <label class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Company</label>
+      <label for="dp-company" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Company</label>
       <input
+        id="dp-company"
         class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
         value={app.company_name}
         onblur={(e) => {
@@ -87,8 +89,9 @@
 
     <!-- Role -->
     <div>
-      <label class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Role</label>
+      <label for="dp-role" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Role</label>
       <input
+        id="dp-role"
         class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
         value={app.role_title}
         onblur={(e) => {
@@ -100,8 +103,9 @@
 
     <!-- Applied date -->
     <div>
-      <label class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Applied date</label>
+      <label for="dp-date" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Applied date</label>
       <input
+        id="dp-date"
         type="date"
         class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
         value={app.applied_date ?? ''}
@@ -114,8 +118,9 @@
 
     <!-- Job URL -->
     <div>
-      <label class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Job URL</label>
+      <label for="dp-url" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Job URL</label>
       <input
+        id="dp-url"
         class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
         placeholder="https://..."
         value={app.job_url ?? ''}
@@ -128,8 +133,9 @@
 
     <!-- Notes -->
     <div>
-      <label class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Notes</label>
+      <label for="dp-notes" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Notes</label>
       <textarea
+        id="dp-notes"
         class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm min-h-[80px] resize-none"
         placeholder="Add notes..."
         onblur={(e) => {

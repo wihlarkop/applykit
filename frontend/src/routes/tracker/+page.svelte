@@ -221,7 +221,6 @@
                 placeholder="Company name *"
                 bind:value={newCompany}
                 required
-                autofocus
               />
               <input
                 class="w-full bg-background border border-border rounded px-2 py-1.5 text-sm"

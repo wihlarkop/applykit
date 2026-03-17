@@ -460,31 +460,151 @@
 
           {#if selectedCl}
             <div class="border rounded-lg overflow-hidden bg-white dark:bg-zinc-950/40 print:bg-white shadow-sm transition-colors">
+              <!-- Row 1: identity + actions -->
               <div class="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
-                <div>
-                  <span class="text-sm font-medium">{displayCompany(selectedCl)}</span>
-                  <span class="text-xs text-muted-foreground ml-2">{formatDate(selectedCl.created_at)}</span>
+                <div class="min-w-0 flex-1">
+                  <span class="text-sm font-semibold">{displayCompany(selectedCl)}</span>
+                  {#if displayRole(selectedCl)}
+                    <span class="text-xs text-muted-foreground ml-2 truncate">{displayRole(selectedCl)}</span>
+                  {/if}
                 </div>
-                <div class="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onclick={handleCopyCl}
-                  >
-                    Copy
-                  </Button>
+                <div class="flex gap-2 shrink-0">
+                  <Button variant="outline" size="sm" onclick={handleCopyCl}>Copy</Button>
                   <Button variant="outline" size="sm" onclick={handlePrint}>Print</Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onclick={() => selectedCl && handleDeleteCl(selectedCl.id)}
-                  >
-                    Delete
-                  </Button>
+                  <Button variant="destructive" size="sm" onclick={() => selectedCl && handleDeleteCl(selectedCl.id)}>Delete</Button>
                 </div>
               </div>
+
+              <!-- Row 2: metadata strip -->
+              <div class="flex items-center gap-2 px-3 py-1.5 bg-muted/10 border-b text-xs flex-wrap">
+                {#if selectedCl.match_score !== null}
+                  <span class="px-1.5 py-0.5 rounded font-medium {scoreColor(selectedCl.match_score)}">{selectedCl.match_score}% match</span>
+                {/if}
+                {#if selectedCl.tone && selectedCl.tone !== 'professional'}
+                  <span class="bg-muted border border-border rounded px-1.5 py-0.5 capitalize">{selectedCl.tone}</span>
+                {/if}
+                {#if selectedCl.application_status}
+                  {@const sp = STATUS_PIPELINE.find(p => p.value === selectedCl!.application_status)}
+                  {#if sp}
+                    <span class="px-2 py-0.5 rounded-full font-medium {sp.activeClass}">● {sp.label}</span>
+                  {/if}
+                {/if}
+                {#if selectedCl.application_id}
+                  <a href="/tracker" class="text-primary hover:underline">📌 Tracker →</a>
+                {/if}
+                <span class="text-muted-foreground ml-auto">{formatDate(selectedCl.created_at)}</span>
+              </div>
+
+              <!-- Tab bar (only when fit_analysis is available) -->
+              {#if selectedCl.fit_analysis}
+                <div class="flex border-b">
+                  <button
+                    class="px-4 py-2 text-sm font-medium transition-colors
+                      {previewTab === 'letter' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+                    onclick={() => (previewTab = 'letter')}
+                  >📄 Cover Letter</button>
+                  <button
+                    class="px-4 py-2 text-sm font-medium transition-colors
+                      {previewTab === 'analysis' ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+                    onclick={() => (previewTab = 'analysis')}
+                  >📊 Fit Analysis</button>
+                </div>
+              {/if}
+
+              <!-- Content -->
               <div class="overflow-auto max-h-[70vh]">
-                <CoverLetterPreview text={selectedCl.cover_letter_text} />
+                {#if previewTab === 'letter' || !selectedCl.fit_analysis}
+                  <CoverLetterPreview text={selectedCl.cover_letter_text} />
+                {:else}
+                  <!-- Fit Analysis -->
+                  <div class="p-4 space-y-4">
+
+                    <!-- Match score bar -->
+                    <div>
+                      <div class="flex justify-between text-xs mb-1.5">
+                        <span class="font-semibold text-muted-foreground uppercase tracking-wide">Match Score</span>
+                        <span class="font-bold {scoreColor(selectedCl.fit_analysis.match_score)}">{selectedCl.fit_analysis.match_score}%</span>
+                      </div>
+                      <div class="bg-muted rounded-full h-2 overflow-hidden">
+                        <div
+                          class="h-2 rounded-full {scoreBarColor(selectedCl.fit_analysis.match_score)}"
+                          style="width:{selectedCl.fit_analysis.match_score}%"
+                        ></div>
+                      </div>
+                    </div>
+
+                    <!-- Strengths / Gaps -->
+                    {#if selectedCl.fit_analysis.pros.length > 0 || selectedCl.fit_analysis.cons.length > 0}
+                      <div class="grid grid-cols-2 gap-3">
+                        {#if selectedCl.fit_analysis.pros.length > 0}
+                          <div class="border border-green-500/20 bg-green-500/5 rounded-lg p-3">
+                            <p class="text-xs font-semibold text-green-600 uppercase tracking-wide mb-2">✓ Strengths</p>
+                            <ul class="space-y-1">
+                              {#each selectedCl.fit_analysis.pros as pro}
+                                <li class="text-xs text-muted-foreground">· {pro}</li>
+                              {/each}
+                            </ul>
+                          </div>
+                        {/if}
+                        {#if selectedCl.fit_analysis.cons.length > 0}
+                          <div class="border border-red-500/20 bg-red-500/5 rounded-lg p-3">
+                            <p class="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2">✗ Gaps</p>
+                            <ul class="space-y-1">
+                              {#each selectedCl.fit_analysis.cons as con}
+                                <li class="text-xs text-muted-foreground">· {con}</li>
+                              {/each}
+                            </ul>
+                          </div>
+                        {/if}
+                      </div>
+                    {/if}
+
+                    <!-- Missing Keywords -->
+                    {#if selectedCl.fit_analysis.missing_keywords.length > 0}
+                      <div>
+                        <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Missing Keywords</p>
+                        <div class="flex flex-wrap gap-1.5">
+                          {#each selectedCl.fit_analysis.missing_keywords as kw}
+                            <span class="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">{kw}</span>
+                          {/each}
+                        </div>
+                      </div>
+                    {/if}
+
+                    <!-- Red Flags -->
+                    {#if selectedCl.fit_analysis.red_flags.length > 0}
+                      <div class="border border-amber-500/20 bg-amber-500/5 rounded-lg p-3">
+                        <p class="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-2">⚠ Red Flags</p>
+                        <ul class="space-y-1">
+                          {#each selectedCl.fit_analysis.red_flags as flag}
+                            <li class="text-xs text-muted-foreground">· {flag}</li>
+                          {/each}
+                        </ul>
+                      </div>
+                    {/if}
+
+                    <!-- Suggested Emphasis -->
+                    {#if selectedCl.fit_analysis.suggested_emphasis}
+                      <div>
+                        <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Suggested Emphasis</p>
+                        <p class="text-xs text-muted-foreground">{selectedCl.fit_analysis.suggested_emphasis}</p>
+                      </div>
+                    {/if}
+
+                    <!-- Interview Questions -->
+                    {#if selectedCl.fit_analysis.interview_questions.length > 0}
+                      <div>
+                        <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Interview Questions</p>
+                        <ol class="space-y-1.5 list-decimal list-inside">
+                          {#each selectedCl.fit_analysis.interview_questions as q}
+                            <li class="text-xs text-muted-foreground">{q}</li>
+                          {/each}
+                        </ol>
+                      </div>
+                    {/if}
+
+                  </div>
+                {/if}
               </div>
             </div>
           {:else}

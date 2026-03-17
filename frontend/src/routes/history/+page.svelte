@@ -31,6 +31,7 @@
 
   let selectedCv: GeneratedCVEntry | null = $state(null);
   let selectedCl: GeneratedCoverLetterEntry | null = $state(null);
+  let previewTab = $state<'letter' | 'analysis'>('letter');
 
   // Cover letter filters
   let clSearch = $state('');
@@ -51,6 +52,13 @@
     { value: 'interviewing', label: 'Interviewing' },
     { value: 'offer', label: 'Offer' },
     { value: 'rejected', label: 'Rejected' },
+  ];
+
+  const STATUS_PIPELINE = [
+    { value: 'applied',      label: 'Applied',      activeClass: 'bg-blue-500/20 text-blue-600 border border-blue-500/40' },
+    { value: 'interviewing', label: 'Interviewing',  activeClass: 'bg-amber-500/20 text-amber-600 border border-amber-500/40' },
+    { value: 'offer',        label: 'Offer',         activeClass: 'bg-green-500/20 text-green-600 border border-green-500/40' },
+    { value: 'rejected',     label: 'Rejected',      activeClass: 'bg-red-500/20 text-red-600 border border-red-500/40' },
   ];
 
   const allProfiles = $derived(profiles.all);
@@ -112,6 +120,10 @@
     loadCoverLetters();
   });
 
+  $effect(() => {
+    if (selectedCl) previewTab = 'letter';
+  });
+
   function formatDate(iso: string) {
     return new Date(iso).toLocaleString(undefined, {
       dateStyle: 'medium',
@@ -171,6 +183,28 @@
     if (entry.company_name) return entry.company_name;
     const jd = entry.job_description.trim();
     return jd.length > 45 ? jd.slice(0, 42) + '…' : jd;
+  }
+
+  function displayRole(entry: GeneratedCoverLetterEntry): string {
+    const firstLine = entry.job_description.split('\n')[0].trim();
+    if (!firstLine) return '';
+    return firstLine.length > 50 ? firstLine.slice(0, 47) + '…' : firstLine;
+  }
+
+  function scoreColor(score: number): string {
+    if (score >= 70) return 'bg-green-500/10 text-green-600';
+    if (score >= 40) return 'bg-yellow-500/10 text-yellow-600';
+    return 'bg-red-500/10 text-red-600';
+  }
+
+  function scoreBarColor(score: number): string {
+    if (score >= 70) return 'bg-green-500';
+    if (score >= 40) return 'bg-yellow-500';
+    return 'bg-red-500';
+  }
+
+  function formatDateShort(iso: string): string {
+    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
 </script>
 

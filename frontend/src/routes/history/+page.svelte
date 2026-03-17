@@ -493,7 +493,14 @@
               </div>
             {:else}
               <!-- Gradient header with score ring -->
-              <div class="shrink-0 border-b border-border" style="background:linear-gradient(135deg,#eef2ff,#f0fdf4)">
+              <div class="relative shrink-0 border-b border-border" style="background:linear-gradient(135deg,#eef2ff,#f0fdf4)">
+                <!-- Close button (top-right corner, desktop only) -->
+                <button
+                  onclick={() => selectedCl = null}
+                  class="hidden md:flex absolute top-2 right-2 w-6 h-6 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-black/5 transition-colors text-sm"
+                  title="Close preview"
+                  aria-label="Close preview"
+                >✕</button>
                 <!-- Mobile back button row -->
                 <div class="md:hidden px-3 pt-2">
                   <Button variant="ghost" size="sm" onclick={() => selectedCl = null}>← Back</Button>
@@ -544,18 +551,10 @@
                   </div>
 
                   <!-- Action buttons -->
-                  <div class="flex flex-col gap-1.5 shrink-0 items-end">
-                    <button
-                      onclick={() => selectedCl = null}
-                      class="self-end text-muted-foreground hover:text-foreground transition-colors leading-none text-lg px-1"
-                      title="Close preview"
-                      aria-label="Close preview"
-                    >✕</button>
-                    <div class="flex gap-1.5">
-                      <Button variant="outline" size="sm" onclick={handleCopyCl}>Copy</Button>
-                      <Button variant="outline" size="sm" onclick={handlePrint}>Print</Button>
-                      <Button variant="destructive" size="sm" onclick={() => selectedCl && handleDeleteCl(selectedCl.id)}>Delete</Button>
-                    </div>
+                  <div class="flex gap-1.5 shrink-0 mr-6">
+                    <Button variant="outline" size="sm" onclick={handleCopyCl}>Copy</Button>
+                    <Button variant="outline" size="sm" onclick={handlePrint}>Print</Button>
+                    <Button variant="destructive" size="sm" onclick={() => selectedCl && handleDeleteCl(selectedCl.id)}>Delete</Button>
                   </div>
                 </div>
               </div>

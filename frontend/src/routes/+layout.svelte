@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import ProfileSwitcher from '$lib/components/ProfileSwitcher.svelte';
   import SettingsButton from '$lib/components/SettingsButton.svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -12,7 +12,7 @@
 
   function navClass(href: string) {
     return `px-3 py-1.5 rounded-md text-sm transition-colors ${
-      $page.url.pathname === href
+      page.url.pathname === href
         ? 'bg-accent text-accent-foreground font-medium'
         : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
     }`;

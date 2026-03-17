@@ -19,7 +19,7 @@ from app.schemas import (
 from app.services.llm import APIKeyNotConfiguredError, LLMCallError, call_llm
 from app.services.pdf import PDFRenderError, html_to_pdf
 from app.services.settings import get_llm_config
-from app.utils import profile_to_schema
+from app.utils import format_profile_for_llm, profile_to_schema
 
 logger = logging.getLogger(__name__)
 
@@ -80,45 +80,7 @@ def _get_profile_or_404(db: Session, profile_id: int) -> Profile:
     return profile
 
 
-def _format_profile_for_llm(p: ProfileData) -> str:
-    """Format a ProfileData object as human-readable text for better LLM comprehension."""
-    lines = [f"CANDIDATE: {p.name}"]
-    if p.email:
-        lines.append(f"Email: {p.email}")
-    if p.location:
-        lines.append(f"Location: {p.location}")
-    if p.linkedin:
-        lines.append(f"LinkedIn: {p.linkedin}")
-    if p.github:
-        lines.append(f"GitHub: {p.github}")
-    if p.summary:
-        lines.append(f"\nSUMMARY:\n{p.summary}")
-    if p.skills:
-        lines.append(f"\nSKILLS: {', '.join(p.skills)}")
-    if p.work_experience:
-        lines.append("\nWORK EXPERIENCE:")
-        for w in p.work_experience:
-            end = w.end_date or "Present"
-            lines.append(f"\n  {w.role} at {w.company} ({w.start_date} – {end})")
-            for b in w.bullets:
-                lines.append(f"    - {b}")
-    if p.education:
-        lines.append("\nEDUCATION:")
-        for e in p.education:
-            end = e.end_date or "Present"
-            lines.append(
-                f"  {e.degree} in {e.field}, {e.institution} ({e.start_date} – {end})"
-            )
-    if p.projects:
-        lines.append("\nPROJECTS:")
-        for proj in p.projects:
-            tech = f" [{', '.join(proj.tech_stack)}]" if proj.tech_stack else ""
-            lines.append(f"  {proj.name}{tech}: {proj.description}")
-    if p.certifications:
-        lines.append("\nCERTIFICATIONS:")
-        for c in p.certifications:
-            lines.append(f"  {c.name} — {c.issuer} ({c.date})")
-    return "\n".join(lines)
+_format_profile_for_llm = format_profile_for_llm
 
 
 def _build_cover_letter_prompt(p: ProfileData, req: CoverLetterRequest) -> str:

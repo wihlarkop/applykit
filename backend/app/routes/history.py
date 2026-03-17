@@ -1,3 +1,4 @@
+import re
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,6 +16,25 @@ from app.schemas import (
 )
 
 router = APIRouter()
+
+
+def _extract_company(entry: GeneratedCoverLetter) -> str:
+    """Extract company name from stored field or job_description."""
+    if entry.company_name:
+        return entry.company_name
+    first_line = re.sub(
+        r"^(title|job title|position|role)\s*:\s*",
+        "",
+        (entry.job_description or "").split("\n")[0].strip(),
+        flags=re.IGNORECASE,
+    )
+    at_match = re.search(r"\bat\s+([^,(\n]+)", first_line, re.IGNORECASE)
+    if at_match:
+        return at_match.group(1).strip()[:30]
+    dash_match = re.search(r"\s[-–]\s*([A-Za-z]\S+)", first_line)
+    if dash_match:
+        return dash_match.group(1)[:30]
+    return first_line[:30] or "Unknown Company"
 
 
 def _profile_map(entries: list, db: Session) -> dict:
@@ -213,7 +233,7 @@ def update_cover_letter_status(
         else:
             # Auto-create an Application record and link it
             app = Application(
-                company_name=entry.company_name or "Unknown Company",
+                company_name=_extract_company(entry),
                 status=body.status,
                 job_url=entry.job_url,
                 profile_id=entry.profile_id,

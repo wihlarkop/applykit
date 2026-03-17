@@ -6,6 +6,7 @@
   import { Label } from '$lib/components/ui/label';
   import { profiles } from '$lib/profiles.svelte';
   import { toastState } from '$lib/toast.svelte';
+  import { untrack } from 'svelte';
   import type { CreateProfileRequest, ProfileData } from '$lib/types';
 
   function portal(node: HTMLElement) {
@@ -27,9 +28,9 @@
   const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'];
   const ICONS  = ['💼', '🏢', '🎨', '💻', '🚀', '⚡', '🎯', '🌟'];
 
-  let label = $state(profile?.label ?? '');
-  let color = $state(profile?.color ?? COLORS[0]);
-  let icon  = $state(profile?.icon  ?? ICONS[0]);
+  let label = $state(untrack(() => profile?.label ?? ''));
+  let color = $state(untrack(() => profile?.color ?? COLORS[0]));
+  let icon  = $state(untrack(() => profile?.icon  ?? ICONS[0]));
   let cloneEnabled = $state(false);
   let cloneFromId  = $state<number | null>(null);
   let saving = $state(false);
@@ -81,12 +82,16 @@
 <div
   use:portal
   class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+  role="presentation"
   onclick={onclose}
+  onkeydown={(e) => e.key === 'Escape' && onclose()}
 >
   <!-- Modal -->
   <div
     class="bg-card border rounded-xl shadow-xl p-6 w-full max-w-sm mx-4 space-y-5"
+    role="presentation"
     onclick={(e) => e.stopPropagation()}
+    onkeydown={(e) => e.stopPropagation()}
   >
     <h2 class="text-lg font-semibold">{mode === 'create' ? 'New Profile' : 'Edit Identity'}</h2>
 

@@ -51,7 +51,7 @@
 
   <!-- Dropdown -->
   {#if dropdownOpen}
-    <div class="fixed inset-0 z-10" onclick={() => (dropdownOpen = false)}></div>
+    <div class="fixed inset-0 z-10" role="presentation" onclick={() => (dropdownOpen = false)} onkeydown={() => (dropdownOpen = false)}></div>
 
     <div class="absolute top-full mt-1 left-0 z-20 bg-card border rounded-lg shadow-lg py-1 min-w-[200px]">
       {#each allProfiles as p}

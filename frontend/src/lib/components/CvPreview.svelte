@@ -2,6 +2,12 @@
   import type { ProfileData } from '$lib/types';
 
   let { profile }: { profile: ProfileData } = $props();
+
+  function toHref(url: string): string {
+    if (!url) return '#';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return 'https://' + url;
+  }
 </script>
 
 <div class="cv-preview font-sans text-[13px] leading-snug text-foreground dark:text-zinc-100 print:text-black max-w-200 mx-auto p-8 bg-transparent">
@@ -9,12 +15,12 @@
   <div class="text-center mb-4">
     <h1 class="text-2xl font-bold uppercase tracking-wide text-foreground dark:text-white print:text-black">{profile.name}</h1>
     <div class="flex flex-wrap justify-center gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground dark:text-zinc-400 print:text-gray-600">
-      {#if profile.email}<span>{profile.email}</span>{/if}
-      {#if profile.phone}<span>{profile.phone}</span>{/if}
+      {#if profile.email}<a href="mailto:{profile.email}" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors print:text-blue-600">{profile.email}</a>{/if}
+      {#if profile.phone}<a href="tel:{profile.phone}" class="hover:text-primary transition-colors print:text-blue-600">{profile.phone}</a>{/if}
       {#if profile.location}<span>{profile.location}</span>{/if}
-      {#if profile.linkedin}<span>{profile.linkedin}</span>{/if}
-      {#if profile.github}<span>{profile.github}</span>{/if}
-      {#if profile.portfolio}<span>{profile.portfolio}</span>{/if}
+      {#if profile.linkedin}<a href={toHref(profile.linkedin)} target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors print:text-blue-600">{profile.linkedin}</a>{/if}
+      {#if profile.github}<a href={toHref(profile.github)} target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors print:text-blue-600">{profile.github}</a>{/if}
+      {#if profile.portfolio}<a href={toHref(profile.portfolio)} target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors print:text-blue-600">{profile.portfolio}</a>{/if}
     </div>
   </div>
 
@@ -74,7 +80,7 @@
         <div class="mb-2">
           <div class="flex justify-between items-baseline">
             <span class="font-semibold text-foreground dark:text-zinc-200">{p.name}</span>
-            {#if p.link}<a href={p.link} class="text-xs text-primary dark:text-blue-400 print:text-blue-600">{p.link}</a>{/if}
+            {#if p.link}<a href={toHref(p.link)} target="_blank" rel="noopener noreferrer" class="text-xs text-primary dark:text-blue-400 print:text-blue-600 hover:underline">{p.link}</a>{/if}
           </div>
           <p class="text-muted-foreground dark:text-zinc-300 print:text-black">{p.description}</p>
           {#if p.tech_stack.length}

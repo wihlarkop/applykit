@@ -514,7 +514,13 @@
                         {/if}
                       {/if}
                       {#if selectedCl.application_id}
-                        <a href="/tracker" class="text-xs text-primary hover:underline">📌 Tracker →</a>
+                        <span
+                          role="link"
+                          tabindex="0"
+                          class="text-xs text-primary hover:underline cursor-pointer"
+                          onclick={() => goto('/tracker')}
+                          onkeydown={(e) => { if (e.key === 'Enter') goto('/tracker'); }}
+                        >📌 Tracker →</span>
                       {/if}
                     </div>
                   </div>

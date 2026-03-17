@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import date, datetime
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel
@@ -244,3 +245,57 @@ class UpdateStatusRequest(BaseModel):
 
 class BulkDeleteRequest(BaseModel):
     ids: list[int]
+
+
+# --- Application Tracker schemas ---
+
+
+class ApplicationStatus(str, Enum):
+    applied = "applied"
+    interviewing = "interviewing"
+    offer = "offer"
+    rejected = "rejected"
+
+
+class CreateApplicationRequest(BaseModel):
+    company_name: str
+    role_title: str = ""
+    status: ApplicationStatus = ApplicationStatus.applied
+    job_url: str | None = None
+    notes: str | None = None
+    applied_date: date | None = None
+    profile_id: int | None = None
+
+
+class UpdateApplicationRequest(BaseModel):
+    company_name: str | None = None
+    role_title: str | None = None
+    status: ApplicationStatus | None = None
+    job_url: str | None = None
+    notes: str | None = None
+    applied_date: date | None = None
+
+
+class ApplicationEntry(BaseModel):
+    id: int
+    company_name: str
+    role_title: str
+    status: ApplicationStatus
+    job_url: str | None
+    notes: str | None
+    applied_date: date | None
+    created_at: datetime
+    profile_id: int | None
+    profile_label: str | None
+    profile_color: str | None
+    profile_icon: str | None
+    match_score: int | None
+    linked_cover_letter_id: int | None
+    linked_cv_id: int | None
+
+    model_config = {"from_attributes": True}
+
+
+class ApplicationListResponse(BaseModel):
+    items: list[ApplicationEntry]
+    total: int

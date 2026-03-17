@@ -73,6 +73,12 @@
 
       <div class="border-t my-1"></div>
       <button
+        onclick={() => { dropdownOpen = false; goto('/profile'); }}
+        class="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+      >
+        <span class="text-base">✏️</span> Edit Profile
+      </button>
+      <button
         onclick={handleManageProfiles}
         class="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
       >

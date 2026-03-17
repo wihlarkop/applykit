@@ -2,6 +2,7 @@ import type {
     CoverLetterRequest,
     CoverLetterResponse,
     CreateProfileRequest,
+    FitAnalysisResponse,
     GenerateCvRequest,
     GenerateCvResponse,
     GeneratedCVEntry,
@@ -13,6 +14,7 @@ import type {
     PdfRequest,
     ProfileData,
     ProfileListResponse,
+    ScrapeJobResponse,
     SettingsResponse,
     StatusResponse,
     TestConnectionResponse,
@@ -118,6 +120,13 @@ export const generateCoverLetter = (data: CoverLetterRequest) =>
     body: JSON.stringify(data),
   });
 
+export const generateCoverLetterStream = (data: CoverLetterRequest): Promise<Response> =>
+  fetch(`${BASE_URL}/generate/cover-letter`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
 export const generateCoverLetterPdf = (data: PdfRequest) =>
   fetch(`${BASE_URL}/generate/cover-letter/pdf`, {
     method: 'POST',
@@ -131,9 +140,26 @@ export const generateCoverLetterPdf = (data: PdfRequest) =>
     return res.blob();
   });
 
+// Scrape
+export const scrapeJob = (url: string) =>
+  request<ScrapeJobResponse>('/scrape/job', { method: 'POST', body: JSON.stringify({ url }) });
+
+// Fit analysis
+export const analyzeFit = (profile_id: number, job_description: string) =>
+  request<FitAnalysisResponse>('/analyze/fit', {
+    method: 'POST',
+    body: JSON.stringify({ profile_id, job_description }),
+  });
+
 // CV history
-export const getCvHistory = (profileId?: number) =>
-  request<GeneratedCVListResponse>(`/history/cv${profileId != null ? `?profile_id=${profileId}` : ''}`);
+export const getCvHistory = (filters: { profile_id?: number; sort?: string; limit?: number; offset?: number } = {}) => {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) {
+    if (v !== undefined && v !== null) params.set(k, String(v));
+  }
+  const qs = params.toString();
+  return request<GeneratedCVListResponse>(`/history/cv${qs ? `?${qs}` : ''}`);
+};
 
 export const getCvHistoryEntry = (id: number) =>
   request<GeneratedCVEntry>(`/history/cv/${id}`);
@@ -141,15 +167,56 @@ export const getCvHistoryEntry = (id: number) =>
 export const deleteCvHistoryEntry = (id: number) =>
   request<void>(`/history/cv/${id}`, { method: 'DELETE' });
 
+export const updateCvStatus = (id: number, status: string | null) =>
+  request<GeneratedCVEntry>(`/history/cv/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+
+export const bulkDeleteCvs = (ids: number[]) =>
+  request<{ deleted: number }>('/history/cv', {
+    method: 'DELETE',
+    body: JSON.stringify({ ids }),
+  });
+
 // Cover letter history
-export const getCoverLetterHistory = (profileId?: number) =>
-  request<GeneratedCoverLetterListResponse>(`/history/cover-letter${profileId != null ? `?profile_id=${profileId}` : ''}`);
+export interface CoverLetterHistoryFilters {
+  profile_id?: number;
+  search?: string;
+  match_min?: number;
+  match_max?: number;
+  status?: string;
+  sort?: 'date_desc' | 'date_asc' | 'match_desc' | 'company_asc';
+  limit?: number;
+  offset?: number;
+}
+
+export const getCoverLetterHistory = (filters: CoverLetterHistoryFilters = {}) => {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) {
+    if (v !== undefined && v !== null) params.set(k, String(v));
+  }
+  const qs = params.toString();
+  return request<GeneratedCoverLetterListResponse>(`/history/cover-letter${qs ? `?${qs}` : ''}`);
+};
 
 export const getCoverLetterHistoryEntry = (id: number) =>
   request<GeneratedCoverLetterEntry>(`/history/cover-letter/${id}`);
 
 export const deleteCoverLetterHistoryEntry = (id: number) =>
   request<void>(`/history/cover-letter/${id}`, { method: 'DELETE' });
+
+export const updateCoverLetterStatus = (id: number, status: string | null) =>
+  request<GeneratedCoverLetterEntry>(`/history/cover-letter/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+
+export const bulkDeleteCoverLetters = (ids: number[]) =>
+  request<{ deleted: number }>('/history/cover-letter', {
+    method: 'DELETE',
+    body: JSON.stringify({ ids }),
+  });
 
 // Settings
 export const getSettings = () =>

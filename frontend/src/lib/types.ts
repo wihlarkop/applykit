@@ -93,11 +93,36 @@ export interface GenerateCvResponse {
   profile: ProfileData;
 }
 
+// Smart URL types
+export interface ScrapeJobResponse {
+  job_description: string;
+  company_name: string | null;
+  source: 'greenhouse_api' | 'lever_api' | 'jina' | 'crawl4ai';
+}
+
+export interface FitAnalysisResponse {
+  match_score: number;
+  pros: string[];
+  cons: string[];
+  missing_keywords: string[];
+  red_flags: string[];
+  suggested_emphasis: string;
+  interview_questions: string[];
+}
+
+export type Tone = 'professional' | 'enthusiastic' | 'concise' | 'creative';
+export type ApplicationStatus = 'applied' | 'interviewing' | 'offer' | 'rejected';
+
 export interface CoverLetterRequest {
   profile_id: number;
   job_description: string;
   company_name?: string | null;
   extra_context?: string;
+  tone?: Tone;
+  job_url?: string | null;
+  fit_context?: string | null;
+  match_score?: number | null;
+  fit_analysis_json?: string | null;
 }
 
 export interface CoverLetterResponse {
@@ -118,14 +143,16 @@ export interface GeneratedCVEntry {
   created_at: string;
   enhanced: boolean;
   profile_snapshot: string;
-  profile_id?: number | null;
-  profile_label?: string | null;
-  profile_color?: string | null;
-  profile_icon?: string | null;
+  application_status: string | null;
+  profile_id: number | null;
+  profile_label: string | null;
+  profile_color: string | null;
+  profile_icon: string | null;
 }
 
 export interface GeneratedCVListResponse {
   items: GeneratedCVEntry[];
+  total: number;
 }
 
 export interface GeneratedCoverLetterEntry {
@@ -135,14 +162,20 @@ export interface GeneratedCoverLetterEntry {
   job_description: string;
   extra_context: string | null;
   cover_letter_text: string;
-  profile_id?: number | null;
-  profile_label?: string | null;
-  profile_color?: string | null;
-  profile_icon?: string | null;
+  tone: string;
+  job_url: string | null;
+  match_score: number | null;
+  fit_analysis: FitAnalysisResponse | null;
+  application_status: string | null;
+  profile_id: number | null;
+  profile_label: string | null;
+  profile_color: string | null;
+  profile_icon: string | null;
 }
 
 export interface GeneratedCoverLetterListResponse {
   items: GeneratedCoverLetterEntry[];
+  total: number;
 }
 
 // Settings

@@ -88,6 +88,7 @@
     try {
       await bulkDeleteCoverLetters([...selectedClIds]);
       clItems = clItems.filter((e) => !selectedClIds.has(e.id));
+      if (selectedCl && selectedClIds.has(selectedCl.id)) selectedCl = null;
       selectedClIds = new Set();
       confirmBulkDelete = false;
     } catch (e: any) {
@@ -382,11 +383,13 @@
           <div class="overflow-y-auto border-r border-border {selectedCl ? 'hidden md:block' : ''}">
             <div class="p-2 space-y-1.5">
               {#each clItems as entry}
+                {@const role = displayRole(entry)}
                 <div class="flex items-start gap-1.5">
                   <input
                     type="checkbox"
                     class="mt-3.5 rounded shrink-0"
                     checked={selectedClIds.has(entry.id)}
+                    onclick={(e) => e.stopPropagation()}
                     onchange={() => {
                       const s = new Set(selectedClIds);
                       if (s.has(entry.id)) s.delete(entry.id); else s.add(entry.id);
@@ -415,8 +418,8 @@
 
                     <!-- Row 2: role snippet + date -->
                     <div class="flex items-center justify-between mt-0.5 gap-2">
-                      {#if displayRole(entry)}
-                        <span class="text-xs text-muted-foreground truncate flex-1">{displayRole(entry)}</span>
+                      {#if role}
+                        <span class="text-xs text-muted-foreground truncate flex-1">{role}</span>
                       {/if}
                       <span class="text-xs text-muted-foreground shrink-0 ml-auto">{formatDateShort(entry.created_at)}</span>
                     </div>
@@ -491,7 +494,7 @@
                     {@const ringColor = pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444'}
                     <div
                       class="shrink-0 w-14 h-14 rounded-full flex items-center justify-center"
-                      style="background:conic-gradient({ringColor} {deg}deg, #e2e8f0 0)"
+                      style="background:conic-gradient({ringColor} {deg}deg, #e2e8f0 {deg}deg)"
                     >
                       <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center">
                         <span class="text-xs font-bold" style="color:{ringColor}">{pct}%</span>
@@ -502,8 +505,11 @@
                   <!-- Identity -->
                   <div class="flex-1 min-w-0">
                     <div class="text-base font-bold text-foreground truncate">{displayCompany(selectedCl)}</div>
-                    {#if displayRole(selectedCl)}
-                      <div class="text-xs text-muted-foreground mt-0.5 truncate">{displayRole(selectedCl)}</div>
+                    {#if selectedCl}
+                      {@const previewRole = displayRole(selectedCl)}
+                      {#if previewRole}
+                        <div class="text-xs text-muted-foreground mt-0.5 truncate">{previewRole}</div>
+                      {/if}
                     {/if}
                     <div class="text-xs text-muted-foreground mt-0.5">{formatDate(selectedCl.created_at)}</div>
                     <div class="mt-2 flex items-center gap-2 flex-wrap">

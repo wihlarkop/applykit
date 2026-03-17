@@ -182,14 +182,26 @@
 
   function displayCompany(entry: GeneratedCoverLetterEntry): string {
     if (entry.company_name) return entry.company_name;
-    const jd = entry.job_description.trim();
-    return jd.length > 45 ? jd.slice(0, 42) + '…' : jd;
+    // Strip common prefixes like "Title:", "Position:", etc.
+    const firstLine = entry.job_description.split('\n')[0].trim()
+      .replace(/^(title|job title|position|role)\s*:\s*/i, '');
+    // "Role at Company..." → extract company after "at"
+    const atMatch = firstLine.match(/\bat\s+([^,(\n]+)/i);
+    if (atMatch) return atMatch[1].trim().slice(0, 30);
+    // "Role - Company..." → extract first word(s) after dash
+    const dashMatch = firstLine.match(/\s[-–]\s*([A-Za-z]\S+)/);
+    if (dashMatch) return dashMatch[1].slice(0, 30);
+    return firstLine.length > 30 ? firstLine.slice(0, 27) + '…' : firstLine;
   }
 
   function displayRole(entry: GeneratedCoverLetterEntry): string {
-    const firstLine = entry.job_description.split('\n')[0].trim();
+    const firstLine = entry.job_description.split('\n')[0].trim()
+      .replace(/^(title|job title|position|role)\s*:\s*/i, '');
     if (!firstLine) return '';
-    return firstLine.length > 50 ? firstLine.slice(0, 47) + '…' : firstLine;
+    // Strip " - Company" suffix to show just the role
+    const clean = firstLine.replace(/\s[-–]\s*\S+.*$/, '').trim();
+    const text = clean || firstLine;
+    return text.length > 50 ? text.slice(0, 47) + '…' : text;
   }
 
   function scoreColor(score: number): string {
@@ -377,10 +389,10 @@
         {/if}
 
         <!-- Gmail two-column layout -->
-        <div class="grid md:grid-cols-[320px_1fr] h-[calc(100vh-240px)] overflow-hidden border border-border rounded-lg">
+        <div class="grid md:grid-cols-[360px_1fr] h-[calc(100vh-260px)] overflow-hidden border-t border-border">
 
           <!-- LEFT: Sidebar (card list) -->
-          <div class="overflow-y-auto border-r border-border {selectedCl ? 'hidden md:block' : ''}">
+          <div class="overflow-y-auto border-r border-border bg-muted/20 {selectedCl ? 'hidden md:block' : ''}">
             <div class="p-2 space-y-1.5">
               {#each clItems as entry}
                 {@const role = displayRole(entry)}

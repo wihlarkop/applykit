@@ -375,8 +375,8 @@
           </div>
         {/if}
 
-        <div class="grid gap-4 lg:grid-cols-[280px_1fr]">
-          <div class="space-y-2">
+        <div class="grid gap-4 md:grid-cols-[280px_1fr]">
+          <div class="space-y-2 {selectedCl ? 'hidden md:block' : ''}">
             {#each clItems as entry}
               <div class="flex items-start gap-2">
                 <input
@@ -469,6 +469,7 @@
                   {/if}
                 </div>
                 <div class="flex gap-2 shrink-0">
+                  <Button variant="ghost" size="sm" class="md:hidden" onclick={() => selectedCl = null}>← Back</Button>
                   <Button variant="outline" size="sm" onclick={handleCopyCl}>Copy</Button>
                   <Button variant="outline" size="sm" onclick={handlePrint}>Print</Button>
                   <Button variant="destructive" size="sm" onclick={() => selectedCl && handleDeleteCl(selectedCl.id)}>Delete</Button>

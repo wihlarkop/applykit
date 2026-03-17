@@ -206,3 +206,21 @@ class ScrapeJobResponse(BaseModel):
     job_description: str
     company_name: str | None
     source: Literal["greenhouse_api", "lever_api", "jina", "crawl4ai"]
+
+
+# --- Fit analysis schemas ---
+
+
+class FitAnalysisRequest(BaseModel):
+    profile_id: int
+    job_description: str
+
+
+class FitAnalysisResponse(BaseModel):
+    match_score: int
+    pros: list[str]
+    cons: list[str]
+    missing_keywords: list[str]
+    red_flags: list[str]
+    suggested_emphasis: str
+    interview_questions: list[str]

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -45,6 +45,9 @@ class GeneratedCV(Base):
     profile_id = Column(
         Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True
     )
+    application_id = Column(
+        Integer, ForeignKey("application.id", ondelete="SET NULL"), nullable=True
+    )
     application_status = Column(String, nullable=True, default=None)
 
 
@@ -60,11 +63,35 @@ class GeneratedCoverLetter(Base):
     profile_id = Column(
         Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True
     )
+    application_id = Column(
+        Integer, ForeignKey("application.id", ondelete="SET NULL"), nullable=True
+    )
     job_url = Column(String, nullable=True)
     match_score = Column(Integer, nullable=True)
     fit_analysis = Column(Text, nullable=True)  # JSON string of FitAnalysisResponse
     tone = Column(String, nullable=False, default="professional")
     application_status = Column(String, nullable=True, default=None)
+
+
+class Application(Base):
+    __tablename__ = "application"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    company_name = Column(String, nullable=False)
+    role_title = Column(String, nullable=False, default="")
+    status = Column(String, nullable=False, default="applied")
+    job_url = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+    applied_date = Column(Date, nullable=True)
+    profile_id = Column(
+        Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
 
 
 class AppSetting(Base):

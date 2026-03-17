@@ -210,3 +210,46 @@ export interface ProviderInfo {
 export interface ModelsResponse {
   providers: ProviderInfo[];
 }
+
+// Application Tracker
+export interface ApplicationEntry {
+  id: number;
+  company_name: string;
+  role_title: string;
+  status: ApplicationStatus;
+  job_url: string | null;
+  notes: string | null;
+  applied_date: string | null;  // ISO date string
+  created_at: string;
+  profile_id: number | null;
+  profile_label: string | null;
+  profile_color: string | null;
+  profile_icon: string | null;
+  match_score: number | null;
+  linked_cover_letter_id: number | null;
+  linked_cv_id: number | null;
+}
+
+export interface ApplicationListResponse {
+  items: ApplicationEntry[];
+  total: number;
+}
+
+export interface CreateApplicationRequest {
+  company_name: string;
+  role_title?: string;
+  status?: ApplicationStatus;
+  job_url?: string | null;
+  notes?: string | null;
+  applied_date?: string | null;
+  profile_id?: number | null;
+}
+
+export interface UpdateApplicationRequest {
+  company_name?: string;
+  role_title?: string;
+  status?: ApplicationStatus;
+  job_url?: string | null;
+  notes?: string | null;
+  applied_date?: string | null;
+}

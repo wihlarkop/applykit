@@ -1,6 +1,9 @@
 import type {
+    ApplicationEntry,
+    ApplicationListResponse,
     CoverLetterRequest,
     CoverLetterResponse,
+    CreateApplicationRequest,
     CreateProfileRequest,
     FitAnalysisResponse,
     GenerateCvRequest,
@@ -18,6 +21,7 @@ import type {
     SettingsResponse,
     StatusResponse,
     TestConnectionResponse,
+    UpdateApplicationRequest,
     UpdateSettingsRequest,
 } from './types';
 
@@ -230,3 +234,36 @@ export const testConnection = (data: UpdateSettingsRequest) =>
 
 export const getModels = () =>
   request<ModelsResponse>('/settings/models');
+
+// Applications
+export interface ApplicationFilters {
+  profile_id?: number;
+  status?: string;
+  search?: string;
+  date_from?: string;
+  date_to?: string;
+  match_min?: number;
+  match_max?: number;
+  sort?: 'date_desc' | 'date_asc';
+}
+
+export const listApplications = (filters: ApplicationFilters = {}) => {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) {
+    if (v !== undefined && v !== null) params.set(k, String(v));
+  }
+  const qs = params.toString();
+  return request<ApplicationListResponse>(`/applications${qs ? `?${qs}` : ''}`);
+};
+
+export const createApplication = (data: CreateApplicationRequest) =>
+  request<ApplicationEntry>('/applications', { method: 'POST', body: JSON.stringify(data) });
+
+export const getApplication = (id: number) =>
+  request<ApplicationEntry>(`/applications/${id}`);
+
+export const updateApplication = (id: number, data: UpdateApplicationRequest) =>
+  request<ApplicationEntry>(`/applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+
+export const deleteApplication = (id: number) =>
+  request<{ deleted: number }>(`/applications/${id}`, { method: 'DELETE' });

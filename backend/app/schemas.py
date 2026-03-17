@@ -106,6 +106,11 @@ class CoverLetterRequest(BaseModel):
     job_description: str
     company_name: str | None = None
     extra_context: str = ""
+    tone: Literal["professional", "enthusiastic", "concise", "creative"] = "professional"
+    job_url: str | None = None
+    fit_context: str | None = None
+    match_score: int | None = None          # from fit analysis — persisted to generated_cover_letter
+    fit_analysis_json: str | None = None    # JSON string of FitAnalysisResponse — persisted to generated_cover_letter.fit_analysis
 
 
 class CoverLetterResponse(BaseModel):
@@ -139,6 +144,7 @@ class GeneratedCVEntry(BaseModel):
 
 class GeneratedCVListResponse(BaseModel):
     items: list[GeneratedCVEntry]
+    total: int
 
 
 class GeneratedCoverLetterEntry(BaseModel):
@@ -148,6 +154,11 @@ class GeneratedCoverLetterEntry(BaseModel):
     job_description: str
     extra_context: str | None
     cover_letter_text: str
+    tone: str
+    job_url: str | None
+    match_score: int | None
+    fit_analysis: dict | None
+    application_status: str | None
     profile_id: int | None = None
     profile_label: str | None = None
     profile_color: str | None = None
@@ -158,6 +169,7 @@ class GeneratedCoverLetterEntry(BaseModel):
 
 class GeneratedCoverLetterListResponse(BaseModel):
     items: list[GeneratedCoverLetterEntry]
+    total: int
 
 
 # --- Settings schemas ---
@@ -224,3 +236,11 @@ class FitAnalysisResponse(BaseModel):
     red_flags: list[str]
     suggested_emphasis: str
     interview_questions: list[str]
+
+
+class UpdateStatusRequest(BaseModel):
+    status: str | None  # None clears status back to null
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: list[int]

@@ -167,6 +167,7 @@ export interface GeneratedCoverLetterEntry {
   match_score: number | null;
   fit_analysis: FitAnalysisResponse | null;
   application_status: string | null;
+  application_id: number | null;
   profile_id: number | null;
   profile_label: string | null;
   profile_color: string | null;

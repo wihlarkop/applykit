@@ -62,6 +62,7 @@ def _enrich_cl(entry: GeneratedCoverLetter, profiles: dict) -> dict:
         "match_score": getattr(entry, "match_score", None),
         "fit_analysis": fit,
         "application_status": getattr(entry, "application_status", None),
+        "application_id": getattr(entry, "application_id", None),
         "profile_id": entry.profile_id,
         "profile_label": p.label if p else None,
         "profile_color": p.color if p else None,
@@ -221,6 +222,7 @@ def update_cover_letter_status(
             db.add(app)
             db.flush()
             entry.application_id = app.id
+    # Note: clearing to "—" does not unlink the Application — manage it from Tracker
     db.commit()
     return _enrich_cl(entry, _profile_map([entry], db))
 

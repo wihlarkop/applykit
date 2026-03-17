@@ -382,16 +382,19 @@
                   </div>
                   <div class="text-xs text-muted-foreground mt-0.5">{formatDate(entry.created_at)}</div>
                   <!-- Status dropdown -->
-                  <div class="mt-2" role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+                  <div class="mt-2 flex items-center gap-2" role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
                     <select
                       class="text-xs bg-background border border-border rounded px-2 py-1"
                       value={entry.application_status ?? ''}
                       onchange={(e) => handleClStatusChange(entry.id, (e.target as HTMLSelectElement).value || null)}
                     >
                       {#each STATUS_OPTIONS as opt}
-                        <option value={opt.value ?? ''}>{opt.label}</option>
+                        <option value={opt.value ?? ''} disabled={!opt.value && !!entry.application_id}>{opt.label}</option>
                       {/each}
                     </select>
+                    {#if entry.application_id}
+                      <a href="/tracker" class="text-[10px] text-primary hover:underline" title="View in Tracker">📌 Tracked</a>
+                    {/if}
                   </div>
                 </button>
               </div>

@@ -160,6 +160,7 @@ class GeneratedCoverLetterEntry(BaseModel):
     match_score: int | None
     fit_analysis: dict | None
     application_status: str | None
+    application_id: int | None = None
     profile_id: int | None = None
     profile_label: str | None = None
     profile_color: str | None = None

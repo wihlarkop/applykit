@@ -544,10 +544,18 @@
                   </div>
 
                   <!-- Action buttons -->
-                  <div class="flex gap-1.5 shrink-0">
-                    <Button variant="outline" size="sm" onclick={handleCopyCl}>Copy</Button>
-                    <Button variant="outline" size="sm" onclick={handlePrint}>Print</Button>
-                    <Button variant="destructive" size="sm" onclick={() => selectedCl && handleDeleteCl(selectedCl.id)}>Delete</Button>
+                  <div class="flex flex-col gap-1.5 shrink-0 items-end">
+                    <button
+                      onclick={() => selectedCl = null}
+                      class="self-end text-muted-foreground hover:text-foreground transition-colors leading-none text-lg px-1"
+                      title="Close preview"
+                      aria-label="Close preview"
+                    >✕</button>
+                    <div class="flex gap-1.5">
+                      <Button variant="outline" size="sm" onclick={handleCopyCl}>Copy</Button>
+                      <Button variant="outline" size="sm" onclick={handlePrint}>Print</Button>
+                      <Button variant="destructive" size="sm" onclick={() => selectedCl && handleDeleteCl(selectedCl.id)}>Delete</Button>
+                    </div>
                   </div>
                 </div>
               </div>

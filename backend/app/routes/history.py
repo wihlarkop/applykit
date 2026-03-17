@@ -1,8 +1,10 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import GeneratedCoverLetter, GeneratedCV, Profile
+from app.models import Application, GeneratedCoverLetter, GeneratedCV, Profile
 from app.schemas import (
     BulkDeleteRequest,
     GeneratedCoverLetterEntry,
@@ -201,6 +203,19 @@ def update_cover_letter_status(
     if not entry:
         raise HTTPException(status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"})
     entry.application_status = body.status
+    # Auto-create an Application record if status is set and none is linked yet
+    if body.status and not entry.application_id:
+        company = entry.company_name or "Unknown Company"
+        app = Application(
+            company_name=company,
+            status=body.status,
+            job_url=entry.job_url,
+            profile_id=entry.profile_id,
+            applied_date=date.today(),
+        )
+        db.add(app)
+        db.flush()
+        entry.application_id = app.id
     db.commit()
     return _enrich_cl(entry, _profile_map([entry], db))
 

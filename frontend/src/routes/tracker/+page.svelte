@@ -143,7 +143,8 @@
   }
 </script>
 
-<div class="space-y-4">
+<div class="space-y-4 transition-[padding-right] duration-200 {selectedApp ? 'pr-[376px]' : ''}"
+>
   <div class="flex items-center justify-between">
     <h1 class="text-2xl font-bold">Application Tracker</h1>
   </div>

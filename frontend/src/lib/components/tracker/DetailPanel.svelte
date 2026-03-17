@@ -19,14 +19,26 @@
   } = $props();
 
   const STATUS_OPTIONS: ApplicationStatus[] = ['applied', 'interviewing', 'offer', 'rejected'];
+  const STATUS_COLORS: Record<ApplicationStatus, string> = {
+    applied: 'text-blue-600',
+    interviewing: 'text-amber-500',
+    offer: 'text-green-500',
+    rejected: 'text-red-500',
+  };
+
   let confirmDelete = $state(false);
   let saving = $state(false);
+  let savedRecently = $state(false);
+  let saveTimer: ReturnType<typeof setTimeout>;
 
   async function patch(data: UpdateApplicationRequest) {
     try {
       saving = true;
       const updated = await updateApplication(app.id, data);
       onupdate(updated);
+      clearTimeout(saveTimer);
+      savedRecently = true;
+      saveTimer = setTimeout(() => (savedRecently = false), 2000);
     } catch (e: any) {
       toastState.error(e.message);
     } finally {
@@ -44,26 +56,40 @@
   }
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
-  class="fixed inset-y-0 right-0 w-96 bg-card border-l border-border shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-300"
+  role="complementary"
+  class="fixed inset-y-0 right-0 w-[360px] bg-card border-l border-border shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200"
+  onkeydown={(e) => e.key === 'Escape' && onclose()}
 >
   <!-- Header -->
-  <div class="flex items-start justify-between p-4 border-b border-border">
+  <div class="flex items-start justify-between px-4 py-3 border-b border-border bg-muted/30">
     <div class="flex-1 min-w-0 pr-3">
       <h2 class="font-semibold truncate">{app.company_name}</h2>
-      <p class="text-sm text-muted-foreground truncate">{app.role_title || '—'}</p>
+      <p class="text-xs text-muted-foreground truncate mt-0.5">{app.role_title || '—'}</p>
     </div>
-    <button onclick={onclose} class="text-muted-foreground hover:text-foreground p-1 rounded">✕</button>
+    <div class="flex items-center gap-2 shrink-0">
+      {#if saving}
+        <span class="text-xs text-muted-foreground">Saving…</span>
+      {:else if savedRecently}
+        <span class="text-xs text-green-500">✓ Saved</span>
+      {/if}
+      <button
+        onclick={onclose}
+        class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent transition-colors"
+        aria-label="Close panel"
+      >✕</button>
+    </div>
   </div>
 
   <!-- Body -->
   <div class="flex-1 overflow-y-auto p-4 space-y-4">
     <!-- Status -->
     <div>
-      <label for="dp-status" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Status</label>
+      <label for="dp-status" class="text-xs font-medium text-muted-foreground block mb-1">Status</label>
       <select
         id="dp-status"
-        class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
+        class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm font-medium {STATUS_COLORS[app.status]}"
         value={app.status}
         onchange={(e) => patch({ status: (e.target as HTMLSelectElement).value as ApplicationStatus })}
       >
@@ -75,7 +101,7 @@
 
     <!-- Company -->
     <div>
-      <label for="dp-company" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Company</label>
+      <label for="dp-company" class="text-xs font-medium text-muted-foreground block mb-1">Company</label>
       <input
         id="dp-company"
         class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
@@ -89,10 +115,11 @@
 
     <!-- Role -->
     <div>
-      <label for="dp-role" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Role</label>
+      <label for="dp-role" class="text-xs font-medium text-muted-foreground block mb-1">Role</label>
       <input
         id="dp-role"
         class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
+        placeholder="e.g. Backend Engineer"
         value={app.role_title}
         onblur={(e) => {
           const v = (e.target as HTMLInputElement).value;
@@ -103,7 +130,7 @@
 
     <!-- Applied date -->
     <div>
-      <label for="dp-date" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Applied date</label>
+      <label for="dp-date" class="text-xs font-medium text-muted-foreground block mb-1">Applied date</label>
       <input
         id="dp-date"
         type="date"
@@ -118,7 +145,7 @@
 
     <!-- Job URL -->
     <div>
-      <label for="dp-url" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Job URL</label>
+      <label for="dp-url" class="text-xs font-medium text-muted-foreground block mb-1">Job URL</label>
       <input
         id="dp-url"
         class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
@@ -133,11 +160,11 @@
 
     <!-- Notes -->
     <div>
-      <label for="dp-notes" class="text-xs font-medium text-muted-foreground uppercase tracking-wide block mb-1">Notes</label>
+      <label for="dp-notes" class="text-xs font-medium text-muted-foreground block mb-1">Notes</label>
       <textarea
         id="dp-notes"
-        class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm min-h-[80px] resize-none"
-        placeholder="Add notes..."
+        class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm min-h-[140px] resize-y"
+        placeholder="Interview notes, contacts, deadlines…"
         onblur={(e) => {
           const v = (e.target as HTMLTextAreaElement).value || null;
           if (v !== app.notes) patch({ notes: v });
@@ -148,23 +175,21 @@
     <!-- Linked Documents -->
     {#if app.linked_cover_letter_id || app.linked_cv_id}
       <div>
-        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Linked Documents</p>
-        {#if app.linked_cover_letter_id}
-          <a
-            href="/history?cl={app.linked_cover_letter_id}"
-            class="flex items-center gap-2 text-sm text-primary hover:underline mb-1"
-          >
-            📄 Cover Letter
-          </a>
-        {/if}
-        {#if app.linked_cv_id}
-          <a
-            href="/history?cv={app.linked_cv_id}"
-            class="flex items-center gap-2 text-sm text-primary hover:underline"
-          >
-            📋 CV
-          </a>
-        {/if}
+        <p class="text-xs font-medium text-muted-foreground block mb-2">Linked documents</p>
+        <div class="space-y-1">
+          {#if app.linked_cover_letter_id}
+            <a
+              href="/history?cl={app.linked_cover_letter_id}"
+              class="flex items-center gap-2 text-sm text-primary hover:underline"
+            >📄 Cover Letter →</a>
+          {/if}
+          {#if app.linked_cv_id}
+            <a
+              href="/history?cv={app.linked_cv_id}"
+              class="flex items-center gap-2 text-sm text-primary hover:underline"
+            >📋 CV →</a>
+          {/if}
+        </div>
       </div>
     {/if}
   </div>
@@ -186,16 +211,8 @@
     {:else}
       <button
         onclick={() => (confirmDelete = true)}
-        class="w-full text-destructive border border-destructive/30 text-sm py-2 rounded-md hover:bg-destructive/10"
-      >Delete Application</button>
+        class="w-full text-destructive border border-destructive/30 text-sm py-2 rounded-md hover:bg-destructive/10 transition-colors"
+      >Delete application</button>
     {/if}
   </div>
 </div>
-
-<!-- Backdrop -->
-<button
-  type="button"
-  class="fixed inset-0 z-40 bg-black/20"
-  onclick={onclose}
-  aria-label="Close panel"
-></button>

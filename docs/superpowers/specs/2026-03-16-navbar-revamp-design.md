@@ -14,51 +14,71 @@ Reorganize the top navigation bar to address two problems: too many links (8 aft
 ### Navbar Structure
 
 ```
-[ApplyKit]  Dashboard  |  Cover Letter  Generate CV  |  History  Tracker      [Profile ▾]  [🌙]  [⚙️]
+[ApplyKit]  Dashboard  |  Cover Letter  Generate CV  |  History  Tracker      [● 🚀 Work Profile ▼]  [🌙]  [⚙️]
 ```
 
-- **Left**: logo + flat nav links with two thin vertical dividers as group separators
-- **Right**: profile switcher (full name) + theme toggle + settings icon
-- All links are text-only (no icons)
-- Active page link: existing `bg-accent text-accent-foreground font-medium` style, unchanged
-- Thin divider element between Dashboard and the Generate group, and between the Generate and Track groups
+Left-to-right order (exact):
+1. `ApplyKit` logo link
+2. `Dashboard`
+3. Divider
+4. `Cover Letter`
+5. `Generate CV`
+6. Divider
+7. `History`
+8. `Tracker`
+9. Flex spacer
+10. `ProfileSwitcher` (full label already shown — no change to button markup)
+11. `ThemeToggle`
+12. `SettingsButton`
 
-### Group Logic
+- All nav links are text-only (no icons)
+- Active page link: `bg-accent text-accent-foreground font-medium` (existing style, unchanged)
+- Dividers are rendered as `<span class="w-px h-4 bg-border mx-2 shrink-0"></span>` between groups
 
-| Group | Links | Notes |
-|-------|-------|-------|
-| Home | Dashboard | standalone, no group |
-| Generate | Cover Letter, Generate CV | primary actions |
-| Track | History, Tracker | primary outcomes |
-| Utilities (right) | Profile switcher, Theme toggle, Settings | not in nav links |
+### Implementing Dividers
 
-### Profile Switcher Dropdown
+The `navLinks` array cannot represent dividers as plain objects. Replace the `{#each navLinks}` loop with explicit markup:
 
-Clicking the profile button opens a dropdown:
-
+```svelte
+<nav>
+  <a href="/">Dashboard</a>
+  <span class="w-px h-4 bg-border mx-2 shrink-0"></span>
+  <a href="/cover-letter">Cover Letter</a>
+  <a href="/generate">Generate CV</a>
+  <span class="w-px h-4 bg-border mx-2 shrink-0"></span>
+  <a href="/history">History</a>
+  <a href="/tracker">Tracker</a>
+</nav>
 ```
-── Switch profile ──────────
-  🚀 Work Profile       ← active (highlighted)
-  🎓 PhD Applications
-────────────────────────────
-  ✏️ Edit Profile        → /profile
-  👥 Manage Profiles     → /profiles
+
+The `navLinks` array is removed entirely. Active state is checked per link using `$page.url.pathname`.
+
+### Profile Switcher Dropdown — Changes
+
+The existing `ProfileSwitcher.svelte` dropdown currently has:
+- List of profiles (clicking active profile opens `ProfileModal` in edit mode; clicking others switches)
+- "New Profile" button (opens `ProfileModal` in create mode)
+
+**Change:** Replace the "New Profile" button with a "Manage Profiles" link that navigates to `/profiles`.
+
+The modal-based edit behavior is preserved — clicking the active profile still calls `openEdit()` and opens `ProfileModal`. No navigation to `/profile` is added.
+
+Final dropdown structure:
+```
+● 🚀 Work Profile   active
+● 🎓 PhD Applications
+─────────────────────
+👥 Manage Profiles    → goto('/profiles')
 ```
 
-- Profile icon + full label shown on the button (e.g. `🚀 Work Profile ▾`)
-- Switch section: lists all profiles, active one highlighted
-- Divider between switch section and management links
-- "Edit Profile" navigates to `/profile`
-- "Manage Profiles" navigates to `/profiles`
+"Manage Profiles" navigates to `/profiles` using SvelteKit's `goto()`. Add `import { goto } from '$app/navigation';` at the top of the script block.
+
+Since "New Profile" is removed, also delete the `openCreate` function, the `modalMode === 'create'` template branch, and the `'create'` value from the `modalMode` state type — they become dead code.
 
 ### Removed from Top Nav
 
-- `Profile` link (`/profile`) — now accessed via switcher dropdown
-- `Profiles` link (`/profiles`) — now accessed via switcher dropdown
-
-### Mobile
-
-ApplyKit is a self-hosted personal desktop tool. v1 handles narrow screens with `overflow-x: auto` on the nav — links scroll horizontally. No hamburger menu needed.
+- `Profile` link (`/profile`) — profile editing remains accessible via clicking the active profile in the switcher (existing modal behavior)
+- `Profiles` link (`/profiles`) — now accessible via "Manage Profiles" in the switcher dropdown
 
 ---
 
@@ -66,15 +86,16 @@ ApplyKit is a self-hosted personal desktop tool. v1 handles narrow screens with 
 
 | File | Change |
 |------|--------|
-| `frontend/src/routes/+layout.svelte` | Remove Profile + Profiles from `navLinks`; add group dividers to nav markup |
-| `frontend/src/lib/components/ProfileSwitcher.svelte` | Add "Edit Profile" + "Manage Profiles" links to the existing dropdown |
+| `frontend/src/routes/+layout.svelte` | Remove `navLinks` array; replace `{#each}` loop with explicit nav markup including divider spans; remove Profile and Profiles links |
+| `frontend/src/lib/components/ProfileSwitcher.svelte` | Replace "New Profile" button with "Manage Profiles" link using `goto('/profiles')` |
 
 ---
 
 ## Out of Scope
 
-- Hamburger / mobile drawer navigation
+- Hamburger / mobile drawer navigation (v1: nav scrolls horizontally on narrow screens)
 - Sidebar navigation
 - Dropdown menus for nav groups
 - Notification badges on nav items
 - Breadcrumb navigation
+- Changing the profile button's visual appearance (already shows color dot + icon + label)

@@ -59,7 +59,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
   role="complementary"
-  class="fixed inset-y-0 right-0 w-[360px] bg-card border-l border-border shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200"
+  class="fixed top-14 bottom-0 right-0 w-[360px] bg-card border-l border-t border-border shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200"
   onkeydown={(e) => e.key === 'Escape' && onclose()}
 >
   <!-- Header -->

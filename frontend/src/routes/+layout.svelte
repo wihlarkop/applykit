@@ -5,6 +5,7 @@
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import Toaster from '$lib/components/Toaster.svelte';
   import { themeState } from '$lib/theme.svelte';
+  import { Zap } from '@lucide/svelte';
   import '../app.css';
 
   let { data, children } = $props();
@@ -20,11 +21,9 @@
 
   // Dark mode effect
   $effect(() => {
-    if (typeof document !== 'undefined') {
-      const isDark = themeState.current === 'dark';
-      document.documentElement.classList.toggle('dark', isDark);
-      localStorage.setItem('theme', themeState.current);
-    }
+    const isDark = themeState.current === 'dark';
+    document.documentElement.classList.toggle('dark', isDark);
+    localStorage.setItem('theme', themeState.current);
   });
 </script>
 
@@ -43,6 +42,10 @@
             <span class="w-px h-4 bg-border mx-2 shrink-0"></span>
             <a href="/cover-letter" class={navClass('/cover-letter')}>Cover Letter</a>
             <a href="/generate" class={navClass('/generate')}>Generate CV</a>
+            <a href="/smart-apply" class="{navClass('/smart-apply')} flex items-center gap-1.5">
+              <Zap class="w-3.5 h-3.5" />
+              Smart Apply
+            </a>
             <span class="w-px h-4 bg-border mx-2 shrink-0"></span>
             <a href="/history" class={navClass('/history')}>History</a>
             <a href="/tracker" class={navClass('/tracker')}>Tracker</a>

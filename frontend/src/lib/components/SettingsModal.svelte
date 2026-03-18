@@ -7,7 +7,11 @@
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
 
-  let { open = $bindable(false) }: { open: boolean } = $props();
+  let { open = $bindable(false), initialProviderId = '', initialModel = '' }: {
+    open: boolean;
+    initialProviderId?: string;
+    initialModel?: string;
+  } = $props();
 
   let providers: ProviderInfo[] = $state([]);
   let selectedProviderId = $state('gemini');
@@ -15,7 +19,6 @@
   let apiKey = $state('');
   let showApiKey = $state(false);
   let loading = $state(true);
-  let saving = $state(false);
   let testing = $state(false);
   let testResult: TestConnectionResponse | null = $state(null);
   let saveError = $state('');
@@ -37,7 +40,11 @@
       providers = modelsRes.providers;
       source = settingsRes.source;
 
-      if (settingsRes.model) {
+      // If opened for a specific provider, pre-select it
+      if (initialProviderId) {
+        selectedProviderId = initialProviderId;
+        selectedModel = initialModel || (providers.find((p) => p.id === initialProviderId)?.models[0]?.value ?? '');
+      } else if (settingsRes.model) {
         // Find which provider owns this model string
         for (const p of providers) {
           if (p.models.some((m) => m.value === settingsRes.model)) {
@@ -82,7 +89,10 @@
     }
   }
 
-  async function handleSave() {
+  let savingActivate = $state(false);
+  let savingKeyOnly = $state(false);
+
+  async function handleSave(activate: boolean) {
     if (!selectedModel) {
       saveError = 'Select a model.';
       return;
@@ -92,22 +102,22 @@
       saveError = 'API key is required.';
       return;
     }
-    saving = true;
+    if (activate) savingActivate = true; else savingKeyOnly = true;
     saveError = '';
     try {
-      await updateSettings({ model: selectedModel, api_key: keyToSave });
+      await updateSettings({ model: selectedModel, api_key: keyToSave, activate });
       settingsStore.notify();
-      toastState.success('Settings saved successfully.');
+      toastState.success(activate ? 'Saved and set as active model.' : 'API key saved.');
       open = false;
       await invalidateAll();
-      // Forward to onboarding if this was the first-time setup
       if (!page.data.isOnboarded) {
         await goto('/onboarding');
       }
     } catch (e: any) {
       saveError = e?.message ?? 'Failed to save settings.';
     } finally {
-      saving = false;
+      savingActivate = false;
+      savingKeyOnly = false;
     }
   }
 
@@ -132,7 +142,7 @@
       role="presentation"
     >
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold">LLM Settings</h2>
+        <h2 class="text-lg font-semibold">{initialProviderId && selectedProvider ? selectedProvider.label : 'LLM Settings'}</h2>
         <button
           onclick={() => (open = false)}
           class="text-muted-foreground hover:text-foreground text-lg leading-none"
@@ -152,22 +162,28 @@
           </p>
         {/if}
 
-        <!-- Provider tabs -->
-        <div class="space-y-1.5">
-          <p class="text-sm font-medium">Provider</p>
-          <div class="flex flex-wrap gap-2">
-            {#each providers as p}
-              <button
-                onclick={() => onProviderChange(p.id)}
-                class="px-3 py-1.5 rounded-md text-sm border transition-colors {selectedProviderId === p.id
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'border-border hover:bg-accent'}"
-              >
-                {p.label}
-              </button>
-            {/each}
+        <!-- Provider tabs — hidden when opened for a specific provider -->
+        {#if !initialProviderId}
+          <div class="space-y-1.5">
+            <p class="text-sm font-medium">Provider</p>
+            <div class="flex flex-wrap gap-2">
+              {#each providers as p}
+                <button
+                  onclick={() => onProviderChange(p.id)}
+                  class="px-3 py-1.5 rounded-md text-sm border transition-colors {selectedProviderId === p.id
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border hover:bg-accent'}"
+                >
+                  {p.label}
+                </button>
+              {/each}
+            </div>
           </div>
-        </div>
+        {:else}
+          <div class="flex items-center gap-2">
+            <p class="text-sm font-medium">{selectedProvider?.label}</p>
+          </div>
+        {/if}
 
         <!-- Model dropdown -->
         <div class="space-y-1.5">
@@ -248,20 +264,31 @@
         {/if}
 
         <!-- Actions -->
-        <div class="flex justify-end gap-3 pt-1">
+        <div class="flex justify-end gap-2 pt-1 flex-wrap">
           <button
             onclick={() => (open = false)}
             class="px-4 py-2 rounded-md text-sm border border-border hover:bg-accent"
           >
             Cancel
           </button>
+          <!-- Save key only — shown only for API-key providers when editing a non-active one -->
+          {#if initialProviderId && selectedProvider?.requires_api_key}
+            <button
+              onclick={() => handleSave(false)}
+              disabled={savingKeyOnly || savingActivate || !selectedModel || !apiKey}
+              class="px-4 py-2 rounded-md text-sm border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {#if savingKeyOnly}<Loader2 class="w-4 h-4 animate-spin" />{/if}
+              Save Key
+            </button>
+          {/if}
           <button
-            onclick={handleSave}
-            disabled={saving || !selectedModel || (selectedProvider?.requires_api_key && !apiKey)}
+            onclick={() => handleSave(true)}
+            disabled={savingActivate || savingKeyOnly || !selectedModel || (selectedProvider?.requires_api_key && !apiKey)}
             class="px-4 py-2 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {#if saving}<Loader2 class="w-4 h-4 animate-spin" />{/if}
-            Save
+            {#if savingActivate}<Loader2 class="w-4 h-4 animate-spin" />{/if}
+            {initialProviderId ? 'Save & Set Active' : 'Save'}
           </button>
         </div>
       {/if}

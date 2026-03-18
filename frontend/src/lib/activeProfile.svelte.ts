@@ -20,6 +20,10 @@ function createActiveProfile() {
     // `validated` is already validated by +layout.ts against the live profile list.
     // We must NOT re-read localStorage here — it may contain a deleted profile ID.
     initFromStorage(validated: ActiveProfile | null) {
+      // Skip re-assignment if the same profile ID is already set — prevents
+      // reactive effects (e.g. clearing coverLetterText) from firing on every
+      // layout re-run when the profile hasn't actually changed.
+      if (profile?.id === validated?.id) return;
       profile = validated;
       if (!browser) return;
       if (validated) localStorage.setItem('activeProfile', JSON.stringify(validated));

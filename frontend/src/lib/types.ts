@@ -189,6 +189,7 @@ export interface SettingsResponse {
 export interface UpdateSettingsRequest {
   model: string;
   api_key: string;
+  activate?: boolean;
 }
 
 export interface TestConnectionResponse {
@@ -210,6 +211,18 @@ export interface ProviderInfo {
 
 export interface ModelsResponse {
   providers: ProviderInfo[];
+}
+
+export interface IntegrationInfo {
+  id: string;
+  label: string;
+  is_active: boolean;
+  api_key_configured: boolean;
+  current_model: string | null;
+}
+
+export interface IntegrationsResponse {
+  integrations: IntegrationInfo[];
 }
 
 // Application Tracker

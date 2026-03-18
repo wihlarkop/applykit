@@ -15,7 +15,7 @@ dependencies = [
     "python-multipart>=0.0.22",
     "sqlalchemy>=2.0.48",
     "uvicorn[standard]>=0.41.0",
-    "weasyprint>=68.1",
+    "fpdf2>=2.8.3",
 ]
 
 [dependency-groups]

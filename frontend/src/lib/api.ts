@@ -12,6 +12,7 @@ import type {
     GeneratedCVListResponse,
     GeneratedCoverLetterEntry,
     GeneratedCoverLetterListResponse,
+    IntegrationsResponse,
     ModelsResponse,
     OnboardingStatusResponse,
     PdfRequest,
@@ -144,6 +145,29 @@ export const generateCoverLetterPdf = (data: PdfRequest) =>
     return res.blob();
   });
 
+// Generate bullets
+export const generateBulletsStream = (
+  profile_id: number,
+  company: string,
+  role: string,
+  bullets: string[],
+  mode: 'improve' | 'reorganize',
+  extra_context?: string
+): Promise<Response> =>
+  fetch(`${BASE_URL}/generate/bullets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profile_id, company, role, bullets, mode, extra_context }),
+  });
+
+// Generate summary
+export const generateSummaryStream = (profile_id: number, tone: string, extra_context?: string): Promise<Response> =>
+  fetch(`${BASE_URL}/generate/summary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profile_id, tone, extra_context }),
+  });
+
 // Scrape
 export const scrapeJob = (url: string) =>
   request<ScrapeJobResponse>('/scrape/job', { method: 'POST', body: JSON.stringify({ url }) });
@@ -234,6 +258,12 @@ export const testConnection = (data: UpdateSettingsRequest) =>
 
 export const getModels = () =>
   request<ModelsResponse>('/settings/models');
+
+export const getIntegrations = () =>
+  request<IntegrationsResponse>('/settings/integrations');
+
+export const activateProvider = (provider_id: string) =>
+  request<SettingsResponse>('/settings/activate', { method: 'PUT', body: JSON.stringify({ provider_id }) });
 
 // Applications
 export interface ApplicationFilters {

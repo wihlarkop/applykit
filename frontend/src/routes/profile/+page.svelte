@@ -2,7 +2,7 @@
   import { beforeNavigate, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { activeProfile } from '$lib/activeProfile.svelte';
-  import { getProfile, saveProfile } from '$lib/api';
+  import { generateBulletsStream, generateSummaryStream, getProfile, saveProfile } from '$lib/api';
   import CvImporter from '$lib/components/CvImporter.svelte';
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
@@ -13,7 +13,7 @@
   import { Textarea } from '$lib/components/ui/textarea';
   import { toastState } from '$lib/toast.svelte';
   import type { ProfileData, Project, WorkExperience } from '$lib/types';
-  import { Award, Building2, FileUp, FolderGit2, GraduationCap, Plus, RefreshCw, Save, Sparkles as SparklesIcon, Trash2, User, X } from '@lucide/svelte';
+  import { Award, Building2, Check, ChevronDown, FileUp, FolderGit2, GraduationCap, Loader2, Plus, RefreshCw, Save, Sparkles as SparklesIcon, Trash2, User, X } from '@lucide/svelte';
 
   let profile: ProfileData = $state({
     name: '',
@@ -35,6 +35,128 @@
   let loading = $state(true);
   let saving = $state(false);
   let showImporter = $state(false);
+
+  // Generate Summary
+  let showSummaryGen = $state(false);
+  let summaryTone = $state<'professional' | 'enthusiastic' | 'concise' | 'creative'>('professional');
+  let summaryGenerating = $state(false);
+  let summaryPreview = $state('');
+  let summaryContext = $state('');
+
+  const SUMMARY_TONES = [
+    { id: 'professional' as const, label: 'Professional', desc: 'Formal & polished' },
+    { id: 'enthusiastic' as const, label: 'Enthusiastic', desc: 'Energetic & passionate' },
+    { id: 'concise' as const, label: 'Concise', desc: 'Short & direct' },
+    { id: 'creative' as const, label: 'Creative', desc: 'Distinctive & memorable' },
+  ];
+
+  async function generateSummary() {
+    const ap = activeProfile.current;
+    if (!ap) return;
+    summaryGenerating = true;
+    summaryPreview = '';
+    try {
+      const res = await generateSummaryStream(ap.id, summaryTone, summaryContext || undefined);
+      if (!res.ok) throw new Error('Generation failed');
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const chunk = line.slice(6);
+          if (chunk === '[DONE]') break;
+          if (chunk.startsWith('[ERROR]')) { toastState.error(chunk.slice(8)); return; }
+          summaryPreview += chunk;
+        }
+      }
+    } catch (e: any) {
+      toastState.error(`Generation failed: ${e.message}`);
+    } finally {
+      summaryGenerating = false;
+    }
+  }
+
+  function applySummary() {
+    profile.summary = summaryPreview;
+    summaryPreview = '';
+    showSummaryGen = false;
+    toastState.success('Summary applied! Remember to save.');
+  }
+
+  // Enhance Bullets
+  let activeBulletIdx = $state<number | null>(null);
+  let bulletMode = $state<'improve' | 'reorganize'>('improve');
+  let bulletGenerating = $state(false);
+  let bulletPreview = $state('');
+  let bulletContext = $state('');
+
+  const BULLET_MODES = [
+    { id: 'improve' as const, label: 'Improve Writing', desc: 'Stronger verbs & outcomes' },
+    { id: 'reorganize' as const, label: 'Sort by Impact', desc: 'Most impressive first' },
+  ];
+
+  async function generateBullets(i: number) {
+    const ap = activeProfile.current;
+    if (!ap) return;
+    const work = profile.work_experience[i];
+    bulletGenerating = true;
+    bulletPreview = '';
+    try {
+      const res = await generateBulletsStream(ap.id, work.company, work.role, work.bullets, bulletMode, bulletContext || undefined);
+      if (!res.ok) throw new Error('Generation failed');
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const chunk = line.slice(6);
+          if (chunk === '[DONE]') break;
+          if (chunk.startsWith('[ERROR]')) { toastState.error(chunk.slice(8)); return; }
+          bulletPreview += chunk.replaceAll('<NL>', '\n');
+        }
+      }
+    } catch (e: any) {
+      toastState.error(`Generation failed: ${e.message}`);
+    } finally {
+      bulletGenerating = false;
+    }
+  }
+
+  function applyBullets(i: number) {
+    const lines = bulletPreview
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean)
+      .join('\n');
+    setWorkBullets(i, lines);
+    bulletPreview = '';
+    activeBulletIdx = null;
+    toastState.success('Bullets applied! Remember to save.');
+  }
+
+  function toggleBulletGen(i: number) {
+    if (activeBulletIdx === i) {
+      activeBulletIdx = null;
+      bulletPreview = '';
+      bulletContext = '';
+    } else {
+      activeBulletIdx = i;
+      bulletPreview = '';
+      bulletContext = '';
+    }
+  }
   let activeTab = $state('personal-info');
   let loadedProfileJson = $state('');
   const isDirty = $derived(loadedProfileJson !== '' && JSON.stringify(profile) !== loadedProfileJson);
@@ -173,11 +295,14 @@
   }
 
   function workBulletsText(w: WorkExperience) {
-    return w.bullets.join('\n');
+    return w.bullets.map(b => `- ${b}`).join('\n');
   }
 
   function setWorkBullets(i: number, text: string) {
-    profile.work_experience[i].bullets = text.split('\n').map((s) => s.trim()).filter(Boolean);
+    profile.work_experience[i].bullets = text
+      .split('\n')
+      .map(s => s.replace(/^[-•*]\s*/, '').trim())
+      .filter(Boolean);
   }
 
   function projectTechText(p: Project) {
@@ -397,7 +522,94 @@
                         <Input id="portfolio" bind:value={profile.portfolio} placeholder="yoursite.com" class="bg-background h-11 text-base" />
                       </div>
                       <div class="space-y-2 sm:col-span-2">
-                        <Label for="summary">Professional Summary</Label>
+                        <div class="flex items-center justify-between">
+                          <Label for="summary">Professional Summary</Label>
+                          <button
+                            type="button"
+                            onclick={() => { showSummaryGen = !showSummaryGen; summaryPreview = ''; }}
+                            class="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                          >
+                            <SparklesIcon class="w-3.5 h-3.5" />
+                            Generate with AI
+                            <ChevronDown class="w-3 h-3 transition-transform {showSummaryGen ? 'rotate-180' : ''}" />
+                          </button>
+                        </div>
+
+                        {#if showSummaryGen}
+                          <div class="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <!-- Tone selector -->
+                            <div class="space-y-2">
+                              <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose tone</p>
+                              <div class="grid grid-cols-2 gap-2">
+                                {#each SUMMARY_TONES as t}
+                                  <button
+                                    type="button"
+                                    onclick={() => summaryTone = t.id}
+                                    class="flex flex-col items-start px-3 py-2.5 rounded-lg border text-left transition-all duration-150
+                                           {summaryTone === t.id
+                                             ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                             : 'bg-background border-border hover:border-primary/40 hover:bg-primary/5'}"
+                                  >
+                                    <span class="text-sm font-semibold">{t.label}</span>
+                                    <span class="text-[11px] {summaryTone === t.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}">{t.desc}</span>
+                                  </button>
+                                {/each}
+                              </div>
+                            </div>
+
+                            <!-- Extra context -->
+                            <div class="space-y-1.5">
+                              <label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Extra context <span class="font-normal normal-case tracking-normal">(optional)</span>
+                              </label>
+                              <textarea
+                                bind:value={summaryContext}
+                                placeholder="e.g. Emphasize my leadership experience, I'm transitioning from frontend to full-stack, I have 8 years total experience..."
+                                rows={2}
+                                class="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                              ></textarea>
+                            </div>
+
+                            <!-- Generate button -->
+                            <Button
+                              onclick={generateSummary}
+                              disabled={summaryGenerating}
+                              size="sm"
+                              class="w-full"
+                            >
+                              {#if summaryGenerating}
+                                <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+                                Generating…
+                              {:else}
+                                <SparklesIcon class="w-4 h-4 mr-2" />
+                                Generate Summary
+                              {/if}
+                            </Button>
+
+                            <!-- Preview -->
+                            {#if summaryPreview || summaryGenerating}
+                              <div class="space-y-2">
+                                <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preview</p>
+                                <div class="min-h-20 p-3 rounded-lg bg-background border border-border text-sm leading-relaxed text-foreground whitespace-pre-wrap">
+                                  {summaryPreview}{#if summaryGenerating}<span class="inline-block w-1.5 h-4 bg-primary ml-0.5 animate-pulse rounded-sm"></span>{/if}
+                                </div>
+                                {#if summaryPreview && !summaryGenerating}
+                                  <div class="flex gap-2">
+                                    <Button onclick={applySummary} size="sm" class="flex-1">
+                                      <Check class="w-4 h-4 mr-1.5" />
+                                      Apply to Profile
+                                    </Button>
+                                    <Button onclick={generateSummary} variant="outline" size="sm">
+                                      <RefreshCw class="w-4 h-4 mr-1.5" />
+                                      Regenerate
+                                    </Button>
+                                  </div>
+                                {/if}
+                              </div>
+                            {/if}
+                          </div>
+                        {/if}
+
                         <Textarea id="summary" bind:value={profile.summary} placeholder="Brief professional summary explaining who you are and what you do…" rows={5} class="bg-background resize-y text-sm sm:text-base p-4" />
                       </div>
                     </div>
@@ -419,21 +631,17 @@
                       <div class="space-y-3">
                         <Label for="skills-input" class="text-xs uppercase tracking-wider font-semibold text-muted-foreground ml-1">Professional Skills</Label>
 
-                        <!-- Integrated Tag Input -->
-                        <div
-                          class="min-h-30 p-3 rounded-2xl border bg-background transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary group cursor-text"
-                          onclick={() => document.getElementById('skills-input')?.focus()}
-                          role="presentation"
-                        >
-                          <div class="flex flex-wrap gap-2">
+                        <!-- Tag cloud -->
+                        {#if profile.skills.length > 0}
+                          <div class="flex flex-wrap gap-2 p-3 rounded-2xl border bg-muted/20">
                             {#each profile.skills as skill}
                               <Badge
                                 variant="secondary"
-                                class="pl-3 pr-1.5 py-1.5 gap-1.5 text-sm bg-muted/50 hover:bg-muted border-transparent transition-all hover:scale-[1.02] active:scale-95"
+                                class="pl-3 pr-1.5 py-1.5 gap-1.5 text-sm bg-background hover:bg-muted border border-border/60 transition-all hover:scale-[1.02] active:scale-95"
                               >
                                 {skill}
                                 <button
-                                  onclick={(e) => { e.stopPropagation(); removeSkill(skill); }}
+                                  onclick={() => removeSkill(skill)}
                                   class="hover:bg-destructive/10 rounded-full p-0.5 text-muted-foreground hover:text-destructive transition-colors"
                                   title="Remove {skill}"
                                 >
@@ -441,7 +649,12 @@
                                 </button>
                               </Badge>
                             {/each}
+                          </div>
+                        {/if}
 
+                        <!-- Input row -->
+                        <div class="flex gap-2">
+                          <div class="flex-1 flex items-center gap-2 px-3 h-11 rounded-xl border bg-background transition-all focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary">
                             <input
                               id="skills-input"
                               bind:value={skillsText}
@@ -452,14 +665,16 @@
                                   addSkill(e);
                                 }
                               }}
-                              placeholder={profile.skills.length === 0 ? "Add a skill (e.g. TypeScript, Project Management)..." : "Add more..."}
-                              class="flex-1 bg-transparent border-none outline-none ring-0 min-w-30 py-1.5 text-base placeholder:text-muted-foreground/40"
+                              placeholder="Type a skill and press Enter…"
+                              class="flex-1 bg-transparent border-none outline-none ring-0 text-sm placeholder:text-muted-foreground/50"
                             />
+                            <span class="hidden sm:flex items-center gap-1 shrink-0 text-[11px] text-muted-foreground/60">
+                              <kbd class="px-1.5 py-0.5 rounded border bg-muted font-sans text-[10px]">Enter</kbd>
+                              or
+                              <kbd class="px-1.5 py-0.5 rounded border bg-muted font-sans text-[10px]">,</kbd>
+                            </span>
                           </div>
-                        </div>
-                        <div class="flex items-center justify-between ml-1">
-                          <p class="text-[11px] text-muted-foreground">Press <kbd class="px-1.5 py-0.5 rounded border bg-muted font-sans text-[10px]">Enter</kbd> or <kbd class="px-1.5 py-0.5 rounded border bg-muted font-sans text-[10px]">,</kbd> to add · or</p>
-                          <Button type="button" variant="outline" size="sm" onclick={commitSkill} class="h-7 text-xs px-3">Add</Button>
+                          <Button type="button" variant="outline" onclick={commitSkill} class="h-11 px-4 shrink-0">Add</Button>
                         </div>
                       </div>
                     </div>
@@ -520,7 +735,18 @@
                               </div>
                             </div>
                             <div class="space-y-2 text-left">
-                              <Label>Accomplishments (One bullet per line)</Label>
+                              <div class="flex items-center justify-between">
+                                <Label>Accomplishments (One bullet per line)</Label>
+                                <button
+                                  type="button"
+                                  onclick={() => toggleBulletGen(i)}
+                                  class="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                                >
+                                  <SparklesIcon class="w-3.5 h-3.5" />
+                                  Enhance with AI
+                                  <ChevronDown class="w-3 h-3 transition-transform {activeBulletIdx === i ? 'rotate-180' : ''}" />
+                                </button>
+                              </div>
                               <Textarea
                                 value={workBulletsText(work)}
                                 oninput={(e) => setWorkBullets(i, (e.target as HTMLTextAreaElement).value)}
@@ -528,6 +754,83 @@
                                 rows={4}
                                 class="bg-background resize-y p-4 text-sm sm:text-base"
                               />
+
+                              {#if activeBulletIdx === i}
+                                <div class="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                                  <!-- Mode selector -->
+                                  <div class="space-y-2">
+                                    <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose action</p>
+                                    <div class="grid grid-cols-2 gap-2">
+                                      {#each BULLET_MODES as m}
+                                        <button
+                                          type="button"
+                                          onclick={() => bulletMode = m.id}
+                                          class="flex flex-col items-start px-3 py-2.5 rounded-lg border text-left transition-all duration-150
+                                                 {bulletMode === m.id
+                                                   ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                                   : 'bg-background border-border hover:border-primary/40 hover:bg-primary/5'}"
+                                        >
+                                          <span class="text-sm font-semibold">{m.label}</span>
+                                          <span class="text-[11px] {bulletMode === m.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}">{m.desc}</span>
+                                        </button>
+                                      {/each}
+                                    </div>
+                                  </div>
+
+                                  <!-- Extra context -->
+                                  <div class="space-y-1.5">
+                                    <label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                      Extra context <span class="font-normal normal-case tracking-normal">(optional)</span>
+                                    </label>
+                                    <textarea
+                                      bind:value={bulletContext}
+                                      placeholder="e.g. I also managed a team of 4 engineers, we reduced costs by 30%, I led the migration to Kubernetes..."
+                                      rows={2}
+                                      class="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground/50 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                    ></textarea>
+                                  </div>
+
+                                  {#if work.bullets.length === 0}
+                                    <p class="text-xs text-muted-foreground text-center py-1">Add some accomplishments above first.</p>
+                                  {:else}
+                                    <Button
+                                      onclick={() => generateBullets(i)}
+                                      disabled={bulletGenerating}
+                                      size="sm"
+                                      class="w-full"
+                                    >
+                                      {#if bulletGenerating}
+                                        <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+                                        Enhancing…
+                                      {:else}
+                                        <SparklesIcon class="w-4 h-4 mr-2" />
+                                        {bulletMode === 'improve' ? 'Improve Bullets' : 'Sort by Impact'}
+                                      {/if}
+                                    </Button>
+                                  {/if}
+
+                                  {#if bulletPreview || bulletGenerating}
+                                    <div class="space-y-2">
+                                      <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preview</p>
+                                      <div class="min-h-20 p-3 rounded-lg bg-background border border-border text-sm leading-relaxed text-foreground whitespace-pre-wrap font-mono">
+                                        {bulletPreview}{#if bulletGenerating}<span class="inline-block w-1.5 h-4 bg-primary ml-0.5 animate-pulse rounded-sm"></span>{/if}
+                                      </div>
+                                      {#if bulletPreview && !bulletGenerating}
+                                        <div class="flex gap-2">
+                                          <Button onclick={() => applyBullets(i)} size="sm" class="flex-1">
+                                            <Check class="w-4 h-4 mr-1.5" />
+                                            Apply to Entry
+                                          </Button>
+                                          <Button onclick={() => generateBullets(i)} variant="outline" size="sm">
+                                            <RefreshCw class="w-4 h-4 mr-1.5" />
+                                            Regenerate
+                                          </Button>
+                                        </div>
+                                      {/if}
+                                    </div>
+                                  {/if}
+                                </div>
+                              {/if}
                             </div>
                           </div>
                         {/each}

@@ -127,6 +127,21 @@ class ATSEnhancement(BaseModel):
     work_experience: list[WorkExperience]
 
 
+class GenerateSummaryRequest(BaseModel):
+    profile_id: int
+    tone: Literal["professional", "enthusiastic", "concise", "creative"] = "professional"
+    extra_context: str | None = None
+
+
+class GenerateBulletsRequest(BaseModel):
+    profile_id: int
+    company: str
+    role: str
+    bullets: list[str]
+    mode: Literal["improve", "reorganize"]
+    extra_context: str | None = None
+
+
 # --- History schemas ---
 
 
@@ -186,6 +201,7 @@ class SettingsResponse(BaseModel):
 class UpdateSettingsRequest(BaseModel):
     model: str  # Full LiteLLM model string
     api_key: str
+    activate: bool = True  # if False, saves the key but doesn't change the active model
 
 
 class TestConnectionResponse(BaseModel):
@@ -207,6 +223,22 @@ class ProviderInfo(BaseModel):
 
 class ModelsResponse(BaseModel):
     providers: list[ProviderInfo]
+
+
+class IntegrationInfo(BaseModel):
+    id: str
+    label: str
+    is_active: bool
+    api_key_configured: bool
+    current_model: str | None
+
+
+class IntegrationsResponse(BaseModel):
+    integrations: list[IntegrationInfo]
+
+
+class ActivateProviderRequest(BaseModel):
+    provider_id: str
 
 
 # --- Scraper schemas ---

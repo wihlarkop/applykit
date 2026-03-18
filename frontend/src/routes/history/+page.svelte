@@ -160,9 +160,6 @@
     }
   }
 
-  function handlePrint() {
-    window.print();
-  }
 
   async function handleCopyCl() {
     try {
@@ -313,7 +310,6 @@
                   <Button variant="outline" size="sm" onclick={() => selectedCv && handleRegenerate(selectedCv)}>
                     <Sparkles class="w-4 h-4 mr-1" /> Regenerate
                   </Button>
-                  <Button variant="outline" size="sm" onclick={handlePrint}>Print</Button>
                   <Button
                     variant="destructive"
                     size="sm"
@@ -553,7 +549,6 @@
                   <!-- Action buttons -->
                   <div class="flex gap-1.5 shrink-0 mr-6">
                     <Button variant="outline" size="sm" onclick={handleCopyCl}>Copy</Button>
-                    <Button variant="outline" size="sm" onclick={handlePrint}>Print</Button>
                     <Button variant="destructive" size="sm" onclick={() => selectedCl && handleDeleteCl(selectedCl.id)}>Delete</Button>
                   </div>
                 </div>

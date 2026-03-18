@@ -6,12 +6,12 @@ from app.models import AppSetting
 # Used by GET /api/settings/models and the Settings UI.
 KNOWN_MODELS: dict[str, list[str]] = {
     "gemini": [
-        "gemini/gemini-3.1-pro-preview",
-        "gemini/gemini-3-flash-preview",
-        "gemini/gemini-3.1-flash-lite-preview",
         "gemini/gemini-2.5-flash",
         "gemini/gemini-2.5-pro",
         "gemini/gemini-2.5-flash-lite",
+        "gemini/gemini-3.1-flash-lite-preview",
+        "gemini/gemini-3-flash-preview",
+        "gemini/gemini-3.1-pro-preview",
     ],
     "anthropic": [
         "anthropic/claude-haiku-4-5-20251001",
@@ -19,35 +19,34 @@ KNOWN_MODELS: dict[str, list[str]] = {
         "anthropic/claude-opus-4-6",
     ],
     "openai": [
-        "openai/gpt-5.4-pro-2026-03-05",
-        "openai/gpt-5.4-2026-03-05",
-        "openai/gpt-5.2-2025-12-11",
-        "openai/gpt-5.2-pro-2025-12-11",
-        "openai/gpt-5.1-2025-11-13",
-        "openai/gpt-5-mini-2025-08-07",
-        "openai/gpt-5-nano-2025-08-07",
-        "openai/gpt-5-pro-2025-10-06",
-        "openai/gpt-5-2025-08-07",
+        "openai/gpt-4o-mini-2024-07-18",
+        "openai/gpt-4o-2024-08-06",
         "openai/gpt-4.1-2025-04-14",
         "openai/gpt-4.1-mini-2025-04-14",
-        "openai/gpt-4.1-nano-2025-04-14",
-        "openai/gpt-4o-2024-08-06",
-        "openai/gpt-4o-mini-2024-07-18",
-        "openai/gpt-4-turbo-2024-04-09",
-        "openai/gpt-4-0613",
-        "openai/gpt-3.5-turbo-0125",
-        "openai/o1-2024-12-17",
-        "openai/o1-pro-2025-03-19",
         "openai/o4-mini-2025-04-16",
         "openai/o3-2025-04-16",
-        "openai/openai/o3-mini-2025-01-31",
-        "openai/o3-pro-2025-06-10",
     ],
     "ollama": [
+        "ollama/llama4",
         "ollama/llama3.2",
         "ollama/llama3.1",
+        "ollama/llama3",
+        "ollama/qwen3.5",
+        "ollama/qwen3-next",
+        "ollama/glm-5",
+        "ollama/glm-4.7-flash",
     ],
 }
+
+
+def _provider_from_model(model: str) -> str | None:
+    """Extract provider id from a LiteLLM model string like 'gemini/gemini-2.5-flash'."""
+    if not model:
+        return None
+    for pid in KNOWN_MODELS:
+        if model.startswith(pid + "/") or model == pid:
+            return pid
+    return None
 
 
 def get_setting(db: Session, key: str) -> str | None:
@@ -64,8 +63,33 @@ def set_setting(db: Session, key: str, value: str) -> None:
     db.commit()
 
 
+def get_provider_api_key(db: Session, provider_id: str) -> str | None:
+    """Get the stored API key for a specific provider."""
+    return get_setting(db, f"api_key_{provider_id}")
+
+
+def set_provider_api_key(db: Session, provider_id: str, api_key: str) -> None:
+    """Store API key for a specific provider."""
+    set_setting(db, f"api_key_{provider_id}", api_key)
+
+
+def set_active_model(db: Session, model: str) -> None:
+    """Set the single active model. Only one model can be active at a time —
+    this overwrites any previously active model via a single DB key upsert."""
+    set_setting(db, "llm_provider", model)
+
+
 def get_llm_config(db: Session) -> tuple[str, str]:
-    """Return (model_string, api_key) from DB only."""
+    """Return (model_string, api_key) for the currently active provider."""
     model = get_setting(db, "llm_provider") or ""
-    api_key = get_setting(db, "llm_api_key") or ""
+    if not model:
+        return "", ""
+    provider = _provider_from_model(model)
+    if provider:
+        api_key = get_provider_api_key(db, provider) or ""
+        # Legacy fallback: old single-key setup
+        if not api_key:
+            api_key = get_setting(db, "llm_api_key") or ""
+    else:
+        api_key = get_setting(db, "llm_api_key") or ""
     return model, api_key

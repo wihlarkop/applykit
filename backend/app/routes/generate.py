@@ -11,8 +11,10 @@ from app.schemas import (
     ATSEnhancement,
     CoverLetterRequest,
     CoverLetterResponse,
+    GenerateBulletsRequest,
     GenerateCvRequest,
     GenerateCvResponse,
+    GenerateSummaryRequest,
     PdfRequest,
     ProfileData,
 )
@@ -74,7 +76,8 @@ RULES:
 - Never include a sign-off like "Sincerely" or the candidate's name at the end.
 - Use the candidate's name naturally within the letter only if it fits.
 - If extra context / emphasis instructions are provided, incorporate them.
-- Return plain text only. No markdown formatting."""
+- Return plain text only. No markdown formatting.
+- Use only standard ASCII punctuation. Do not use en-dashes (–), em-dashes (—), curly/smart quotes (' ' " "), or ellipsis (…). Use a plain hyphen (-) where a dash is needed and straight quotes (') otherwise."""
 
 
 def _get_profile_or_404(db: Session, profile_id: int) -> Profile:
@@ -222,6 +225,116 @@ async def generate_cover_letter(req: CoverLetterRequest, db: Session = Depends(g
         )
         db.add(entry)
         db.commit()
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+SUMMARY_SYSTEM_PROMPT = """\
+You are a professional resume writer specializing in crafting compelling professional summaries.
+
+Write a 2-4 sentence professional summary for the candidate based on their profile.
+
+RULES:
+- Lead with years of experience + core domain/role if apparent from the data.
+- Weave in 2-3 key skills or technologies that define the candidate.
+- Convey what value the candidate brings to an employer.
+- Never use first person ("I", "my", "me") — write in third person or impersonal style.
+- Never fabricate details not present in the profile.
+- Return plain text only. No markdown, no labels, no preamble.
+- Use only standard ASCII punctuation. No en-dashes, em-dashes, smart quotes, or ellipsis."""
+
+
+@router.post("/generate/summary")
+async def generate_summary(req: GenerateSummaryRequest, db: Session = Depends(get_db)):
+    profile = _get_profile_or_404(db, req.profile_id)
+    profile_data = profile_to_schema(profile)
+    provider, api_key = get_llm_config(db)
+
+    if not provider or not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail={"detail": "LLM not configured.", "code": "API_KEY_NOT_CONFIGURED"},
+        )
+
+    tone_modifier = TONE_PROMPTS.get(req.tone, TONE_PROMPTS["professional"])
+    user_prompt = _format_profile_for_llm(profile_data)
+    if req.extra_context and req.extra_context.strip():
+        user_prompt += f"\n\nADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
+    user_prompt += f"\n\nTONE INSTRUCTION: {tone_modifier}"
+
+    async def event_stream():
+        try:
+            async for chunk in stream_llm(user_prompt, system=SUMMARY_SYSTEM_PROMPT, provider=provider, api_key=api_key):
+                yield f"data: {chunk}\n\n"
+        except Exception as e:
+            yield f"data: [ERROR] {e}\n\n"
+            return
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+BULLETS_IMPROVE_PROMPT = """\
+You are a professional resume writer. Rewrite the given work experience bullet points to be stronger.
+
+RULES:
+- Output EXACTLY the same number of bullets as the input — one rewritten bullet for each input bullet. Do not merge, split, or drop any bullets.
+- Start every bullet with a strong past-tense action verb (Led, Built, Designed, Reduced, Automated, Delivered, Migrated, Scaled, Launched, Optimized...).
+- Include a measurable outcome where one can reasonably be inferred (%, time saved, users impacted, team size, revenue). If no metric is present in the original, quantify the scope instead.
+- Do NOT fabricate specific numbers that were not implied — use qualifiers like "significantly", "across a team of X" only when that scale is evident.
+- Keep each bullet to 1-2 concise lines. If an input bullet is a long paragraph, condense it to the core achievement.
+- Preserve all factual content — company, role, and achievements must remain accurate.
+- Use only standard ASCII punctuation. No en-dashes, em-dashes, smart quotes, or ellipsis.
+
+OUTPUT FORMAT:
+Return ONLY the bullet points, one per line, each starting with "- ". No preamble, no explanation."""
+
+BULLETS_REORGANIZE_PROMPT = """\
+You are a professional resume strategist. Reorganize the given work experience bullet points by impact — most impressive and results-driven first.
+
+RULES:
+- Output EXACTLY the same number of bullets as the input — every input bullet must appear in the output. Do not merge, drop, or add any bullets.
+- Reorder bullets from highest impact to lowest (quantified results > scope/scale > general contributions).
+- Lightly clean up wording: fix grammar, ensure each bullet starts with a strong action verb. Keep each bullet to 1-2 concise lines — condense any paragraph-length bullet to its core achievement.
+- Do NOT change the substance of any bullet — preserve all facts and figures.
+- Ensure every bullet starts with "- ".
+- Use only standard ASCII punctuation. No en-dashes, em-dashes, smart quotes, or ellipsis.
+
+OUTPUT FORMAT:
+Return ONLY the reordered bullet points, one per line, each starting with "- ". No preamble, no explanation."""
+
+
+@router.post("/generate/bullets")
+async def generate_bullets(req: GenerateBulletsRequest, db: Session = Depends(get_db)):
+    _get_profile_or_404(db, req.profile_id)
+    provider, api_key = get_llm_config(db)
+
+    if not provider or not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail={"detail": "LLM not configured.", "code": "API_KEY_NOT_CONFIGURED"},
+        )
+
+    system = BULLETS_IMPROVE_PROMPT if req.mode == "improve" else BULLETS_REORGANIZE_PROMPT
+    clean_bullets = [b for b in req.bullets if b.strip()]
+    bullets_text = "\n".join(f"- {b}" for b in clean_bullets)
+    user_prompt = (
+        f"Role: {req.role} at {req.company}\n"
+        f"Input bullet count: {len(clean_bullets)}\n\n"
+        f"Current bullets:\n{bullets_text}"
+    )
+    if req.extra_context and req.extra_context.strip():
+        user_prompt += f"\n\nADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
+
+    async def event_stream():
+        try:
+            async for chunk in stream_llm(user_prompt, system=system, provider=provider, api_key=api_key):
+                # Escape newlines so embedded \n doesn't break SSE framing
+                yield f"data: {chunk.replace(chr(10), '<NL>')}\n\n"
+        except Exception as e:
+            yield f"data: [ERROR] {e}\n\n"
+            return
+        yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 

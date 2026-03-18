@@ -1,7 +1,6 @@
 <script lang="ts">
   import { activateProvider, getIntegrations } from '$lib/api';
   import SettingsModal from '$lib/components/SettingsModal.svelte';
-  import { settingsStore } from '$lib/settingsStore.svelte';
   import { toastState } from '$lib/toast.svelte';
   import type { IntegrationInfo } from '$lib/types';
   import { CircleAlert, CircleCheck, ChevronRight, Cpu, Pencil, Plus, Settings, Zap } from '@lucide/svelte';
@@ -29,10 +28,7 @@
     ollama: '⬢',
   };
 
-  $effect(() => {
-    settingsStore.version;
-    loadIntegrations();
-  });
+  $effect(() => { loadIntegrations(); });
 
   async function loadIntegrations() {
     loading = true;
@@ -54,7 +50,6 @@
     activating = providerId;
     try {
       await activateProvider(providerId);
-      settingsStore.notify();
       await invalidateAll();
       await loadIntegrations();
       toastState.success('Provider switched successfully.');

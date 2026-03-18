@@ -1,1 +1,5 @@
-// place files you want to import through the `$lib` alias in this folder.
+// Common stores — import from here instead of reaching into individual files.
+export { activeProfile } from './activeProfile.svelte';
+export { profiles }      from './profiles.svelte';
+export { toastState }    from './toast.svelte';
+export { themeState }    from './theme.svelte';

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getModels, getSettings, testConnection, updateSettings } from '$lib/api';
-  import { settingsStore } from '$lib/settingsStore.svelte';
   import { toastState } from '$lib/toast.svelte';
+  import { errorMessage } from '$lib/utils';
   import type { ProviderInfo, TestConnectionResponse } from '$lib/types';
   import { CheckCircle, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
   import { goto, invalidateAll } from '$app/navigation';
@@ -89,8 +89,8 @@
     }
   }
 
-  let savingActivate = $state(false);
-  let savingKeyOnly = $state(false);
+  /** Union state — mutually exclusive, impossible to be both true at once. */
+  let saving = $state<'activate' | 'key' | null>(null);
 
   async function handleSave(activate: boolean) {
     if (!selectedModel) {
@@ -102,22 +102,20 @@
       saveError = 'API key is required.';
       return;
     }
-    if (activate) savingActivate = true; else savingKeyOnly = true;
+    saving = activate ? 'activate' : 'key';
     saveError = '';
     try {
       await updateSettings({ model: selectedModel, api_key: keyToSave, activate });
-      settingsStore.notify();
       toastState.success(activate ? 'Saved and set as active model.' : 'API key saved.');
       open = false;
       await invalidateAll();
       if (!page.data.isOnboarded) {
         await goto('/onboarding');
       }
-    } catch (e: any) {
-      saveError = e?.message ?? 'Failed to save settings.';
+    } catch (e) {
+      saveError = errorMessage(e, 'Failed to save settings.');
     } finally {
-      savingActivate = false;
-      savingKeyOnly = false;
+      saving = null;
     }
   }
 
@@ -132,7 +130,9 @@
   <div
     class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
     onclick={() => (open = false)}
+    onkeydown={(e) => e.key === 'Escape' && (open = false)}
     role="dialog"
+    tabindex="-1"
     aria-modal="true"
     aria-label="LLM Settings"
   >
@@ -275,19 +275,19 @@
           {#if initialProviderId && selectedProvider?.requires_api_key}
             <button
               onclick={() => handleSave(false)}
-              disabled={savingKeyOnly || savingActivate || !selectedModel || !apiKey}
+              disabled={saving !== null || !selectedModel || !apiKey}
               class="px-4 py-2 rounded-md text-sm border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {#if savingKeyOnly}<Loader2 class="w-4 h-4 animate-spin" />{/if}
+              {#if saving === 'key'}<Loader2 class="w-4 h-4 animate-spin" />{/if}
               Save Key
             </button>
           {/if}
           <button
             onclick={() => handleSave(true)}
-            disabled={savingActivate || savingKeyOnly || !selectedModel || (selectedProvider?.requires_api_key && !apiKey)}
+            disabled={saving !== null || !selectedModel || (selectedProvider?.requires_api_key && !apiKey)}
             class="px-4 py-2 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {#if savingActivate}<Loader2 class="w-4 h-4 animate-spin" />{/if}
+            {#if saving === 'activate'}<Loader2 class="w-4 h-4 animate-spin" />{/if}
             {initialProviderId ? 'Save & Set Active' : 'Save'}
           </button>
         </div>

@@ -1,21 +1,17 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import { getStatus } from '$lib/api';
-  import { settingsStore } from '$lib/settingsStore.svelte';
   import type { StatusResponse } from '$lib/types';
 
   let status: StatusResponse | null = $state(null);
   let error = $state(false);
 
+  // Re-fetch whenever the layout re-runs (e.g. after invalidateAll() from settings save)
   $effect(() => {
-    settingsStore.version; // re-fetch when settings change
+    page.data.isApiKeyConfigured;
     getStatus()
-      .then((s) => {
-        status = s;
-        error = false;
-      })
-      .catch(() => {
-        error = true;
-      });
+      .then((s) => { status = s; error = false; })
+      .catch(() => { error = true; });
   });
 </script>
 

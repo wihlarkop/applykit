@@ -130,6 +130,8 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
                 user_prompt += (
                     f"\n\n---\nTARGET JOB DESCRIPTION:\n{req.job_description}"
                 )
+            if req.extra_context and req.extra_context.strip():
+                user_prompt += f"\n\nADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
             user_prompt += f"\n\n---\nORIGINAL DATA (use this schema for your JSON output):\n{profile_data.model_dump_json()}"
             llm_output = call_llm(
                 user_prompt,
@@ -161,6 +163,7 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
         enhanced=int(enhanced),
         profile_snapshot=result_profile.model_dump_json(),
         profile_id=req.profile_id,
+        application_id=req.application_id,
     )
     db.add(entry)
     db.commit()
@@ -222,6 +225,7 @@ async def generate_cover_letter(req: CoverLetterRequest, db: Session = Depends(g
             tone=req.tone or "professional",
             match_score=req.match_score,
             fit_analysis=req.fit_analysis_json,
+            application_id=req.application_id,
         )
         db.add(entry)
         db.commit()

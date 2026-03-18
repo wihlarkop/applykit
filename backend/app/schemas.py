@@ -86,6 +86,8 @@ class GenerateCvRequest(BaseModel):
     profile_id: int
     enhance: bool = True
     job_description: str | None = None
+    application_id: int | None = None
+    extra_context: str | None = None
 
 
 class OnboardingStatusResponse(BaseModel):
@@ -112,6 +114,7 @@ class CoverLetterRequest(BaseModel):
     fit_context: str | None = None
     match_score: int | None = None          # from fit analysis — persisted to generated_cover_letter
     fit_analysis_json: str | None = None    # JSON string of FitAnalysisResponse — persisted to generated_cover_letter.fit_analysis
+    application_id: int | None = None
 
 
 class CoverLetterResponse(BaseModel):

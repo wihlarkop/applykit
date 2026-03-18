@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '$app/state';
   import {
     createApplication,
     deleteApplication,
@@ -67,6 +68,13 @@
 
       const res = await listApplications(filters);
       apps = res.items;
+
+      // Highlight newly created application if redirected from Smart Apply
+      const newId = page.url.searchParams.get('new');
+      if (newId) {
+        const target = apps.find(a => a.id === Number(newId));
+        if (target) selectedApp = target;
+      }
     } catch (e: any) {
       toastState.error(e.message);
     } finally {

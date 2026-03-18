@@ -73,6 +73,8 @@ export interface GenerateCvRequest {
   profile_id: number;
   enhance?: boolean;
   job_description?: string | null;
+  application_id?: number | null;
+  extra_context?: string | null;
 }
 
 export interface ProfileResponse {
@@ -123,6 +125,7 @@ export interface CoverLetterRequest {
   fit_context?: string | null;
   match_score?: number | null;
   fit_analysis_json?: string | null;
+  application_id?: number | null;
 }
 
 export interface CoverLetterResponse {
@@ -266,4 +269,36 @@ export interface UpdateApplicationRequest {
   job_url?: string | null;
   notes?: string | null;
   applied_date?: string | null;
+}
+
+// ---- Filter types (mirror the API query params) ----
+// snake_case is intentional — these mirror the Python backend contract.
+
+export interface CvHistoryFilters {
+  profile_id?: number;
+  sort?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface CoverLetterHistoryFilters {
+  profile_id?: number;
+  search?: string;
+  match_min?: number;
+  match_max?: number;
+  status?: string;
+  sort?: 'date_desc' | 'date_asc' | 'match_desc' | 'company_asc';
+  limit?: number;
+  offset?: number;
+}
+
+export interface ApplicationFilters {
+  profile_id?: number;
+  status?: string;
+  search?: string;
+  date_from?: string;
+  date_to?: string;
+  match_min?: number;
+  match_max?: number;
+  sort?: 'date_desc' | 'date_asc';
 }

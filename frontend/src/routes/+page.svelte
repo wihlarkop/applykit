@@ -4,7 +4,7 @@
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { profiles } from '$lib/profiles.svelte';
-	import { ArrowRight, FileText, Lock, Mail, Sparkles, User } from '@lucide-svelte';
+	import { ArrowRight, FileText, Lock, Mail, Sparkles, User } from '@lucide/svelte';
 
 	let { data } = $props();
 	const isOnboarded = $derived(data.isOnboarded);

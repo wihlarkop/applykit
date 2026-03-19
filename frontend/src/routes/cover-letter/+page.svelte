@@ -106,7 +106,6 @@
   // Workflow steps: 1 = Import Job, 2 = Analyze Fit, 3 = Generate
   const step1Done = $derived(!!jobDescription.trim());
   const step2Done = $derived(!!fitResult);
-  const step3Active = $derived(rightPanel === 'generating' || rightPanel === 'letter');
 
   const isProfileEmpty = $derived(
     !profileLoading &&
@@ -126,6 +125,8 @@
     jobDescription.trim() ? 'ready' :
     'empty'
   );
+
+  const step3Active = $derived(rightPanel === 'generating' || rightPanel === 'letter');
 
   $effect(() => {
     const ap = activeProfile.current;

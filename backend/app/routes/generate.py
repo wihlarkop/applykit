@@ -95,6 +95,27 @@ def _get_profile_or_404(db: Session, profile_id: int) -> Profile:
     return profile
 
 
+def _render_pdf(html: str, filename: str) -> Response:
+    try:
+        pdf_bytes = html_to_pdf(html)
+    except PDFRenderError as e:
+        raise HTTPException(
+            status_code=502,
+            detail={"detail": str(e), "code": "PDF_RENDER_FAILED"},
+        ) from e
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def _handle_stream_error(e: Exception) -> ServerSentEvent:
+    if isinstance(e, RateLimitError):
+        return ServerSentEvent(data=str(e), event="rate_limit")
+    return ServerSentEvent(data=str(e), event="error")
+
+
 _format_profile_for_llm = format_profile_for_llm
 
 
@@ -182,18 +203,7 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
 
 @router.post("/generate/cv/pdf")
 def generate_cv_pdf(req: PdfRequest):
-    try:
-        pdf_bytes = html_to_pdf(req.html)
-    except PDFRenderError as e:
-        raise HTTPException(
-            status_code=502,
-            detail={"detail": str(e), "code": "PDF_RENDER_FAILED"},
-        ) from e
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=cv.pdf"},
-    )
+    return _render_pdf(req.html, "cv.pdf")
 
 
 @router.post("/generate/cover-letter", response_class=EventSourceResponse)
@@ -222,11 +232,8 @@ async def generate_cover_letter(
         ):
             accumulated.append(chunk)
             yield ServerSentEvent(data=str(chunk), event="token")
-    except RateLimitError as e:
-        yield ServerSentEvent(data=str(e), event="rate_limit")
-        return
     except Exception as e:
-        yield ServerSentEvent(data=str(e), event="error")
+        yield _handle_stream_error(e)
         return
 
     yield ServerSentEvent(data="[DONE]", event="done")
@@ -293,11 +300,8 @@ async def generate_summary(
             api_key=api_key,
         ):
             yield ServerSentEvent(data=str(chunk), event="token")
-    except RateLimitError as e:
-        yield ServerSentEvent(data=str(e), event="rate_limit")
-        return
     except Exception as e:
-        yield ServerSentEvent(data=str(e), event="error")
+        yield _handle_stream_error(e)
         return
     yield ServerSentEvent(data="[DONE]", event="done")
 
@@ -369,11 +373,8 @@ async def generate_bullets(
             user_prompt, system=system, provider=provider, api_key=api_key
         ):
             yield ServerSentEvent(data=str(chunk), event="token")
-    except RateLimitError as e:
-        yield ServerSentEvent(data=str(e), event="rate_limit")
-        return
     except Exception as e:
-        yield ServerSentEvent(data=str(e), event="error")
+        yield _handle_stream_error(e)
         return
 
     yield ServerSentEvent(data="[DONE]", event="done")
@@ -381,15 +382,4 @@ async def generate_bullets(
 
 @router.post("/generate/cover-letter/pdf")
 def generate_cover_letter_pdf(req: PdfRequest):
-    try:
-        pdf_bytes = html_to_pdf(req.html)
-    except PDFRenderError as e:
-        raise HTTPException(
-            status_code=502,
-            detail={"detail": str(e), "code": "PDF_RENDER_FAILED"},
-        ) from e
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=cover-letter.pdf"},
-    )
+    return _render_pdf(req.html, "cover-letter.pdf")

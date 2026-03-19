@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.exceptions import not_found_404
 from app.models import Application, GeneratedCoverLetter, GeneratedCV, Profile
 from app.schemas import (
     BulkDeleteRequest,
@@ -62,6 +63,7 @@ def _enrich_cv(entry: GeneratedCV, profiles: dict) -> dict:
 
 def _enrich_cl(entry: GeneratedCoverLetter, profiles: dict) -> dict:
     import json as _json
+
     p = profiles.get(entry.profile_id) if entry.profile_id else None
     fit = None
     raw_fit = getattr(entry, "fit_analysis", None)
@@ -111,16 +113,16 @@ def list_cv_history(
     total = q.count()
     items = q.offset(offset).limit(limit).all()
     pm = _profile_map(items, db)
-    return GeneratedCVListResponse(items=[_enrich_cv(e, pm) for e in items], total=total)
+    return GeneratedCVListResponse(
+        items=[_enrich_cv(e, pm) for e in items], total=total
+    )
 
 
 @router.get("/history/cv/{entry_id}", response_model=GeneratedCVEntry)
 def get_cv_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCV).filter_by(id=entry_id).first()
     if not entry:
-        raise HTTPException(
-            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
-        )
+        raise not_found_404("CV entry")
     return _enrich_cv(entry, _profile_map([entry], db))
 
 
@@ -128,9 +130,7 @@ def get_cv_history_entry(entry_id: int, db: Session = Depends(get_db)):
 def delete_cv_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCV).filter_by(id=entry_id).first()
     if not entry:
-        raise HTTPException(
-            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
-        )
+        raise not_found_404("CV entry")
     db.delete(entry)
     db.commit()
 
@@ -141,7 +141,7 @@ def update_cv_status(
 ):
     entry = db.query(GeneratedCV).filter_by(id=entry_id).first()
     if not entry:
-        raise HTTPException(status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"})
+        raise not_found_404("CV entry")
     entry.application_status = body.status
     db.commit()
     return _enrich_cv(entry, _profile_map([entry], db))
@@ -199,9 +199,7 @@ def list_cover_letter_history(
 def get_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCoverLetter).filter_by(id=entry_id).first()
     if not entry:
-        raise HTTPException(
-            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
-        )
+        raise not_found_404("Cover letter")
     return _enrich_cl(entry, _profile_map([entry], db))
 
 
@@ -209,20 +207,20 @@ def get_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_db))
 def delete_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCoverLetter).filter_by(id=entry_id).first()
     if not entry:
-        raise HTTPException(
-            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
-        )
+        raise not_found_404("Cover letter")
     db.delete(entry)
     db.commit()
 
 
-@router.patch("/history/cover-letter/{entry_id}/status", response_model=GeneratedCoverLetterEntry)
+@router.patch(
+    "/history/cover-letter/{entry_id}/status", response_model=GeneratedCoverLetterEntry
+)
 def update_cover_letter_status(
     entry_id: int, body: UpdateStatusRequest, db: Session = Depends(get_db)
 ):
     entry = db.query(GeneratedCoverLetter).filter_by(id=entry_id).first()
     if not entry:
-        raise HTTPException(status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"})
+        raise not_found_404("Cover letter")
     entry.application_status = body.status
     if body.status:
         if entry.application_id:

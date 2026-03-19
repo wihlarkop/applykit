@@ -152,3 +152,12 @@ def error_response(
         "details": details or {},
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
+
+def not_found_404(resource: str = "Resource") -> HTTPException:
+    """Create a standardized 404 Not Found HTTPException."""
+    code = f"{resource.upper().replace(' ', '_')}_NOT_FOUND"
+    return HTTPException(
+        status_code=404,
+        detail={"detail": f"{resource} not found", "code": code},
+    )

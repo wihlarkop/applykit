@@ -1,11 +1,11 @@
 <script lang="ts">
   import { activeProfile } from '$lib/activeProfile.svelte';
   import {
-    analyzeFit,
-    generateCoverLetterPdf,
-    generateCoverLetterStream,
-    getProfile,
-    scrapeJob,
+      analyzeFit,
+      generateCoverLetterPdf,
+      generateCoverLetterStream,
+      getProfile,
+      scrapeJob,
   } from '$lib/api';
   import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
   import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
@@ -15,13 +15,13 @@
   import { Label } from '$lib/components/ui/label';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { Textarea } from '$lib/components/ui/textarea';
-  import { toastState } from '$lib/toast.svelte';
   import { consumeStream } from '$lib/stream';
-  import { errorMessage } from '$lib/utils';
+  import { toastState } from '$lib/toast.svelte';
   import type { FitAnalysisResponse, ProfileData, Tone } from '$lib/types';
+  import { errorMessage } from '$lib/utils';
   import {
-    ArrowRight, Check, Copy, Download, Link, Loader2, Lock, Mail,
-    Pencil, Sparkles, TrendingUp, UserRoundPen,
+      ArrowRight, Check, Copy, Download, Link, Loader2, Lock, Mail,
+      Pencil, Sparkles, TrendingUp, UserRoundPen,
   } from '@lucide/svelte';
 
   let { data } = $props();
@@ -110,7 +110,7 @@
 
   const isProfileEmpty = $derived(
     !profileLoading &&
-    (!activeProfileData ||
+    (activeProfileData === null ||
       (activeProfileData.work_experience.length === 0 &&
         activeProfileData.skills.length === 0 &&
         activeProfileData.education.length === 0))

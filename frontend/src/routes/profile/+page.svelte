@@ -538,10 +538,11 @@
 
                             <!-- Extra context -->
                             <div class="space-y-1.5">
-                              <label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              <label for="summaryContext" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                 Extra context <span class="font-normal normal-case tracking-normal">(optional)</span>
                               </label>
                               <textarea
+                                id="summaryContext"
                                 bind:value={summaryContext}
                                 placeholder="e.g. Emphasize my leadership experience, I'm transitioning from frontend to full-stack, I have 8 years total experience..."
                                 rows={2}
@@ -758,10 +759,11 @@
 
                                   <!-- Extra context -->
                                   <div class="space-y-1.5">
-                                    <label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    <label for="bulletContext" class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                       Extra context <span class="font-normal normal-case tracking-normal">(optional)</span>
                                     </label>
                                     <textarea
+                                      id="bulletContext"
                                       bind:value={bulletContext}
                                       placeholder="e.g. I also managed a team of 4 engineers, we reduced costs by 30%, I led the migration to Kubernetes..."
                                       rows={2}

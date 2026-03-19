@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas import ProfileData
-from app.services.llm import APIKeyNotConfiguredError, LLMCallError, call_llm
+from app.exceptions import RateLimitError
+from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError
+from app.services.llm import call_llm
 from app.services.parser import extract_text, validate_extracted_text
 from app.services.settings import get_llm_config
 
@@ -125,6 +127,15 @@ async def import_cv(
         raise HTTPException(
             status_code=400,
             detail={"detail": str(e), "code": "API_KEY_NOT_CONFIGURED"},
+        ) from e
+    except RateLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "detail": str(e),
+                "code": "RATE_LIMIT_EXCEEDED",
+                "retry_after": e.details.get("retry_after"),
+            },
         ) from e
     except LLMCallError as e:
         raise HTTPException(

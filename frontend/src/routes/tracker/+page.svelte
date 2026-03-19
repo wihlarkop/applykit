@@ -1,43 +1,42 @@
 <script lang="ts">
-  import { page } from '$app/state';
-  import {
-    createApplication,
-    deleteApplication,
-    listApplications,
-    updateApplication,
-    type ApplicationFilters,
-  } from '$lib/api';
-  import ApplicationCard from '$lib/components/tracker/ApplicationCard.svelte';
-  import DetailPanel from '$lib/components/tracker/DetailPanel.svelte';
-  import { toastState } from '$lib/toast.svelte';
-  import { errorMessage } from '$lib/utils';
-  import type { ApplicationEntry, ApplicationStatus, CreateApplicationRequest } from '$lib/types';
-  import { dndzone } from 'svelte-dnd-action';
-  import { flip } from 'svelte/animate';
+	import { page } from '$app/state';
+	import {
+		createApplication,
+		deleteApplication,
+		listApplications,
+		updateApplication,
+		type ApplicationFilters,
+	} from '$lib/api';
+	import ApplicationCard from '$lib/components/tracker/ApplicationCard.svelte';
+	import DetailPanel from '$lib/components/tracker/DetailPanel.svelte';
+	import FilterBar from '$lib/components/FilterBar.svelte';
+	import { toastState } from '$lib/toast.svelte';
+	import { errorMessage } from '$lib/utils';
+	import { STATUS_CONFIG } from '$lib/constants';
+	import type { ApplicationEntry, ApplicationStatus, CreateApplicationRequest } from '$lib/types';
+	import { dndzone } from 'svelte-dnd-action';
+	import { flip } from 'svelte/animate';
 
-  // --- State ---
-  let apps = $state<ApplicationEntry[]>([]);
-  let loading = $state(true);
-  let selectedApp = $state<ApplicationEntry | null>(null);
+	let apps = $state<ApplicationEntry[]>([]);
+	let loading = $state(true);
+	let selectedApp = $state<ApplicationEntry | null>(null);
 
-  // Filters
-  let search = $state('');
-  let dateRange = $state<'all' | 'week' | 'month' | '3months'>('all');
-  let matchFilter = $state<'all' | 'high' | 'medium' | 'low'>('all');
-  let searchTimer: ReturnType<typeof setTimeout>;
+	let search = $state('');
+	let dateRange = $state('all');
+	let matchFilter = $state('all');
+	let searchTimer: ReturnType<typeof setTimeout>;
 
-  // Add form state (one per column)
-  let addingInColumn = $state<ApplicationStatus | null>(null);
-  let newCompany = $state('');
-  let newRole = $state('');
-  let newDate = $state(new Date().toISOString().split('T')[0]);
+	let addingInColumn = $state<ApplicationStatus | null>(null);
+	let newCompany = $state('');
+	let newRole = $state('');
+	let newDate = $state(new Date().toISOString().split('T')[0]);
 
-  const COLUMNS: { status: ApplicationStatus; label: string; color: string }[] = [
-    { status: 'applied', label: 'Applied', color: 'text-muted-foreground' },
-    { status: 'interviewing', label: 'Interviewing', color: 'text-amber-500' },
-    { status: 'offer', label: 'Offer', color: 'text-green-500' },
-    { status: 'rejected', label: 'Rejected', color: 'text-red-500' },
-  ];
+	const COLUMNS: { status: ApplicationStatus; label: string; color: string }[] = [
+		{ status: 'applied', label: STATUS_CONFIG.applied.label, color: 'text-muted-foreground' },
+		{ status: 'interviewing', label: STATUS_CONFIG.interviewing.label, color: STATUS_CONFIG.interviewing.color },
+		{ status: 'offer', label: STATUS_CONFIG.offer.label, color: STATUS_CONFIG.offer.color },
+		{ status: 'rejected', label: STATUS_CONFIG.rejected.label, color: STATUS_CONFIG.rejected.color },
+	];
 
   // --- Derived ---
   const colItems = $derived(

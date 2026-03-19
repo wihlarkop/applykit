@@ -1,6 +1,5 @@
 import json
 import logging
-
 from collections.abc import AsyncIterable
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,11 +8,11 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.exceptions import RateLimitError
 from app.models import GeneratedCoverLetter, GeneratedCV, Profile
 from app.schemas import (
     ATSEnhancement,
     CoverLetterRequest,
-    CoverLetterResponse,
     GenerateBulletsRequest,
     GenerateCvRequest,
     GenerateCvResponse,
@@ -22,8 +21,6 @@ from app.schemas import (
     ProfileData,
 )
 from app.services.llm import (
-    APIKeyNotConfiguredError,
-    LLMCallError,
     call_llm,
     stream_llm,
 )
@@ -164,6 +161,8 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
                 }
             )
             enhanced = True
+        except RateLimitError:
+            raise
         except Exception as exc:
             logger.warning(
                 "ATS enhancement failed, falling back to original profile: %s", exc
@@ -197,10 +196,10 @@ def generate_cv_pdf(req: PdfRequest):
     )
 
 
-@router.post("/generate/cover-letter")
+@router.post("/generate/cover-letter", response_class=EventSourceResponse)
 async def generate_cover_letter(
     req: CoverLetterRequest, db: Session = Depends(get_db)
-) -> EventSourceResponse:
+) -> AsyncIterable[ServerSentEvent]:
     profile = _get_profile_or_404(db, req.profile_id)
     profile_data = profile_to_schema(profile)
     provider, api_key = get_llm_config(db)
@@ -213,40 +212,40 @@ async def generate_cover_letter(
 
     prompt = _build_cover_letter_prompt(profile_data, req)
 
-    async def event_stream() -> AsyncIterable[ServerSentEvent]:
-        accumulated = []
-        try:
-            async for chunk in stream_llm(
-                prompt,
-                system=COVER_LETTER_SYSTEM_PROMPT,
-                provider=provider,
-                api_key=api_key,
-            ):
-                accumulated.append(chunk)
-                yield ServerSentEvent(data=chunk)
-        except Exception as e:
-            yield ServerSentEvent(raw_data=f"[ERROR] {e}")
-            return
+    accumulated = []
+    try:
+        async for chunk in stream_llm(
+            prompt,
+            system=COVER_LETTER_SYSTEM_PROMPT,
+            provider=provider,
+            api_key=api_key,
+        ):
+            accumulated.append(chunk)
+            yield ServerSentEvent(data=str(chunk), event="token")
+    except RateLimitError as e:
+        yield ServerSentEvent(data=str(e), event="rate_limit")
+        return
+    except Exception as e:
+        yield ServerSentEvent(data=str(e), event="error")
+        return
 
-        yield ServerSentEvent(raw_data="[DONE]")
+    yield ServerSentEvent(data="[DONE]", event="done")
 
-        full_text = "".join(accumulated)
-        entry = GeneratedCoverLetter(
-            company_name=req.company_name,
-            job_description=req.job_description,
-            extra_context=req.extra_context or None,
-            cover_letter_text=full_text,
-            profile_id=req.profile_id,
-            job_url=req.job_url,
-            tone=req.tone or "professional",
-            match_score=req.match_score,
-            fit_analysis=req.fit_analysis_json,
-            application_id=req.application_id,
-        )
-        db.add(entry)
-        db.commit()
-
-    return EventSourceResponse(event_stream())
+    full_text = "".join(accumulated)
+    entry = GeneratedCoverLetter(
+        company_name=req.company_name,
+        job_description=req.job_description,
+        extra_context=req.extra_context or None,
+        cover_letter_text=full_text,
+        profile_id=req.profile_id,
+        job_url=req.job_url,
+        tone=req.tone or "professional",
+        match_score=req.match_score,
+        fit_analysis=req.fit_analysis_json,
+        application_id=req.application_id,
+    )
+    db.add(entry)
+    db.commit()
 
 
 SUMMARY_SYSTEM_PROMPT = """\
@@ -264,10 +263,10 @@ RULES:
 - Use only standard ASCII punctuation. No en-dashes, em-dashes, smart quotes, or ellipsis."""
 
 
-@router.post("/generate/summary")
+@router.post("/generate/summary", response_class=EventSourceResponse)
 async def generate_summary(
     req: GenerateSummaryRequest, db: Session = Depends(get_db)
-) -> EventSourceResponse:
+) -> AsyncIterable[ServerSentEvent]:
     profile = _get_profile_or_404(db, req.profile_id)
     profile_data = profile_to_schema(profile)
     provider, api_key = get_llm_config(db)
@@ -286,21 +285,21 @@ async def generate_summary(
         )
     user_prompt += f"\n\nTONE INSTRUCTION: {tone_modifier}"
 
-    async def event_stream() -> AsyncIterable[ServerSentEvent]:
-        try:
-            async for chunk in stream_llm(
-                user_prompt,
-                system=SUMMARY_SYSTEM_PROMPT,
-                provider=provider,
-                api_key=api_key,
-            ):
-                yield ServerSentEvent(data=chunk)
-        except Exception as e:
-            yield ServerSentEvent(raw_data=f"[ERROR] {e}")
-            return
-        yield ServerSentEvent(raw_data="[DONE]")
-
-    return EventSourceResponse(event_stream())
+    try:
+        async for chunk in stream_llm(
+            user_prompt,
+            system=SUMMARY_SYSTEM_PROMPT,
+            provider=provider,
+            api_key=api_key,
+        ):
+            yield ServerSentEvent(data=str(chunk), event="token")
+    except RateLimitError as e:
+        yield ServerSentEvent(data=str(e), event="rate_limit")
+        return
+    except Exception as e:
+        yield ServerSentEvent(data=str(e), event="error")
+        return
+    yield ServerSentEvent(data="[DONE]", event="done")
 
 
 BULLETS_IMPROVE_PROMPT = """\
@@ -333,10 +332,11 @@ OUTPUT FORMAT:
 Return ONLY the reordered bullet points, one per line, each starting with "- ". No preamble, no explanation."""
 
 
-@router.post("/generate/bullets")
+@router.post("/generate/bullets", response_class=EventSourceResponse)
 async def generate_bullets(
     req: GenerateBulletsRequest, db: Session = Depends(get_db)
-) -> EventSourceResponse:
+) -> AsyncIterable[ServerSentEvent]:
+
     _get_profile_or_404(db, req.profile_id)
     provider, api_key = get_llm_config(db)
 
@@ -349,30 +349,34 @@ async def generate_bullets(
     system = (
         BULLETS_IMPROVE_PROMPT if req.mode == "improve" else BULLETS_REORGANIZE_PROMPT
     )
+
     clean_bullets = [b for b in req.bullets if b.strip()]
     bullets_text = "\n".join(f"- {b}" for b in clean_bullets)
+
     user_prompt = (
         f"Role: {req.role} at {req.company}\n"
         f"Input bullet count: {len(clean_bullets)}\n\n"
         f"Current bullets:\n{bullets_text}"
     )
+
     if req.extra_context and req.extra_context.strip():
         user_prompt += (
             f"\n\nADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
         )
 
-    async def event_stream() -> AsyncIterable[ServerSentEvent]:
-        try:
-            async for chunk in stream_llm(
-                user_prompt, system=system, provider=provider, api_key=api_key
-            ):
-                yield ServerSentEvent(raw_data=chunk)
-        except Exception as e:
-            yield ServerSentEvent(raw_data=f"[ERROR] {e}")
-            return
-        yield ServerSentEvent(raw_data="[DONE]")
+    try:
+        async for chunk in stream_llm(
+            user_prompt, system=system, provider=provider, api_key=api_key
+        ):
+            yield ServerSentEvent(data=str(chunk), event="token")
+    except RateLimitError as e:
+        yield ServerSentEvent(data=str(e), event="rate_limit")
+        return
+    except Exception as e:
+        yield ServerSentEvent(data=str(e), event="error")
+        return
 
-    return EventSourceResponse(event_stream())
+    yield ServerSentEvent(data="[DONE]", event="done")
 
 
 @router.post("/generate/cover-letter/pdf")

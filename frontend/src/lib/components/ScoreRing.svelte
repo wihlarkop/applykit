@@ -1,28 +1,26 @@
 <script lang="ts">
-  interface Props {
-    score: number;
-    size?: number;
-    strokeWidth?: number;
-    class?: string;
-  }
+	import { getScoreColor } from '$lib/utils';
 
-  let { score, size = 80, strokeWidth = 7, class: className = '' }: Props = $props();
+	interface Props {
+		score: number;
+		size?: number;
+		strokeWidth?: number;
+		class?: string;
+	}
 
-  const radius = $derived((size - strokeWidth) / 2);
-  const circumference = $derived(2 * Math.PI * radius);
-  const offset = $derived(circumference * (1 - score / 100));
-  
-  const color = $derived(
-    score >= 70 ? '#22c55e' :
-    score >= 40 ? '#eab308' :
-    '#ef4444'
-  );
-  
-  const textColor = $derived(
-    score >= 70 ? 'text-green-600 dark:text-green-400' :
-    score >= 40 ? 'text-yellow-600 dark:text-yellow-400' :
-    'text-red-600 dark:text-red-400'
-  );
+	let { score, size = 80, strokeWidth = 7, class: className = '' }: Props = $props();
+
+	const radius = $derived((size - strokeWidth) / 2);
+	const circumference = $derived(2 * Math.PI * radius);
+	const offset = $derived(circumference * (1 - score / 100));
+
+	const color = $derived(getScoreColor(score).hex);
+
+	const textColor = $derived(
+		score >= 70 ? 'text-green-600 dark:text-green-400' :
+		score >= 40 ? 'text-yellow-600 dark:text-yellow-400' :
+		'text-red-600 dark:text-red-400'
+	);
 </script>
 
 <div class="relative shrink-0 {className}" style="width:{size}px;height:{size}px">

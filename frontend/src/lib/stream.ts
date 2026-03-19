@@ -24,20 +24,52 @@ export async function consumeStream(response: Response, options: StreamOptions =
 
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
-        const payload = line.slice(6);
+        const raw = line.slice(6);
 
-        if (payload === '[DONE]') {
-          onDone?.();
-          return;
+        // Try JSON parsing
+        try {
+          const parsed = JSON.parse(raw);
+          // Handle JSON string value (from ServerSentEvent with data=string)
+          if (typeof parsed === 'string') {
+            if (parsed === '[DONE]') {
+              onDone?.();
+              return;
+            }
+            if (parsed.startsWith('[ERROR]')) {
+              onError?.(parsed.slice(8));
+              return;
+            }
+            const text = transformChunk ? transformChunk(parsed) : parsed;
+            onChunk?.(text);
+          }
+          // Handle JSON object (from ServerSentEvent with data={chunk: ...})
+          else if (typeof parsed === 'object' && parsed !== null) {
+            if (parsed.done) {
+              onDone?.();
+              return;
+            }
+            if (parsed.error) {
+              onError?.(parsed.error);
+              return;
+            }
+            if (parsed.chunk !== undefined) {
+              const text = transformChunk ? transformChunk(parsed.chunk) : parsed.chunk;
+              onChunk?.(text);
+            }
+          }
+        } catch {
+          // Fallback for plain text format (legacy)
+          if (raw === '[DONE]') {
+            onDone?.();
+            return;
+          }
+          if (raw.startsWith('[ERROR]')) {
+            onError?.(raw.slice(8));
+            return;
+          }
+          const text = transformChunk ? transformChunk(raw) : raw;
+          onChunk?.(text);
         }
-
-        if (payload.startsWith('[ERROR]')) {
-          onError?.(payload.slice(8));
-          return;
-        }
-
-        const text = transformChunk ? transformChunk(payload) : payload;
-        onChunk?.(text);
       }
     }
   } finally {

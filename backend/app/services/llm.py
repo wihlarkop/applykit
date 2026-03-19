@@ -1,14 +1,22 @@
 from typing import AsyncGenerator
+import re
 
 import litellm
 
+from app.exceptions import RateLimitError
+from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError
 
-class APIKeyNotConfiguredError(Exception):
-    pass
 
-
-class LLMCallError(Exception):
-    pass
+def _extract_retry_delay(error_str: str) -> float:
+    match = re.search(
+        r"retry[_\s]delay[\":\s]+(\d+(?:\.\d+)?)", error_str, re.IGNORECASE
+    )
+    if match:
+        return float(match.group(1))
+    match = re.search(r"retry in (\d+(?:\.\d+)?)s", error_str, re.IGNORECASE)
+    if match:
+        return float(match.group(1))
+    return 60.0
 
 
 def call_llm(
@@ -37,10 +45,17 @@ def call_llm(
         if not content:
             raise LLMCallError("LLM returned an empty response.")
         return content
-    except (APIKeyNotConfiguredError, LLMCallError):
+    except (APIKeyNotConfiguredError, LLMCallError, RateLimitError):
         raise
     except Exception as e:
-        raise LLMCallError(str(e)) from e
+        error_str = str(e)
+        if "RateLimitError" in error_str or "429" in error_str:
+            retry_after = _extract_retry_delay(error_str)
+            raise RateLimitError(
+                f"Rate limit exceeded. Please retry in {retry_after:.0f}s if available.",
+                retry_after=retry_after,
+            ) from e
+        raise LLMCallError(error_str) from e
 
 
 async def stream_llm(
@@ -69,7 +84,14 @@ async def stream_llm(
             delta = chunk.choices[0].delta.content if chunk.choices else None
             if delta:
                 yield delta
-    except (APIKeyNotConfiguredError, LLMCallError):
+    except (APIKeyNotConfiguredError, LLMCallError, RateLimitError):
         raise
     except Exception as e:
-        raise LLMCallError(str(e)) from e
+        error_str = str(e)
+        if "RateLimitError" in error_str or "429" in error_str:
+            retry_after = _extract_retry_delay(error_str)
+            raise RateLimitError(
+                f"Rate limit exceeded. Please retry in {retry_after:.0f}s if available.",
+                retry_after=retry_after,
+            ) from e
+        raise LLMCallError(error_str) from e

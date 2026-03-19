@@ -1,6 +1,8 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+import { MATCH_COLORS, SCORE_LABELS, SCORE_THRESHOLDS } from "./constants";
+
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
@@ -11,6 +13,23 @@ export type WithoutChild<T> = T extends { child?: any } ? Omit<T, "child"> : T;
 export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, "children"> : T;
 export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
 export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };
+
+export type ScoreLevel = keyof typeof SCORE_LABELS;
+
+export function getScoreLevel(score: number): ScoreLevel {
+	if (score >= SCORE_THRESHOLDS.HIGH) return 'HIGH';
+	if (score >= SCORE_THRESHOLDS.MEDIUM) return 'MEDIUM';
+	return 'LOW';
+}
+
+export function getScoreColor(score: number) {
+	const level = getScoreLevel(score);
+	return MATCH_COLORS[level];
+}
+
+export function getScoreLabel(score: number): string {
+	return SCORE_LABELS[getScoreLevel(score)];
+}
 
 /**
  * Build a query string from a filters object, omitting null/undefined values.
@@ -33,4 +52,28 @@ export function errorMessage(e: unknown, fallback = 'Something went wrong'): str
 	if (e instanceof Error) return e.message;
 	if (typeof e === 'string') return e;
 	return fallback;
+}
+
+export function formatDate(iso: string): string {
+	return new Date(iso).toLocaleString(undefined, {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	});
+}
+
+export function formatDateShort(iso: string): string {
+	return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+export function formatDateRelative(iso: string): string {
+	const date = new Date(iso);
+	const now = new Date();
+	const diffMs = now.getTime() - date.getTime();
+	const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+	if (diffDays === 0) return 'Today';
+	if (diffDays === 1) return 'Yesterday';
+	if (diffDays < 7) return `${diffDays} days ago`;
+	if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+	return formatDateShort(iso);
 }

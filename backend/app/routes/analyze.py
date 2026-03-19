@@ -5,7 +5,8 @@ from app.database import get_db
 from app.models import Profile
 from app.schemas import FitAnalysisRequest, FitAnalysisResponse
 from app.services.fit_analysis import analyze_fit
-from app.services.llm import APIKeyNotConfiguredError, LLMCallError
+from app.exceptions import RateLimitError
+from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError
 from app.services.settings import get_llm_config
 from app.utils import format_profile_for_llm, profile_to_schema
 
@@ -26,6 +27,14 @@ def analyze_fit_endpoint(body: FitAnalysisRequest, db: Session = Depends(get_db)
         return analyze_fit(profile_json, body.job_description, provider, api_key)
     except APIKeyNotConfiguredError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except RateLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "detail": str(e),
+                "retry_after": e.details.get("retry_after"),
+            },
+        )
     except LLMCallError as e:
         raise HTTPException(status_code=502, detail=str(e))
     except Exception as e:

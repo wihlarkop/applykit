@@ -1,83 +1,72 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import { activeProfile } from '$lib/activeProfile.svelte';
-  import {
-      bulkDeleteCoverLetters,
-      bulkDeleteCvs,
-      deleteCoverLetterHistoryEntry,
-      deleteCvHistoryEntry,
-      getCoverLetterHistory,
-      getCvHistory,
-      updateCoverLetterStatus,
-      updateCvStatus,
-  } from '$lib/api';
-  import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
-  import CvPreview from '$lib/components/CvPreview.svelte';
-  import { Badge } from '$lib/components/ui/badge';
-  import { Button } from '$lib/components/ui/button';
-  import { profiles } from '$lib/profiles.svelte';
-  import { errorMessage } from '$lib/utils';
-  import type { GeneratedCVEntry, GeneratedCoverLetterEntry, ProfileData } from '$lib/types';
-  import { Sparkles } from '@lucide/svelte';
+	import { goto } from '$app/navigation';
+	import { activeProfile } from '$lib/activeProfile.svelte';
+	import {
+		bulkDeleteCoverLetters,
+		bulkDeleteCvs,
+		deleteCoverLetterHistoryEntry,
+		deleteCvHistoryEntry,
+		getCoverLetterHistory,
+		getCvHistory,
+		updateCoverLetterStatus,
+		updateCvStatus,
+	} from '$lib/api';
+	import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
+	import CvPreview from '$lib/components/CvPreview.svelte';
+	import FilterBar from '$lib/components/FilterBar.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { profiles } from '$lib/profiles.svelte';
+	import { errorMessage, formatDate, formatDateShort, getScoreColor } from '$lib/utils';
+	import { STATUS_OPTIONS, STATUS_CONFIG } from '$lib/constants';
+	import type { GeneratedCVEntry, GeneratedCoverLetterEntry, ProfileData } from '$lib/types';
+	import { Sparkles } from '@lucide/svelte';
 
-  type Tab = 'cv' | 'cover-letter';
-  let tab: Tab = $state('cv');
-  let filterProfileId: number | undefined = $state(undefined);
+	type Tab = 'cv' | 'cover-letter';
+	let tab: Tab = $state('cv');
+	let filterProfileId: number | undefined = $state(undefined);
 
-  let cvItems: GeneratedCVEntry[] = $state([]);
-  let clItems: GeneratedCoverLetterEntry[] = $state([]);
-  let loading = $state(true);
-  let errorMsg = $state('');
-  let loadSeq = 0;
+	let cvItems: GeneratedCVEntry[] = $state([]);
+	let clItems: GeneratedCoverLetterEntry[] = $state([]);
+	let loading = $state(true);
+	let errorMsg = $state('');
+	let loadSeq = 0;
 
-  let selectedCv: GeneratedCVEntry | null = $state(null);
-  let selectedCl: GeneratedCoverLetterEntry | null = $state(null);
-  let previewTab = $state<'letter' | 'analysis'>('letter');
+	let selectedCv: GeneratedCVEntry | null = $state(null);
+	let selectedCl: GeneratedCoverLetterEntry | null = $state(null);
+	let previewTab = $state<'letter' | 'analysis'>('letter');
 
-  // Cover letter filters
-  let clSearch = $state('');
-  let clMatchFilter = $state<'all' | 'high' | 'medium' | 'low'>('all');
-  let clSort = $state<'date_desc' | 'date_asc' | 'match_desc' | 'company_asc'>('date_desc');
-  let clTotal = $state(0);
-  let clSearchTimer: ReturnType<typeof setTimeout>;
+	let clSearch = $state('');
+	let clMatchFilter = $state<'all' | 'high' | 'medium' | 'low'>('all');
+	let clSort = $state<'date_desc' | 'date_asc' | 'match_desc' | 'company_asc'>('date_desc');
+	let clTotal = $state(0);
+	let clSearchTimer: ReturnType<typeof setTimeout>;
 
-  // Bulk delete
-  let selectedClIds = $state<Set<number>>(new Set());
-  let selectedCvIds = $state<Set<number>>(new Set());
-  let confirmBulkDelete = $state(false);
+	let selectedClIds = $state<Set<number>>(new Set());
+	let selectedCvIds = $state<Set<number>>(new Set());
+	let confirmBulkDelete = $state(false);
 
-  // Status options
-  const STATUS_OPTIONS = [
-    { value: null, label: '—' },
-    { value: 'applied', label: 'Applied' },
-    { value: 'interviewing', label: 'Interviewing' },
-    { value: 'offer', label: 'Offer' },
-    { value: 'rejected', label: 'Rejected' },
-  ];
+	const STATUS_PIPELINE = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
+		value,
+		...config,
+	}));
 
-  const STATUS_PIPELINE = [
-    { value: 'applied',      label: 'Applied',      activeClass: 'bg-blue-500/20 text-blue-600 border border-blue-500/40' },
-    { value: 'interviewing', label: 'Interviewing',  activeClass: 'bg-amber-500/20 text-amber-600 border border-amber-500/40' },
-    { value: 'offer',        label: 'Offer',         activeClass: 'bg-green-500/20 text-green-600 border border-green-500/40' },
-    { value: 'rejected',     label: 'Rejected',      activeClass: 'bg-red-500/20 text-red-600 border border-red-500/40' },
-  ];
+	const allProfiles = $derived(profiles.all);
 
-  const allProfiles = $derived(profiles.all);
+	async function loadCoverLetters() {
+		const filters: any = { sort: clSort };
+		if (filterProfileId != null) filters.profile_id = filterProfileId;
+		if (clSearch) filters.search = clSearch;
+		if (clMatchFilter === 'high') filters.match_min = 70;
+		else if (clMatchFilter === 'medium') { filters.match_min = 40; filters.match_max = 69; }
+		else if (clMatchFilter === 'low') filters.match_max = 39;
+		const res = await getCoverLetterHistory(filters);
+		clItems = res.items;
+		clTotal = res.total;
+	}
 
-  async function loadCoverLetters() {
-    const filters: any = { sort: clSort };
-    if (filterProfileId != null) filters.profile_id = filterProfileId;
-    if (clSearch) filters.search = clSearch;
-    if (clMatchFilter === 'high') filters.match_min = 70;
-    else if (clMatchFilter === 'medium') { filters.match_min = 40; filters.match_max = 69; }
-    else if (clMatchFilter === 'low') filters.match_max = 39;
-    const res = await getCoverLetterHistory(filters);
-    clItems = res.items;
-    clTotal = res.total;
-  }
-
-  async function handleClStatusChange(id: number, status: string | null) {
-    try {
+	async function handleClStatusChange(id: number, status: string | null) {
+		try {
       const updated = await updateCoverLetterStatus(id, status);
       clItems = clItems.map((e) => (e.id === id ? updated : e));
     } catch (e: unknown) {
@@ -125,13 +114,6 @@
   $effect(() => {
     if (selectedCl) previewTab = 'letter';
   });
-
-  function formatDate(iso: string) {
-    return new Date(iso).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
-  }
 
   async function handleDeleteCv(id: number) {
     try {
@@ -202,20 +184,18 @@
     return text.length > 50 ? text.slice(0, 47) + '…' : text;
   }
 
-  function scoreColor(score: number): string {
-    if (score >= 70) return 'bg-green-500/10 text-green-600';
-    if (score >= 40) return 'bg-yellow-500/10 text-yellow-600';
-    return 'bg-red-500/10 text-red-600';
+  function getMatchBgClass(score: number): string {
+    return getScoreColor(score).bg;
   }
 
-  function scoreBarColor(score: number): string {
-    if (score >= 70) return 'bg-green-500';
-    if (score >= 40) return 'bg-yellow-500';
-    return 'bg-red-500';
+  function getMatchBarColor(score: number): string {
+    const level = score >= 70 ? 'HIGH' : score >= 40 ? 'MEDIUM' : 'LOW';
+    return level === 'HIGH' ? 'bg-green-500' : level === 'MEDIUM' ? 'bg-yellow-500' : 'bg-red-500';
   }
 
-  function formatDateShort(iso: string): string {
-    return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  function scoreColorClass(score: number): string {
+    const colors = getScoreColor(score);
+    return `${colors.bg} ${colors.text}`;
   }
 </script>
 
@@ -415,7 +395,7 @@
                       <span class="text-sm font-bold truncate">{displayCompany(entry)}</span>
                       <div class="flex items-center gap-1.5 shrink-0">
                         {#if entry.match_score !== null}
-                          <span class="text-xs px-1.5 py-0.5 rounded font-semibold {scoreColor(entry.match_score)}">{entry.match_score}%</span>
+                          <span class="text-xs px-1.5 py-0.5 rounded font-semibold {scoreColorClass(entry.match_score)}">{entry.match_score}%</span>
                         {/if}
                         {#if entry.profile_color && entry.profile_icon}
                           <span class="flex items-center gap-1 text-xs text-muted-foreground">
@@ -436,7 +416,7 @@
                     <!-- Row 3: match score bar -->
                     {#if entry.match_score !== null}
                       <div class="mt-1.5 bg-muted rounded-full h-1 overflow-hidden">
-                        <div class="h-1 rounded-full {scoreBarColor(entry.match_score)}" style="width:{entry.match_score}%"></div>
+                        <div class="h-1 rounded-full {getMatchBarColor(entry.match_score)}" style="width:{entry.match_score}%"></div>
                       </div>
                     {/if}
 
@@ -581,10 +561,10 @@
                     <div>
                       <div class="flex justify-between text-xs mb-1.5">
                         <span class="font-semibold text-muted-foreground uppercase tracking-wide">Match Score</span>
-                        <span class="font-bold {scoreColor(selectedCl.fit_analysis.match_score)}">{selectedCl.fit_analysis.match_score}%</span>
+                        <span class="font-bold {scoreColorClass(selectedCl.fit_analysis.match_score)}">{selectedCl.fit_analysis.match_score}%</span>
                       </div>
                       <div class="bg-muted rounded-full h-2 overflow-hidden">
-                        <div class="h-2 rounded-full {scoreBarColor(selectedCl.fit_analysis.match_score)}" style="width:{selectedCl.fit_analysis.match_score}%"></div>
+                        <div class="h-2 rounded-full {getMatchBarColor(selectedCl.fit_analysis.match_score)}" style="width:{selectedCl.fit_analysis.match_score}%"></div>
                       </div>
                     </div>
                     <!-- Strengths / Gaps -->

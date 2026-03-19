@@ -1,36 +1,28 @@
 <script lang="ts">
-  import {
-    deleteApplication,
-    updateApplication,
-  } from '$lib/api';
-  import { toastState } from '$lib/toast.svelte';
-  import { errorMessage } from '$lib/utils';
-  import type { ApplicationEntry, ApplicationStatus, UpdateApplicationRequest } from '$lib/types';
+	import { deleteApplication, updateApplication } from '$lib/api';
+	import { toastState } from '$lib/toast.svelte';
+	import { errorMessage } from '$lib/utils';
+	import { STATUS_CONFIG } from '$lib/constants';
+	import type { ApplicationEntry, ApplicationStatus, UpdateApplicationRequest } from '$lib/types';
 
-  let {
-    app,
-    onclose,
-    onupdate,
-    ondelete,
-  }: {
-    app: ApplicationEntry;
-    onclose: () => void;
-    onupdate: (updated: ApplicationEntry) => void;
-    ondelete: (id: number) => void;
-  } = $props();
+	let {
+		app,
+		onclose,
+		onupdate,
+		ondelete,
+	}: {
+		app: ApplicationEntry;
+		onclose: () => void;
+		onupdate: (updated: ApplicationEntry) => void;
+		ondelete: (id: number) => void;
+	} = $props();
 
-  const STATUS_OPTIONS: ApplicationStatus[] = ['applied', 'interviewing', 'offer', 'rejected'];
-  const STATUS_COLORS: Record<ApplicationStatus, string> = {
-    applied: 'text-blue-600',
-    interviewing: 'text-amber-500',
-    offer: 'text-green-500',
-    rejected: 'text-red-500',
-  };
+	const STATUS_OPTIONS: ApplicationStatus[] = ['applied', 'interviewing', 'offer', 'rejected'];
 
-  let confirmDelete = $state(false);
-  let saving = $state(false);
-  let savedRecently = $state(false);
-  let saveTimer: ReturnType<typeof setTimeout>;
+	let confirmDelete = $state(false);
+	let saving = $state(false);
+	let savedRecently = $state(false);
+	let saveTimer: ReturnType<typeof setTimeout>;
 
   async function patch(data: UpdateApplicationRequest) {
     try {
@@ -90,7 +82,7 @@
       <label for="dp-status" class="text-xs font-medium text-muted-foreground block mb-1">Status</label>
       <select
         id="dp-status"
-        class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm font-medium {STATUS_COLORS[app.status]}"
+        class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm font-medium {STATUS_CONFIG[app.status].color}"
         value={app.status}
         onchange={(e) => patch({ status: (e.target as HTMLSelectElement).value as ApplicationStatus })}
       >

@@ -1,58 +1,44 @@
 <script lang="ts">
-  import type { FitAnalysisResponse } from '$lib/types';
-  import { Check, AlertTriangle, TrendingUp, ChevronDown, ChevronUp, Sparkles } from '@lucide/svelte';
-  import ScoreRing from './ScoreRing.svelte';
-  import { Card, CardContent } from './ui/card';
+	import type { FitAnalysisResponse } from '$lib/types';
+	import { Check, AlertTriangle, TrendingUp, ChevronDown, ChevronUp, Sparkles } from '@lucide/svelte';
+	import ScoreRing from './ScoreRing.svelte';
+	import { Card, CardContent } from './ui/card';
+	import { getScoreColor, getScoreLabel } from '$lib/utils';
 
-  interface Props {
-    fitResult: FitAnalysisResponse;
-    companyName?: string | null;
-    onReanalyze?: () => void;
-    analyzing?: boolean;
-    onAcceptEmphasis?: () => void;
-    showInterviewPrep?: boolean;
-    compact?: boolean;
-  }
+	interface Props {
+		fitResult: FitAnalysisResponse;
+		companyName?: string | null;
+		onReanalyze?: () => void;
+		analyzing?: boolean;
+		onAcceptEmphasis?: () => void;
+		showInterviewPrep?: boolean;
+		compact?: boolean;
+	}
 
-  let { 
-    fitResult, 
-    companyName = null, 
-    onReanalyze, 
-    analyzing = false,
-    onAcceptEmphasis,
-    showInterviewPrep = $bindable(false),
-    compact = false
-  }: Props = $props();
+	let {
+		fitResult,
+		companyName = null,
+		onReanalyze,
+		analyzing = false,
+		onAcceptEmphasis,
+		showInterviewPrep = $bindable(false),
+		compact = false
+	}: Props = $props();
 
-  const scoreColor = $derived({
-    text: fitResult.match_score >= 70 ? 'text-green-600 dark:text-green-400' :
-          fitResult.match_score >= 40 ? 'text-yellow-600 dark:text-yellow-400' :
-          'text-red-600 dark:text-red-400',
-    bg: fitResult.match_score >= 70 ? 'bg-green-500/10 dark:bg-green-500/10' :
-        fitResult.match_score >= 40 ? 'bg-yellow-500/10 dark:bg-yellow-500/10' :
-        'bg-red-500/10 dark:bg-red-500/10',
-    ring: fitResult.match_score >= 70 ? 'ring-green-500/30' :
-          fitResult.match_score >= 40 ? 'ring-yellow-500/30' :
-          'ring-red-500/30',
-  });
+	const scoreColor = $derived(getScoreColor(fitResult.match_score));
+	const scoreLabel = $derived(getScoreLabel(fitResult.match_score));
 
-  const scoreLabel = $derived(
-    fitResult.match_score >= 70 ? 'Strong Match' :
-    fitResult.match_score >= 40 ? 'Partial Match' :
-    'Weak Match'
-  );
+	const scoreSummary = $derived(
+		fitResult.match_score >= 70 ? 'Your profile covers most key requirements.' :
+		fitResult.match_score >= 40 ? 'Your profile partially matches this role.' :
+		'Your profile has gaps for this role.'
+	);
 
-  const scoreSummary = $derived(
-    fitResult.match_score >= 70 ? 'Your profile covers most key requirements.' :
-    fitResult.match_score >= 40 ? 'Your profile partially matches this role.' :
-    'Your profile has gaps for this role.'
-  );
-
-  const fitTitle = $derived(
-    fitResult.match_score >= 70 ? 'Good fit for this role' :
-    fitResult.match_score >= 40 ? 'Partial fit for this role' :
-    'Weak fit for this role'
-  );
+	const fitTitle = $derived(
+		fitResult.match_score >= 70 ? 'Good fit for this role' :
+		fitResult.match_score >= 40 ? 'Partial fit for this role' :
+		'Weak fit for this role'
+	);
 </script>
 
 <Card class="shadow-sm">

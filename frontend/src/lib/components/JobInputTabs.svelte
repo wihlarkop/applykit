@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Link } from 'lucide-svelte';
+	import { Link } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 
 	interface Props {

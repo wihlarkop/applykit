@@ -1,14 +1,18 @@
 <script lang="ts">
 	import { DATE_RANGES, MATCH_FILTERS, SORT_OPTIONS } from '$lib/constants';
 
+	interface FilterBarFeatures {
+		dateRange?: boolean;
+		sort?: boolean;
+		bulkDelete?: boolean;
+	}
+
 	interface Props {
 		search?: string;
 		dateRange?: string;
 		matchFilter?: string;
 		sortBy?: string;
-		showDateRange?: boolean;
-		showSort?: boolean;
-		showBulkDelete?: boolean;
+		features?: FilterBarFeatures;
 		selectedCount?: number;
 		searchPlaceholder?: string;
 		onsearch?: (value: string) => void;
@@ -23,9 +27,7 @@
 		dateRange = $bindable('all'),
 		matchFilter = $bindable('all'),
 		sortBy = $bindable('date_desc'),
-		showDateRange = false,
-		showSort = false,
-		showBulkDelete = false,
+		features = {},
 		selectedCount = 0,
 		searchPlaceholder = '🔍 Search company or role...',
 		onsearch,
@@ -50,7 +52,7 @@
 		oninput={handleSearchInput}
 	/>
 
-	{#if showDateRange}
+	{#if features.dateRange}
 		<select
 			class="bg-card border border-border rounded-md px-3 py-1.5 text-sm"
 			bind:value={dateRange}
@@ -72,7 +74,7 @@
 		{/each}
 	</select>
 
-	{#if showSort}
+	{#if features.sort}
 		<select
 			class="bg-card border border-border rounded-md px-3 py-1.5 text-sm"
 			bind:value={sortBy}
@@ -84,7 +86,7 @@
 		</select>
 	{/if}
 
-	{#if showBulkDelete && selectedCount > 0}
+	{#if features.bulkDelete && selectedCount > 0}
 		<button
 			onclick={onbulkdelete}
 			class="px-3 py-1.5 text-sm bg-destructive text-destructive-foreground rounded-md hover:bg-destructive/90"

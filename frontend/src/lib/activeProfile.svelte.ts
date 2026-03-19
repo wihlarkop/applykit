@@ -9,6 +9,8 @@ export type ActiveProfile = {
   name: string;
 };
 
+type ProfilePick = Pick<ProfileData, 'id' | 'label' | 'color' | 'icon' | 'name'> & Partial<Pick<ProfileListItem, 'id' | 'label' | 'color' | 'icon' | 'name'>>;
+
 function createActiveProfile() {
   let profile = $state<ActiveProfile | null>(null);
 
@@ -20,8 +22,7 @@ function createActiveProfile() {
       if (browser) localStorage.setItem('activeProfile', JSON.stringify(p));
     },
 
-    /** Convenience: build from any object that has the required 5 fields. */
-    setFromProfileData(p: Pick<ProfileData | ProfileListItem, 'id' | 'label' | 'color' | 'icon' | 'name'>) {
+    setFromProfileData(p: ProfilePick) {
       const ap: ActiveProfile = {
         id: p.id!,
         label: p.label ?? '',

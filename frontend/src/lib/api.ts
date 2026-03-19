@@ -48,8 +48,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     });
 
     if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
-        throw new Error(err.detail ?? 'Request failed');
+        const err = await res.json().catch(() => ({ detail: 'Something went wrong. Please try again.' }));
+        throw new Error(err.detail ?? 'Something went wrong. Please try again.');
     }
 
     if (res.status === 204 || res.headers.get('content-length') === '0') {
@@ -63,8 +63,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 async function requestForm<T>(path: string, body: FormData): Promise<T> {
     const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', body });
     if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
-        throw new Error(err.detail ?? 'Import failed');
+        const err = await res.json().catch(() => ({ detail: 'Failed to import your CV. Please check the file and try again.' }));
+        throw new Error(err.detail ?? 'Failed to import your CV. Please check the file and try again.');
     }
     return res.json() as Promise<T>;
 }
@@ -76,8 +76,8 @@ async function requestBlob(path: string, options: RequestInit): Promise<Blob> {
         ...options,
     });
     if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
-        throw new Error(err.detail ?? 'Download failed');
+        const err = await res.json().catch(() => ({ detail: 'Failed to download. Please try again.' }));
+        throw new Error(err.detail ?? 'Failed to download. Please try again.');
     }
     return res.blob();
 }

@@ -22,32 +22,55 @@ export function getScoreLevel(score: number): ScoreLevel {
 	return 'LOW';
 }
 
-export function getScoreColor(score: number) {
+export interface ScoreInfo {
+	level: ScoreLevel;
+	color: (typeof MATCH_COLORS)[ScoreLevel];
+	label: string;
+	summary: string;
+	fitTitle: string;
+	barColor: string;
+}
+
+export function getScoreInfo(score: number): ScoreInfo {
 	const level = getScoreLevel(score);
-	return MATCH_COLORS[level];
+	return {
+		level,
+		color: MATCH_COLORS[level],
+		label: SCORE_LABELS[level],
+		summary:
+			level === 'HIGH'
+				? 'Your profile covers most key requirements.'
+				: level === 'MEDIUM'
+					? 'Your profile partially matches this role.'
+					: 'Your profile has gaps for this role.',
+		fitTitle:
+			level === 'HIGH'
+				? 'Good fit for this role'
+				: level === 'MEDIUM'
+					? 'Partial fit for this role'
+					: 'Weak fit for this role',
+		barColor: level === 'HIGH' ? 'bg-green-500' : level === 'MEDIUM' ? 'bg-yellow-500' : 'bg-red-500',
+	};
+}
+
+export function getScoreColor(score: number) {
+	return getScoreInfo(score).color;
 }
 
 export function getScoreLabel(score: number): string {
-	return SCORE_LABELS[getScoreLevel(score)];
+	return getScoreInfo(score).label;
 }
 
 export function getScoreSummary(score: number): string {
-	if (score >= SCORE_THRESHOLDS.HIGH) return 'Your profile covers most key requirements.';
-	if (score >= SCORE_THRESHOLDS.MEDIUM) return 'Your profile partially matches this role.';
-	return 'Your profile has gaps for this role.';
+	return getScoreInfo(score).summary;
 }
 
 export function getFitTitle(score: number): string {
-	if (score >= SCORE_THRESHOLDS.HIGH) return 'Good fit for this role';
-	if (score >= SCORE_THRESHOLDS.MEDIUM) return 'Partial fit for this role';
-	return 'Weak fit for this role';
+	return getScoreInfo(score).fitTitle;
 }
 
 export function getScoreBarColor(score: number): string {
-	const level = getScoreLevel(score);
-	if (level === 'HIGH') return 'bg-green-500';
-	if (level === 'MEDIUM') return 'bg-yellow-500';
-	return 'bg-red-500';
+	return getScoreInfo(score).barColor;
 }
 
 /**

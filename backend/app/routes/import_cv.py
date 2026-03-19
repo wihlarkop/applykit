@@ -27,10 +27,11 @@ EXTRACTION RULES:
 2. For work_experience bullets: extract each accomplishment as a separate bullet string. Keep the candidate's original wording. If they wrote paragraphs instead of bullets, break them into individual achievement statements.
 3. For dates: use the format as written (e.g., "Jan 2022", "2022", "March 2020"). If end_date is missing or says "Present"/"Current", set it to null.
 4. For skills: extract individual skills as separate strings, not comma-separated groups. "Python, JavaScript, React" becomes ["Python", "JavaScript", "React"].
-5. If a field is genuinely not present in the CV, use null (for optional strings) or [] (for arrays). Never fabricate data.
+5. If a field is genuinely not present in the CV, use null (for optional strings) or [] (for arrays). Never fabricate or invent data for any field.
 6. For projects: if tech_stack is mentioned alongside a project, extract it. If a link/URL is associated, capture it.
 7. Phone numbers: preserve the original format including country codes.
 8. LinkedIn/GitHub/portfolio: extract full URLs if present, or usernames/paths if that's all that's given.
+9. Certifications: extract ONLY if explicitly mentioned in the CV (e.g., "AWS Solutions Architect", "CPA", "Google UX Certification"). Do NOT infer or invent certifications. If the CV does not mention any certifications, return an empty array: []
 
 OUTPUT FORMAT — return ONLY this JSON structure, no markdown, no explanation:
 {
@@ -139,6 +140,10 @@ async def import_cv(
     )
     try:
         parsed = json.loads(cleaned)
+        if parsed.get("certifications"):
+            parsed["certifications"] = [
+                c for c in parsed["certifications"] if c.get("name", "").strip()
+            ]
         return ProfileData(**parsed)
     except (json.JSONDecodeError, ValidationError):
         raise HTTPException(

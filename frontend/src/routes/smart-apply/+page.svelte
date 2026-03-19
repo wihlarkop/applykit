@@ -13,6 +13,7 @@
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { toastState } from '$lib/toast.svelte';
+  import { consumeStream } from '$lib/stream';
   import type { FitAnalysisResponse } from '$lib/types';
   import {
     AlertTriangle,
@@ -184,14 +185,7 @@
             fit_analysis_json: fitResult ? JSON.stringify(fitResult) : null,
             application_id: app.id,
           });
-          // Consume stream to completion so backend writes the DB row after [DONE]
-          if (res.body) {
-            const reader = res.body.getReader();
-            while (true) {
-              const { done } = await reader.read();
-              if (done) break;
-            }
-          }
+          await consumeStream(res);
         } catch (e: any) {
           toastState.error(`Cover letter generation failed: ${e.message}`);
         }

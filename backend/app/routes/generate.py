@@ -1,8 +1,11 @@
 import json
 import logging
 
+from collections.abc import AsyncIterable
+
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response
+from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -18,7 +21,12 @@ from app.schemas import (
     PdfRequest,
     ProfileData,
 )
-from app.services.llm import APIKeyNotConfiguredError, LLMCallError, call_llm, stream_llm
+from app.services.llm import (
+    APIKeyNotConfiguredError,
+    LLMCallError,
+    call_llm,
+    stream_llm,
+)
 from app.services.pdf import PDFRenderError, html_to_pdf
 from app.services.settings import get_llm_config
 from app.utils import format_profile_for_llm, profile_to_schema
@@ -44,7 +52,7 @@ INSTRUCTIONS:
    - Include a measurable outcome where possible (%, $, time saved, users impacted). If no metric exists, quantify scope (team size, system scale, user count).
    - Mirror keywords and phrases from the target job description when the candidate genuinely has that experience. Do NOT fabricate skills or experience.
    - Keep each bullet to 1-2 lines. Aim for 3-5 bullets per role.
-3. Preserve all factual information: company names, roles, dates, education, skills. Never invent or remove entries.
+3. Preserve all factual information: company names, roles, dates, education, skills, projects, certifications. Never invent, fabricate, or add any data that was not present in the original profile.
 4. If no job description is provided, optimize generically for the candidate's apparent field.
 
 OUTPUT FORMAT:
@@ -109,7 +117,9 @@ def _build_cover_letter_prompt(p: ProfileData, req: CoverLetterRequest) -> str:
             "Use this to guide emphasis — do not fabricate experience, but frame existing "
             "experience to address these points where honest."
         )
-    tone_modifier = TONE_PROMPTS.get(req.tone or "professional", TONE_PROMPTS["professional"])
+    tone_modifier = TONE_PROMPTS.get(
+        req.tone or "professional", TONE_PROMPTS["professional"]
+    )
     parts.append(f"\nTONE INSTRUCTION: {tone_modifier}")
     return "\n".join(parts)
 
@@ -188,7 +198,9 @@ def generate_cv_pdf(req: PdfRequest):
 
 
 @router.post("/generate/cover-letter")
-async def generate_cover_letter(req: CoverLetterRequest, db: Session = Depends(get_db)):
+async def generate_cover_letter(
+    req: CoverLetterRequest, db: Session = Depends(get_db)
+) -> EventSourceResponse:
     profile = _get_profile_or_404(db, req.profile_id)
     profile_data = profile_to_schema(profile)
     provider, api_key = get_llm_config(db)
@@ -201,18 +213,22 @@ async def generate_cover_letter(req: CoverLetterRequest, db: Session = Depends(g
 
     prompt = _build_cover_letter_prompt(profile_data, req)
 
-    async def event_stream():
+    async def event_stream() -> AsyncIterable[ServerSentEvent]:
         accumulated = []
         try:
-            async for chunk in stream_llm(prompt, system=COVER_LETTER_SYSTEM_PROMPT, provider=provider, api_key=api_key):
+            async for chunk in stream_llm(
+                prompt,
+                system=COVER_LETTER_SYSTEM_PROMPT,
+                provider=provider,
+                api_key=api_key,
+            ):
                 accumulated.append(chunk)
-                yield f"data: {chunk}\n\n"
+                yield ServerSentEvent(data=chunk)
         except Exception as e:
-            yield f"data: [ERROR] {e}\n\n"
+            yield ServerSentEvent(raw_data=f"[ERROR] {e}")
             return
 
-        # Per spec: yield [DONE] first, then DB write
-        yield "data: [DONE]\n\n"
+        yield ServerSentEvent(raw_data="[DONE]")
 
         full_text = "".join(accumulated)
         entry = GeneratedCoverLetter(
@@ -230,7 +246,7 @@ async def generate_cover_letter(req: CoverLetterRequest, db: Session = Depends(g
         db.add(entry)
         db.commit()
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return EventSourceResponse(event_stream())
 
 
 SUMMARY_SYSTEM_PROMPT = """\
@@ -249,7 +265,9 @@ RULES:
 
 
 @router.post("/generate/summary")
-async def generate_summary(req: GenerateSummaryRequest, db: Session = Depends(get_db)):
+async def generate_summary(
+    req: GenerateSummaryRequest, db: Session = Depends(get_db)
+) -> EventSourceResponse:
     profile = _get_profile_or_404(db, req.profile_id)
     profile_data = profile_to_schema(profile)
     provider, api_key = get_llm_config(db)
@@ -263,19 +281,26 @@ async def generate_summary(req: GenerateSummaryRequest, db: Session = Depends(ge
     tone_modifier = TONE_PROMPTS.get(req.tone, TONE_PROMPTS["professional"])
     user_prompt = _format_profile_for_llm(profile_data)
     if req.extra_context and req.extra_context.strip():
-        user_prompt += f"\n\nADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
+        user_prompt += (
+            f"\n\nADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
+        )
     user_prompt += f"\n\nTONE INSTRUCTION: {tone_modifier}"
 
-    async def event_stream():
+    async def event_stream() -> AsyncIterable[ServerSentEvent]:
         try:
-            async for chunk in stream_llm(user_prompt, system=SUMMARY_SYSTEM_PROMPT, provider=provider, api_key=api_key):
-                yield f"data: {chunk}\n\n"
+            async for chunk in stream_llm(
+                user_prompt,
+                system=SUMMARY_SYSTEM_PROMPT,
+                provider=provider,
+                api_key=api_key,
+            ):
+                yield ServerSentEvent(data=chunk)
         except Exception as e:
-            yield f"data: [ERROR] {e}\n\n"
+            yield ServerSentEvent(raw_data=f"[ERROR] {e}")
             return
-        yield "data: [DONE]\n\n"
+        yield ServerSentEvent(raw_data="[DONE]")
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return EventSourceResponse(event_stream())
 
 
 BULLETS_IMPROVE_PROMPT = """\
@@ -309,7 +334,9 @@ Return ONLY the reordered bullet points, one per line, each starting with "- ". 
 
 
 @router.post("/generate/bullets")
-async def generate_bullets(req: GenerateBulletsRequest, db: Session = Depends(get_db)):
+async def generate_bullets(
+    req: GenerateBulletsRequest, db: Session = Depends(get_db)
+) -> EventSourceResponse:
     _get_profile_or_404(db, req.profile_id)
     provider, api_key = get_llm_config(db)
 
@@ -319,7 +346,9 @@ async def generate_bullets(req: GenerateBulletsRequest, db: Session = Depends(ge
             detail={"detail": "LLM not configured.", "code": "API_KEY_NOT_CONFIGURED"},
         )
 
-    system = BULLETS_IMPROVE_PROMPT if req.mode == "improve" else BULLETS_REORGANIZE_PROMPT
+    system = (
+        BULLETS_IMPROVE_PROMPT if req.mode == "improve" else BULLETS_REORGANIZE_PROMPT
+    )
     clean_bullets = [b for b in req.bullets if b.strip()]
     bullets_text = "\n".join(f"- {b}" for b in clean_bullets)
     user_prompt = (
@@ -328,19 +357,22 @@ async def generate_bullets(req: GenerateBulletsRequest, db: Session = Depends(ge
         f"Current bullets:\n{bullets_text}"
     )
     if req.extra_context and req.extra_context.strip():
-        user_prompt += f"\n\nADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
+        user_prompt += (
+            f"\n\nADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
+        )
 
-    async def event_stream():
+    async def event_stream() -> AsyncIterable[ServerSentEvent]:
         try:
-            async for chunk in stream_llm(user_prompt, system=system, provider=provider, api_key=api_key):
-                # Escape newlines so embedded \n doesn't break SSE framing
-                yield f"data: {chunk.replace(chr(10), '<NL>')}\n\n"
+            async for chunk in stream_llm(
+                user_prompt, system=system, provider=provider, api_key=api_key
+            ):
+                yield ServerSentEvent(raw_data=chunk)
         except Exception as e:
-            yield f"data: [ERROR] {e}\n\n"
+            yield ServerSentEvent(raw_data=f"[ERROR] {e}")
             return
-        yield "data: [DONE]\n\n"
+        yield ServerSentEvent(raw_data="[DONE]")
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    return EventSourceResponse(event_stream())
 
 
 @router.post("/generate/cover-letter/pdf")

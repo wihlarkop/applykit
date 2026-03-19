@@ -15,6 +15,7 @@
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { Textarea } from '$lib/components/ui/textarea';
   import { toastState } from '$lib/toast.svelte';
+  import { consumeStream } from '$lib/stream';
   import type { FitAnalysisResponse, ProfileData, Tone } from '$lib/types';
   import {
     AlertTriangle, ArrowRight, Check, ChevronDown, ChevronUp,
@@ -226,24 +227,11 @@
         const err = await resp.json().catch(() => ({ detail: 'Generation failed' }));
         throw new Error(err.detail ?? 'Generation failed');
       }
-      const reader = resp.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const payload = line.slice(6);
-          if (payload === '[DONE]') { loading = false; break; }
-          if (payload.startsWith('[ERROR]')) { toastState.error(payload.slice(8)); loading = false; return; }
-          coverLetterText += payload;
-        }
-      }
-      toastState.success('Cover letter generated!');
+      await consumeStream(resp, {
+        onChunk: (text) => { coverLetterText += text; },
+        onDone: () => { loading = false; toastState.success('Cover letter generated!'); },
+        onError: (msg) => { toastState.error(msg); loading = false; },
+      });
     } catch (e: any) {
       toastState.error(`Generation failed: ${e.message}`);
     } finally {

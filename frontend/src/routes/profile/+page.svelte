@@ -12,6 +12,7 @@
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { Textarea } from '$lib/components/ui/textarea';
   import { toastState } from '$lib/toast.svelte';
+  import { consumeStream } from '$lib/stream';
   import type { ProfileData, Project, WorkExperience } from '$lib/types';
   import { Award, Building2, Check, ChevronDown, FileUp, FolderGit2, GraduationCap, Loader2, Plus, RefreshCw, Save, Sparkles as SparklesIcon, Trash2, User, X } from '@lucide/svelte';
 
@@ -58,23 +59,11 @@
     try {
       const res = await generateSummaryStream(ap.id, summaryTone, summaryContext || undefined);
       if (!res.ok) throw new Error('Generation failed');
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const chunk = line.slice(6);
-          if (chunk === '[DONE]') break;
-          if (chunk.startsWith('[ERROR]')) { toastState.error(chunk.slice(8)); return; }
-          summaryPreview += chunk;
-        }
-      }
+      await consumeStream(res, {
+        onChunk: (text) => { summaryPreview += text; },
+        onDone: () => {},
+        onError: (msg) => { toastState.error(msg); },
+      });
     } catch (e: any) {
       toastState.error(`Generation failed: ${e.message}`);
     } finally {
@@ -110,23 +99,12 @@
     try {
       const res = await generateBulletsStream(ap.id, work.company, work.role, work.bullets, bulletMode, bulletContext || undefined);
       if (!res.ok) throw new Error('Generation failed');
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split('\n');
-        buf = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const chunk = line.slice(6);
-          if (chunk === '[DONE]') break;
-          if (chunk.startsWith('[ERROR]')) { toastState.error(chunk.slice(8)); return; }
-          bulletPreview += chunk.replaceAll('<NL>', '\n');
-        }
-      }
+      await consumeStream(res, {
+        onChunk: (text) => { bulletPreview += text; },
+        onDone: () => {},
+        onError: (msg) => { toastState.error(msg); },
+        transformChunk: (chunk) => chunk.replaceAll('<NL>', '\n'),
+      });
     } catch (e: any) {
       toastState.error(`Generation failed: ${e.message}`);
     } finally {

@@ -11,6 +11,10 @@ def _safe_json(value: str | None, fallback: list) -> list:
         return fallback
 
 
+def _filter_empty_certs(certs: list) -> list:
+    return [c for c in certs if c.get("name", "").strip()]
+
+
 def profile_to_schema(p: Profile) -> ProfileData:
     return ProfileData(
         id=p.id,
@@ -29,7 +33,7 @@ def profile_to_schema(p: Profile) -> ProfileData:
         education=_safe_json(p.education, []),
         skills=_safe_json(p.skills, []),
         projects=_safe_json(p.projects, []),
-        certifications=_safe_json(p.certifications, []),
+        certifications=_filter_empty_certs(_safe_json(p.certifications, [])),
         updated_at=p.updated_at,
     )
 

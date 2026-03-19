@@ -405,8 +405,9 @@
                 ATS-enhance bullets and summary
               </label>
               <div class="space-y-1.5">
-                <label class="text-xs font-medium text-muted-foreground">Extra context (optional)</label>
+                <label for="cv-context" class="text-xs font-medium text-muted-foreground">Extra context (optional)</label>
                 <textarea
+                  id="cv-context"
                   bind:value={cvContext}
                   placeholder="e.g. Highlight my leadership experience, focus on backend skills…"
                   rows={2}
@@ -440,7 +441,7 @@
             <div class="space-y-3 pt-1 border-t border-border/50 animate-in fade-in duration-150">
               <!-- Tone -->
               <div class="space-y-1.5">
-                <label class="text-xs font-medium text-muted-foreground">Tone</label>
+                <span class="text-xs font-medium text-muted-foreground">Tone</span>
                 <div class="grid grid-cols-2 gap-2">
                   {#each TONES as t}
                     <button
@@ -458,8 +459,9 @@
               </div>
               <!-- Extra context -->
               <div class="space-y-1.5">
-                <label class="text-xs font-medium text-muted-foreground">Extra context (optional)</label>
+                <label for="cl-context" class="text-xs font-medium text-muted-foreground">Extra context (optional)</label>
                 <textarea
+                  id="cl-context"
                   bind:value={clContext}
                   placeholder="e.g. Mention my open source contributions, I'm excited about their mission…"
                   rows={2}

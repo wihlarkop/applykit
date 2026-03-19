@@ -5,6 +5,7 @@
   import ProfileModal from '$lib/components/ProfileModal.svelte';
   import { Button } from '$lib/components/ui/button';
   import { profiles } from '$lib/profiles.svelte';
+  import { errorMessage } from '$lib/utils';
   import type { ProfileListItem } from '$lib/types';
 
   let modalMode = $state<'create' | 'edit' | null>(null);
@@ -37,8 +38,8 @@
           return;
         }
       }
-    } catch (e: any) {
-      error = e.message ?? 'Could not delete profile';
+    } catch (e: unknown) {
+      error = errorMessage(e) ?? 'Could not delete profile';
     } finally {
       deletingId = null;
     }

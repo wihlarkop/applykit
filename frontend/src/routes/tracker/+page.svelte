@@ -10,6 +10,7 @@
   import ApplicationCard from '$lib/components/tracker/ApplicationCard.svelte';
   import DetailPanel from '$lib/components/tracker/DetailPanel.svelte';
   import { toastState } from '$lib/toast.svelte';
+  import { errorMessage } from '$lib/utils';
   import type { ApplicationEntry, ApplicationStatus, CreateApplicationRequest } from '$lib/types';
   import { dndzone } from 'svelte-dnd-action';
   import { flip } from 'svelte/animate';
@@ -75,8 +76,8 @@
         const target = apps.find(a => a.id === Number(newId));
         if (target) selectedApp = target;
       }
-    } catch (e: any) {
-      toastState.error(e.message);
+    } catch (e: unknown) {
+      toastState.error(errorMessage(e));
     } finally {
       loading = false;
     }
@@ -134,8 +135,8 @@
       const created = await createApplication(req);
       apps = [created, ...apps];
       addingInColumn = null;
-    } catch (e: any) {
-      toastState.error(e.message);
+    } catch (e: unknown) {
+      toastState.error(errorMessage(e));
     }
   }
 

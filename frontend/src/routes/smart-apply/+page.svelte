@@ -10,14 +10,15 @@
   } from '$lib/api';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
+  import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
   import { toastState } from '$lib/toast.svelte';
   import { consumeStream } from '$lib/stream';
+  import { errorMessage } from '$lib/utils';
   import type { FitAnalysisResponse } from '$lib/types';
   import {
     AlertTriangle,
-    CheckCircle,
     ChevronDown,
     Loader2,
     Zap,
@@ -123,13 +124,13 @@
       // Run fit analysis — non-fatal if it fails
       try {
         fitResult = await analyzeFit(ap.id, jobDescription);
-      } catch (e: any) {
-        analysisError = e.message ?? 'Fit analysis failed.';
-        toastState.error(`Fit analysis failed: ${e.message}`);
+      } catch (e: unknown) {
+        analysisError = errorMessage(e) ?? 'Fit analysis failed.';
+        toastState.error(`Fit analysis failed: ${errorMessage(e)}`);
       }
-    } catch (e: any) {
-      analysisError = e.message ?? 'Analysis failed.';
-      toastState.error(`Scrape failed: ${e.message}. Try pasting the job description instead.`);
+    } catch (e: unknown) {
+      analysisError = errorMessage(e) ?? 'Analysis failed.';
+      toastState.error(`Scrape failed: ${errorMessage(e)}. Try pasting the job description instead.`);
     } finally {
       analysisLoading = false;
     }
@@ -165,8 +166,8 @@
             application_id: app.id,
             extra_context: cvContext || undefined,
           });
-        } catch (e: any) {
-          toastState.error(`CV generation failed: ${e.message}`);
+        } catch (e: unknown) {
+          toastState.error(`CV generation failed: ${errorMessage(e)}`);
         }
       }
 
@@ -186,37 +187,19 @@
             application_id: app.id,
           });
           await consumeStream(res);
-        } catch (e: any) {
-          toastState.error(`Cover letter generation failed: ${e.message}`);
+        } catch (e: unknown) {
+          toastState.error(`Cover letter generation failed: ${errorMessage(e)}`);
         }
       }
 
       generationStep = 'Done!';
       await goto(`/tracker?new=${app.id}`);
-    } catch (e: any) {
-      toastState.error(`Failed: ${e.message}`);
+    } catch (e: unknown) {
+      toastState.error(`Failed: ${errorMessage(e)}`);
     } finally {
       generating = false;
       generationStep = '';
     }
-  }
-
-  // Score ring helpers
-  function ringOffset(score: number) {
-    const circumference = 2 * Math.PI * 20;
-    return circumference - (score / 100) * circumference;
-  }
-
-  function scoreColor(score: number) {
-    if (score >= 70) return 'text-green-500';
-    if (score >= 40) return 'text-amber-500';
-    return 'text-red-500';
-  }
-
-  function ringStroke(score: number) {
-    if (score >= 70) return 'stroke-green-500';
-    if (score >= 40) return 'stroke-amber-500';
-    return 'stroke-red-500';
   }
 </script>
 
@@ -289,69 +272,7 @@
   {#if scrapeResult}
     <!-- Fit analysis card -->
     {#if fitResult}
-      <Card class="shadow-sm border-border/50 animate-in fade-in slide-in-from-top-2 duration-300">
-        <CardContent class="p-6 space-y-4">
-          <div class="flex items-center gap-4">
-            <!-- Score ring -->
-            <div class="relative shrink-0 w-16 h-16">
-              <svg class="w-16 h-16 -rotate-90" viewBox="0 0 48 48">
-                <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" stroke-width="4" class="text-muted/30" />
-                <circle
-                  cx="24" cy="24" r="20" fill="none" stroke-width="4"
-                  stroke-linecap="round"
-                  class="{ringStroke(fitResult.match_score)} transition-all duration-700"
-                  stroke-dasharray="{2 * Math.PI * 20}"
-                  stroke-dashoffset="{ringOffset(fitResult.match_score)}"
-                />
-              </svg>
-              <span class="absolute inset-0 flex items-center justify-center text-sm font-bold {scoreColor(fitResult.match_score)}">
-                {fitResult.match_score}%
-              </span>
-            </div>
-            <div>
-              <p class="font-semibold text-sm">Profile Match</p>
-              <p class="text-xs text-muted-foreground">
-                {fitResult.match_score >= 70
-                  ? 'Strong fit — good to apply.'
-                  : fitResult.match_score >= 40
-                    ? 'Decent fit — tailor your documents.'
-                    : 'Weak fit — consider the gaps below.'}
-              </p>
-            </div>
-          </div>
-
-          <!-- Pros / Cons -->
-          {#if fitResult.pros.length || fitResult.cons.length}
-            <div class="grid grid-cols-2 gap-3">
-              <div class="space-y-1.5">
-                {#each fitResult.pros.slice(0, 3) as pro}
-                  <div class="flex items-start gap-1.5 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded-lg px-2.5 py-1.5">
-                    <CheckCircle class="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    {pro}
-                  </div>
-                {/each}
-              </div>
-              <div class="space-y-1.5">
-                {#each fitResult.cons.slice(0, 3) as con}
-                  <div class="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-2.5 py-1.5">
-                    <AlertTriangle class="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    {con}
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {/if}
-
-          <!-- Missing keywords -->
-          {#if fitResult.missing_keywords.length}
-            <div class="flex flex-wrap gap-1.5">
-              {#each fitResult.missing_keywords.slice(0, 8) as kw}
-                <span class="text-[11px] px-2 py-0.5 rounded-full bg-muted border border-border/60 text-muted-foreground">{kw}</span>
-              {/each}
-            </div>
-          {/if}
-        </CardContent>
-      </Card>
+      <FitAnalysisDisplay {fitResult} compact />
     {:else if analysisError}
       <div class="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-4 py-3 border border-amber-200 dark:border-amber-800">
         <AlertTriangle class="w-4 h-4 shrink-0" />

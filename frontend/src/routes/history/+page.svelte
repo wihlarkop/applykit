@@ -16,6 +16,7 @@
   import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import { profiles } from '$lib/profiles.svelte';
+  import { errorMessage } from '$lib/utils';
   import type { GeneratedCVEntry, GeneratedCoverLetterEntry, ProfileData } from '$lib/types';
   import { Sparkles } from '@lucide/svelte';
 
@@ -79,8 +80,8 @@
     try {
       const updated = await updateCoverLetterStatus(id, status);
       clItems = clItems.map((e) => (e.id === id ? updated : e));
-    } catch (e: any) {
-      errorMsg = `Failed to update status: ${e.message}`;
+    } catch (e: unknown) {
+      errorMsg = `Failed to update status: ${errorMessage(e)}`;
     }
   }
 
@@ -91,8 +92,8 @@
       if (selectedCl && selectedClIds.has(selectedCl.id)) selectedCl = null;
       selectedClIds = new Set();
       confirmBulkDelete = false;
-    } catch (e: any) {
-      errorMsg = `Failed to delete: ${e.message}`;
+    } catch (e: unknown) {
+      errorMsg = `Failed to delete: ${errorMessage(e)}`;
     }
   }
 
@@ -111,7 +112,7 @@
       })
       .catch((e: any) => {
         if (seq !== loadSeq) return;
-        errorMsg = e.message;
+        errorMsg = errorMessage(e);
       })
       .finally(() => {
         if (seq !== loadSeq) return;
@@ -137,8 +138,8 @@
       await deleteCvHistoryEntry(id);
       cvItems = cvItems.filter((e) => e.id !== id);
       if (selectedCv?.id === id) selectedCv = null;
-    } catch (e: any) {
-      errorMsg = `Failed to delete: ${e.message}`;
+    } catch (e: unknown) {
+      errorMsg = `Failed to delete: ${errorMessage(e)}`;
     }
   }
 
@@ -147,8 +148,8 @@
       await deleteCoverLetterHistoryEntry(id);
       clItems = clItems.filter((e) => e.id !== id);
       if (selectedCl?.id === id) selectedCl = null;
-    } catch (e: any) {
-      errorMsg = `Failed to delete: ${e.message}`;
+    } catch (e: unknown) {
+      errorMsg = `Failed to delete: ${errorMessage(e)}`;
     }
   }
 

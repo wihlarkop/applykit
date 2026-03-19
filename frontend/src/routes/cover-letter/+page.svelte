@@ -8,6 +8,7 @@
     scrapeJob,
   } from '$lib/api';
   import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
+  import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
   import { Input } from '$lib/components/ui/input';
@@ -16,10 +17,10 @@
   import { Textarea } from '$lib/components/ui/textarea';
   import { toastState } from '$lib/toast.svelte';
   import { consumeStream } from '$lib/stream';
+  import { errorMessage } from '$lib/utils';
   import type { FitAnalysisResponse, ProfileData, Tone } from '$lib/types';
   import {
-    AlertTriangle, ArrowRight, Check, ChevronDown, ChevronUp,
-    Copy, Download, Link, Loader2, Lock, Mail,
+    ArrowRight, Check, Copy, Download, Link, Loader2, Lock, Mail,
     Pencil, Sparkles, TrendingUp, UserRoundPen,
   } from '@lucide/svelte';
 
@@ -102,35 +103,10 @@
     { value: 'creative', label: 'Creative' },
   ];
 
-  const scoreColor = $derived(
-    !fitResult ? { text: '', bar: '', bg: '', ring: '' } :
-    fitResult.match_score >= 70
-      ? { text: 'text-green-600 dark:text-green-400', bar: 'bg-green-500', bg: 'bg-green-500/10', ring: 'ring-green-500/30' }
-      : fitResult.match_score >= 40
-        ? { text: 'text-yellow-600 dark:text-yellow-400', bar: 'bg-yellow-500', bg: 'bg-yellow-500/10', ring: 'ring-yellow-500/30' }
-        : { text: 'text-red-600 dark:text-red-400', bar: 'bg-red-500', bg: 'bg-red-500/10', ring: 'ring-red-500/30' }
-  );
-
-  const scoreLabel = $derived(
-    !fitResult ? '' :
-    fitResult.match_score >= 70 ? 'Strong match' :
-    fitResult.match_score >= 40 ? 'Partial match' : 'Weak match'
-  );
-
-  const scoreSummary = $derived(
-    !fitResult ? '' :
-    fitResult.match_score >= 70 ? 'Your profile covers most key requirements.' :
-    fitResult.match_score >= 40 ? 'Your profile partially matches this role.' :
-    'Your profile has significant gaps for this role.'
-  );
-
   // Workflow steps: 1 = Import Job, 2 = Analyze Fit, 3 = Generate
   const step1Done = $derived(!!jobDescription.trim());
   const step2Done = $derived(!!fitResult);
   const step3Active = $derived(rightPanel === 'generating' || rightPanel === 'letter');
-
-  // SVG ring circumference = 2π × 34 ≈ 213.6
-  const ringOffset = $derived(fitResult ? 213.6 * (1 - fitResult.match_score / 100) : 213.6);
 
   const isProfileEmpty = $derived(
     !profileLoading &&
@@ -181,8 +157,8 @@
       isImported = true;
       try { importedDomain = new URL(jobUrl.trim()).hostname.replace('www.', ''); } catch { importedDomain = jobUrl; }
       toastState.success('Job posting imported!');
-    } catch (e: any) {
-      toastState.error(e.message);
+    } catch (e: unknown) {
+      toastState.error(errorMessage(e));
     } finally {
       scraping = false;
     }
@@ -195,8 +171,8 @@
     fitResult = null;
     try {
       fitResult = await analyzeFit(ap.id, jobDescription);
-    } catch (e: any) {
-      toastState.error(e.message);
+    } catch (e: unknown) {
+      toastState.error(errorMessage(e));
     } finally {
       analyzing = false;
     }
@@ -232,8 +208,8 @@
         onDone: () => { loading = false; toastState.success('Cover letter generated!'); },
         onError: (msg) => { toastState.error(msg); loading = false; },
       });
-    } catch (e: any) {
-      toastState.error(`Generation failed: ${e.message}`);
+    } catch (e: unknown) {
+      toastState.error(`Generation failed: ${errorMessage(e)}`);
     } finally {
       loading = false;
     }
@@ -259,8 +235,8 @@
       a.href = url; a.download = 'cover-letter.pdf'; a.click();
       URL.revokeObjectURL(url);
       toastState.success('PDF downloaded!');
-    } catch (e: any) {
-      toastState.error(`Download failed: ${e.message}`);
+    } catch (e: unknown) {
+      toastState.error(`Download failed: ${errorMessage(e)}`);
     } finally {
       downloading = false;
     }
@@ -551,172 +527,29 @@
 
       <!-- Fit analysis results -->
       {:else if rightPanel === 'fit' && fitResult}
-        <div class="animate-in fade-in duration-300">
-          <Card class="shadow-sm">
-            <CardContent class="p-6 space-y-5">
-
-              <!-- Header -->
-              <div class="flex items-center justify-between">
-                <h2 class="font-semibold text-sm flex items-center gap-2">
-                  <TrendingUp class="w-4 h-4 text-primary" />
-                  Fit Analysis{companyName ? ` · ${companyName}` : ''}
-                </h2>
-                <button
-                  onclick={handleAnalyzeFit}
-                  disabled={analyzing}
-                  class="text-xs text-muted-foreground hover:text-foreground transition-colors underline cursor-pointer disabled:opacity-50"
-                >Re-analyze</button>
-              </div>
-
-              <!-- Score ring + summary -->
-              <div class="flex items-center gap-5 p-4 rounded-xl {scoreColor.bg} ring-1 {scoreColor.ring}">
-                <!-- Circular SVG ring -->
-                <div class="relative shrink-0" style="width:80px;height:80px">
-                  <svg width="80" height="80" viewBox="0 0 80 80">
-                    <circle cx="40" cy="40" r="34" fill="none" stroke="currentColor" stroke-width="7" class="text-black/10 dark:text-white/10"/>
-                    <circle
-                      cx="40" cy="40" r="34" fill="none"
-                      stroke-width="7" stroke-linecap="round"
-                      stroke-dasharray="213.6"
-                      style="stroke-dashoffset: {ringOffset}; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 0.8s cubic-bezier(0.34,1.2,0.64,1); stroke: {fitResult.match_score >= 70 ? '#22c55e' : fitResult.match_score >= 40 ? '#eab308' : '#ef4444'};"
-                    />
-                  </svg>
-                  <div class="absolute inset-0 flex flex-col items-center justify-center">
-                    <span class="text-xl font-black leading-none {scoreColor.text}" style="font-variant-numeric: tabular-nums">{fitResult.match_score}</span>
-                    <span class="text-[9px] font-bold {scoreColor.text} opacity-70">%</span>
-                  </div>
-                </div>
-                <!-- Summary -->
-                <div class="flex-1 min-w-0">
-                  <span class="inline-flex items-center gap-1.5 text-[10.5px] font-bold {scoreColor.text} uppercase tracking-wide mb-1.5
-                    px-2 py-0.5 rounded-full {scoreColor.bg} ring-1 {scoreColor.ring}">
-                    <Check class="w-3 h-3" /> {scoreLabel}
-                  </span>
-                  <p class="text-sm font-semibold text-foreground mb-0.5">
-                    {fitResult.match_score >= 70 ? 'Good fit for this role' : fitResult.match_score >= 40 ? 'Partial fit for this role' : 'Weak fit for this role'}
-                  </p>
-                  <p class="text-xs text-muted-foreground">{scoreSummary}</p>
-                </div>
-              </div>
-
-              <!-- Strengths & Gaps side by side -->
-              {#if fitResult.pros.length > 0 || fitResult.cons.length > 0}
-                <div class="grid grid-cols-2 gap-3">
-                  <!-- Strengths -->
-                  {#if fitResult.pros.length > 0}
-                    <div class="rounded-lg p-3 bg-green-500/8 dark:bg-green-500/10 border border-green-500/20 space-y-2">
-                      <p class="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase tracking-wide flex items-center gap-1.5">
-                        <Check class="w-3 h-3" /> Strengths
-                      </p>
-                      <ul class="space-y-1.5">
-                        {#each fitResult.pros as pro}
-                          <li class="text-xs text-foreground/85 flex gap-1.5 leading-relaxed">
-                            <span class="text-green-500 shrink-0 mt-0.5 font-bold">·</span>
-                            <span>{pro}</span>
-                          </li>
-                        {/each}
-                      </ul>
-                    </div>
-                  {/if}
-                  <!-- Gaps & Red flags -->
-                  {#if fitResult.cons.length > 0 || fitResult.red_flags.length > 0}
-                    <div class="rounded-lg p-3 bg-red-500/8 dark:bg-red-500/10 border border-red-500/20 space-y-2">
-                      <p class="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wide flex items-center gap-1.5">
-                        <AlertTriangle class="w-3 h-3" /> Gaps
-                      </p>
-                      <ul class="space-y-1.5">
-                        {#each fitResult.cons as con}
-                          <li class="text-xs text-foreground/85 flex gap-1.5 leading-relaxed">
-                            <span class="text-red-500 shrink-0 mt-0.5 font-bold">·</span>
-                            <span>{con}</span>
-                          </li>
-                        {/each}
-                        {#each fitResult.red_flags as flag}
-                          <li class="text-xs text-red-600/80 flex gap-1.5 leading-relaxed">
-                            <span class="shrink-0 mt-0.5 font-bold">·</span>
-                            <span>{flag}</span>
-                          </li>
-                        {/each}
-                      </ul>
-                    </div>
-                  {/if}
-                </div>
-              {/if}
-
-              <!-- Missing keywords -->
-              {#if fitResult.missing_keywords.length > 0}
-                <div class="space-y-2">
-                  <p class="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Missing Keywords</p>
-                  <div class="flex flex-wrap gap-1.5">
-                    {#each fitResult.missing_keywords as kw}
-                      <span class="inline-block bg-red-500/8 dark:bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-full px-2.5 py-0.5 text-[11px] font-medium font-mono">{kw}</span>
-                    {/each}
-                  </div>
-                </div>
-              {/if}
-
-              <div class="border-t border-border"></div>
-
-              <!-- Suggested emphasis -->
-              <div class="rounded-lg border border-primary/20 bg-primary/5 dark:bg-primary/10 p-4 space-y-2.5">
-                <p class="text-[10px] font-bold text-primary uppercase tracking-wide flex items-center gap-1.5">
-                  <Sparkles class="w-3 h-3" /> AI Suggested Emphasis
-                </p>
-                <p class="text-sm text-foreground/80 leading-relaxed">{fitResult.suggested_emphasis}</p>
-                <button
-                  onclick={acceptSuggestedEmphasis}
-                  class="inline-flex items-center gap-1.5 text-xs text-primary font-semibold hover:underline cursor-pointer transition-colors"
-                >
-                  <Check class="w-3 h-3" /> Use this suggestion
-                </button>
-              </div>
-
-              <!-- Interview prep collapsible -->
-              {#if fitResult.interview_questions.length > 0}
-                <div class="border border-border rounded-lg overflow-hidden">
-                  <button
-                    class="flex items-center justify-between w-full text-sm font-semibold cursor-pointer px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors"
-                    onclick={() => (showInterviewPrep = !showInterviewPrep)}
-                  >
-                    <span class="flex items-center gap-2">
-                      Interview Prep Questions
-                      <span class="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{fitResult.interview_questions.length}</span>
-                    </span>
-                    {#if showInterviewPrep}
-                      <ChevronUp class="w-4 h-4 text-muted-foreground" />
-                    {:else}
-                      <ChevronDown class="w-4 h-4 text-muted-foreground" />
-                    {/if}
-                  </button>
-                  {#if showInterviewPrep}
-                    <ul class="divide-y divide-border">
-                      {#each fitResult.interview_questions as q, i}
-                        <li class="px-4 py-3 text-sm text-muted-foreground flex gap-3">
-                          <span class="shrink-0 font-bold text-primary font-mono text-xs mt-0.5">Q{i + 1}</span>
-                          <span>{q}</span>
-                        </li>
-                      {/each}
-                    </ul>
-                  {/if}
-                </div>
-              {/if}
-
-              <!-- Generate CTA banner -->
-              <div class="flex items-center gap-3 p-4 rounded-xl bg-primary/8 dark:bg-primary/12 border border-primary/20">
-                <div class="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-sm">
-                  <Sparkles class="w-4 h-4 text-white" />
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-semibold text-foreground">Ready to generate</p>
-                  <p class="text-xs text-muted-foreground">{fitResult.match_score}% match · {tone} tone{activeProfile.current ? ` · ${activeProfile.current.label}` : ''}</p>
-                </div>
-                <Button onclick={handleGenerate} disabled={loading || !isOnboarded} size="sm" class="shrink-0">
-                  Generate <ArrowRight class="w-3.5 h-3.5 ml-1" />
-                </Button>
-              </div>
-
-            </CardContent>
-          </Card>
+        <div class="animate-in fade-in duration-300 space-y-4">
+          <FitAnalysisDisplay 
+            {fitResult} 
+            {companyName}
+            onReanalyze={handleAnalyzeFit}
+            {analyzing}
+            onAcceptEmphasis={acceptSuggestedEmphasis}
+            bind:showInterviewPrep
+          />
+          
+          <!-- Generate CTA banner -->
+          <div class="flex items-center gap-3 p-4 rounded-xl bg-primary/8 dark:bg-primary/12 border border-primary/20">
+            <div class="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-sm">
+              <Sparkles class="w-4 h-4 text-white" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-foreground">Ready to generate</p>
+              <p class="text-xs text-muted-foreground">{fitResult.match_score}% match · {tone} tone{activeProfile.current ? ` · ${activeProfile.current.label}` : ''}</p>
+            </div>
+            <Button onclick={handleGenerate} disabled={loading || !isOnboarded} size="sm" class="shrink-0">
+              Generate <ArrowRight class="w-3.5 h-3.5 ml-1" />
+            </Button>
+          </div>
         </div>
 
       <!-- Generating -->

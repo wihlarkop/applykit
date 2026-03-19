@@ -4,6 +4,7 @@
     updateApplication,
   } from '$lib/api';
   import { toastState } from '$lib/toast.svelte';
+  import { errorMessage } from '$lib/utils';
   import type { ApplicationEntry, ApplicationStatus, UpdateApplicationRequest } from '$lib/types';
 
   let {
@@ -39,8 +40,8 @@
       clearTimeout(saveTimer);
       savedRecently = true;
       saveTimer = setTimeout(() => (savedRecently = false), 2000);
-    } catch (e: any) {
-      toastState.error(e.message);
+    } catch (e: unknown) {
+      toastState.error(errorMessage(e));
     } finally {
       saving = false;
     }
@@ -50,8 +51,8 @@
     try {
       await deleteApplication(app.id);
       ondelete(app.id);
-    } catch (e: any) {
-      toastState.error(e.message);
+    } catch (e: unknown) {
+      toastState.error(errorMessage(e));
     }
   }
 </script>

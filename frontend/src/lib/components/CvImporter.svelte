@@ -5,6 +5,7 @@
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
+  import { errorMessage } from '$lib/utils';
   import type { ProfileData } from '$lib/types';
   import { CheckCircle2, Save, Sparkles, Type, Upload } from '@lucide/svelte';
 
@@ -42,8 +43,8 @@
         if (!pastedText.trim()) { errorMsg = 'Please paste some text.'; return; }
         preview = await importCvText(pastedText);
       }
-    } catch (e: any) {
-      errorMsg = e.message;
+    } catch (e: unknown) {
+      errorMsg = errorMessage(e);
     } finally {
       loading = false;
     }
@@ -59,8 +60,8 @@
       await saveProfile(ap.id, preview);
       successMsg = 'Profile successfully updated!';
       if (onSaveSuccess) onSaveSuccess();
-    } catch (e: any) {
-      errorMsg = e.message;
+    } catch (e: unknown) {
+      errorMsg = errorMessage(e);
     } finally {
       saving = false;
     }

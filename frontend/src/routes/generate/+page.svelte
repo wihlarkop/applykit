@@ -2,12 +2,15 @@
   import { activeProfile } from '$lib/activeProfile.svelte';
   import { generateCv, generateCvPdf, getProfile } from '$lib/api';
   import CvPreview from '$lib/components/CvPreview.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
+  import PageHeader from '$lib/components/PageHeader.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
   import { Label } from '$lib/components/ui/label';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { Textarea } from '$lib/components/ui/textarea';
   import { toastState } from '$lib/toast.svelte';
+  import { errorMessage } from '$lib/utils';
   import type { ProfileData } from '$lib/types';
   import { Download, FileText, Lock, Printer, Sparkles, UserRoundPen } from '@lucide/svelte';
   import confetti from 'canvas-confetti';
@@ -27,9 +30,9 @@
   const isProfileEmpty = $derived(
     !profileLoading &&
     (!activeProfileData ||
-     (activeProfileData.work_experience.length === 0 &&
-      activeProfileData.skills.length === 0 &&
-      activeProfileData.education.length === 0))
+     ((activeProfileData?.work_experience.length ?? 0) === 0 &&
+      (activeProfileData?.skills.length ?? 0) === 0 &&
+      (activeProfileData?.education.length ?? 0) === 0))
   );
 
   $effect(() => {
@@ -41,7 +44,7 @@
     if (!ap) { profileLoading = false; return; }
     getProfile(ap.id)
       .then(p => { activeProfileData = p; })
-      .catch(() => {})
+      .catch(() => { toastState.error('Failed to load profile data.'); })
       .finally(() => { profileLoading = false; });
   });
 
@@ -61,8 +64,8 @@
         origin: { y: 0.6 },
         colors: ['#3b82f6', '#8b5cf6', '#10b981']
       });
-    } catch (e: any) {
-      toastState.error(`Generation failed: ${e.message}`);
+    } catch (e: unknown) {
+      toastState.error(`Generation failed: ${errorMessage(e)}`);
     } finally {
       loading = false;
     }
@@ -81,8 +84,8 @@
       a.click();
       URL.revokeObjectURL(url);
       toastState.success('PDF Downloaded!');
-    } catch (e: any) {
-      toastState.error(`Download failed: ${e.message}`);
+    } catch (e: unknown) {
+      toastState.error(`Download failed: ${errorMessage(e)}`);
     } finally {
       downloading = false;
     }
@@ -93,39 +96,32 @@
   }
 </script>
 
-<div class="space-y-8 max-w-4xl pb-10 relative">
-  <!-- Sticky Header -->
-  <div class="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border -mx-4 px-4 py-4 mb-8">
-    <div class="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4 max-w-4xl mx-auto">
-      <div>
-        <h1 class="text-2xl font-bold flex items-center gap-2">
-          <Sparkles class="w-6 h-6 text-primary" />
-          Generate CV
-        </h1>
-        <p class="text-xs text-muted-foreground mt-0.5">Create an ATS-optimized CV tailored from your profile.</p>
-      </div>
-      <div class="flex items-center gap-3 self-end sm:self-auto">
-        {#if profile}
-          <Button variant="outline" size="sm" onclick={handlePrint} class="shadow-sm hidden sm:flex">
-            <Printer class="w-4 h-4 mr-2" /> Print
-          </Button>
-          <Button variant="outline" size="sm" onclick={handleDownloadPdf} disabled={downloading} class="shadow-sm">
-            <Download class="w-4 h-4 mr-2" />
-            {downloading ? 'Downloading…' : 'Download PDF'}
-          </Button>
-        {/if}
-        <Button onclick={handleGenerate} disabled={loading || !isOnboarded || isProfileEmpty || profileLoading} size="sm" class="shadow-md h-9">
-          {#if !isOnboarded}
-            <Lock class="w-4 h-4 mr-2" /> Locked
-          {:else}
-            <Sparkles class="w-4 h-4 mr-2 {loading ? 'animate-pulse' : ''}" />
-            {loading ? 'Generating…' : 'Generate ATS CV'}
-          {/if}
-        </Button>
-      </div>
-    </div>
-  </div>
 
+<div class="space-y-8 max-w-4xl pb-10 relative">
+  <PageHeader
+    title="Generate CV"
+    subtitle="Create an ATS-optimized CV tailored from your profile."
+  >
+    {#snippet actions()}
+      {#if profile}
+        <Button variant="outline" size="sm" onclick={handlePrint} class="shadow-sm hidden sm:flex">
+          <Printer class="w-4 h-4 mr-2" /> Print
+        </Button>
+        <Button variant="outline" size="sm" onclick={handleDownloadPdf} disabled={downloading} class="shadow-sm">
+          <Download class="w-4 h-4 mr-2" />
+          {downloading ? 'Downloading…' : 'Download PDF'}
+        </Button>
+      {/if}
+      <Button onclick={handleGenerate} disabled={loading || !isOnboarded || isProfileEmpty || profileLoading} size="sm" class="shadow-md h-9">
+        {#if !isOnboarded}
+          <Lock class="w-4 h-4 mr-2" /> Locked
+        {:else}
+          <Sparkles class="w-4 h-4 mr-2 {loading ? 'animate-pulse' : ''}" />
+          {loading ? 'Generating…' : 'Generate ATS CV'}
+        {/if}
+      </Button>
+    {/snippet}
+  </PageHeader>
 
   <!-- Job Description + Profile Context -->
   <div class="grid sm:grid-cols-[1fr_auto] gap-4 items-start">
@@ -150,27 +146,26 @@
   {#if !profile && !loading}
     {#if isProfileEmpty}
       <Card class="border-dashed border-2 border-yellow-400/60 bg-yellow-50/30 dark:bg-yellow-900/10">
-        <CardContent class="flex flex-col items-center justify-center py-16 text-center">
-          <div class="w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 rounded-full flex items-center justify-center mb-4">
-            <UserRoundPen class="w-8 h-8" />
-          </div>
-          <h3 class="text-xl font-bold mb-2">Profile is empty</h3>
-          <p class="text-muted-foreground max-w-sm mx-auto mb-5">
-            Add your work experience, education, or skills to <strong>{activeProfile.current?.label ?? 'this profile'}</strong> before generating a CV.
-          </p>
-          <Button href="/profile" variant="default">Fill in my profile</Button>
+        <CardContent>
+          <EmptyState
+            icon={UserRoundPen}
+            iconClass="text-yellow-600 dark:text-yellow-400"
+            iconBg="bg-yellow-100 dark:bg-yellow-900/30"
+            title="Profile is empty"
+            description="Add your work experience, education, or skills to {activeProfile.current?.label ?? 'this profile'} before generating a CV."
+          >
+            <Button href="/profile" variant="default">Fill in my profile</Button>
+          </EmptyState>
         </CardContent>
       </Card>
     {:else}
       <Card class="border-dashed border-2 bg-muted/30">
-        <CardContent class="flex flex-col items-center justify-center py-16 text-center">
-          <div class="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
-            <FileText class="w-8 h-8" />
-          </div>
-          <h3 class="text-xl font-bold mb-2">Ready to generate your CV?</h3>
-          <p class="text-muted-foreground max-w-md mx-auto">
-            Click the "Generate ATS CV" button above to dynamically create a beautifully formatted resume. If your API key is configured, AI will enhance your bullet points for ATS systems.
-          </p>
+        <CardContent>
+          <EmptyState
+            icon={FileText}
+            title="Ready to generate your CV?"
+            description='Click the "Generate ATS CV" button above to dynamically create a beautifully formatted resume. If your API key is configured, AI will enhance your bullet points for ATS systems.'
+          />
         </CardContent>
       </Card>
     {/if}

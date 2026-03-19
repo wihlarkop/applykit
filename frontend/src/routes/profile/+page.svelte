@@ -13,6 +13,7 @@
   import { Textarea } from '$lib/components/ui/textarea';
   import { toastState } from '$lib/toast.svelte';
   import { consumeStream } from '$lib/stream';
+  import { errorMessage } from '$lib/utils';
   import type { ProfileData, Project, WorkExperience } from '$lib/types';
   import { Award, Building2, Check, ChevronDown, FileUp, FolderGit2, GraduationCap, Loader2, Plus, RefreshCw, Save, Sparkles as SparklesIcon, Trash2, User, X } from '@lucide/svelte';
 
@@ -64,8 +65,8 @@
         onDone: () => {},
         onError: (msg) => { toastState.error(msg); },
       });
-    } catch (e: any) {
-      toastState.error(`Generation failed: ${e.message}`);
+    } catch (e: unknown) {
+      toastState.error(`Generation failed: ${errorMessage(e)}`);
     } finally {
       summaryGenerating = false;
     }
@@ -105,8 +106,8 @@
         onError: (msg) => { toastState.error(msg); },
         transformChunk: (chunk) => chunk.replaceAll('<NL>', '\n'),
       });
-    } catch (e: any) {
-      toastState.error(`Generation failed: ${e.message}`);
+    } catch (e: unknown) {
+      toastState.error(`Generation failed: ${errorMessage(e)}`);
     } finally {
       bulletGenerating = false;
     }
@@ -176,7 +177,7 @@
       })
       .catch((e: any) => {
         if (seq !== loadSeq) return;
-        toastState.error(`Failed to load profile: ${e.message}`);
+        toastState.error(`Failed to load profile: ${errorMessage(e)}`);
       })
       .finally(() => {
         if (seq !== loadSeq) return;
@@ -205,8 +206,8 @@
       toastState.success('Profile saved successfully!');
       loadedProfileJson = JSON.stringify(profile);
       await invalidateAll();
-    } catch (e: any) {
-      toastState.error(`Save failed: ${e.message}`);
+    } catch (e: unknown) {
+      toastState.error(`Save failed: ${errorMessage(e)}`);
     } finally {
       saving = false;
     }
@@ -221,8 +222,8 @@
         profile = { ...data };
         skillsText = '';
         loadedProfileJson = JSON.stringify({ ...data });
-      } catch (e: any) {
-        toastState.error(`Failed to reload profile: ${e.message}`);
+      } catch (e: unknown) {
+        toastState.error(`Failed to reload profile: ${errorMessage(e)}`);
       }
     }
     await invalidateAll();

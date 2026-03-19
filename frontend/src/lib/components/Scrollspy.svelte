@@ -8,7 +8,7 @@
   }
 
   let { sections = [] }: { sections: Section[] } = $props();
-  let activeId = $state(sections[0]?.id || '');
+  let activeId = $state('');
 
   function scrollToSection(id: string) {
     const element = document.getElementById(id);

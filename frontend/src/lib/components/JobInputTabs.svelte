@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Link } from 'lucide-svelte';
+	import type { Snippet } from 'svelte';
 
 	interface Props {
 		mode?: 'paste' | 'url';
@@ -16,6 +17,9 @@
 		scraping?: boolean;
 		jobUrl?: string;
 		jobText?: string;
+		children?: Snippet;
+		urlInput?: Snippet;
+		pasteInput?: Snippet;
 	}
 
 	let {
@@ -33,6 +37,9 @@
 		scraping = false,
 		jobUrl = $bindable(''),
 		jobText = $bindable(''),
+		children,
+		urlInput,
+		pasteInput,
 	}: Props = $props();
 </script>
 
@@ -71,25 +78,29 @@
 
 {#if mode === 'url'}
 	<div class="space-y-2">
-		<slot name="url-input">
+		{#if urlInput}
+			{@render urlInput()}
+		{:else}
 			<input
 				type="url"
 				bind:value={jobUrl}
 				placeholder={urlPlaceholder}
 				class="flex-1 h-9 bg-card border border-border rounded-md px-3 py-2 text-sm"
 			/>
-		</slot>
+		{/if}
 		{#if showUrlHelper}
 			<p class="text-xs text-muted-foreground">{urlHelperText}</p>
 		{/if}
 	</div>
 {:else}
-	<slot name="paste-input">
+	{#if pasteInput}
+		{@render pasteInput()}
+	{:else}
 		<textarea
 			bind:value={jobText}
 			placeholder={pastePlaceholder}
 			rows={8}
 			class="w-full bg-background/50 border border-border rounded-md px-3 py-2 text-sm placeholder:text-muted-foreground/50 resize-y max-h-[35vh] focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
 		></textarea>
-	</slot>
+	{/if}
 {/if}

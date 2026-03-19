@@ -106,9 +106,9 @@
 
     try {
       await updateApplication(draggedApp.id, { status });
-    } catch (err: any) {
-      toastState.error(err.message);
-      await load(); // revert on error
+    } catch (err: unknown) {
+      toastState.error('Failed to update application. Please try again.');
+      await load();
     }
   }
 

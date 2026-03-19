@@ -175,9 +175,9 @@
         skillsText = '';
         loadedProfileJson = JSON.stringify({ ...data });
       })
-      .catch((e: any) => {
+      .catch((e: unknown) => {
         if (seq !== loadSeq) return;
-        toastState.error(`Failed to load profile: ${errorMessage(e)}`);
+        toastState.error('Failed to load profile. Please refresh the page.');
       })
       .finally(() => {
         if (seq !== loadSeq) return;

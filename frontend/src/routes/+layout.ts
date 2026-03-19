@@ -8,7 +8,7 @@ export const ssr = false;
 
 export const load = async ({ url }) => {
   let isOnboarded = true;
-  let isApiKeyConfigured = true; // fail open — if /api/status unreachable, don't lock users out
+  let isApiKeyConfigured = true;
 
   try {
     const [onboarding, llmStatus] = await Promise.all([getOnboardingStatus(), getStatus()]);
@@ -18,7 +18,6 @@ export const load = async ({ url }) => {
     try {
       let res = await listProfiles();
 
-      // Fresh install: no profiles yet — create the default one
       if (res.items.length === 0) {
         await createProfile({ label: 'Default', color: '#6366f1', icon: '💼' });
         res = await listProfiles();
@@ -26,7 +25,6 @@ export const load = async ({ url }) => {
 
       profiles.set(res.items);
 
-      // Validate stored active profile or fall back to first
       let storedId: number | null = null;
       if (browser) {
         try {
@@ -38,23 +36,21 @@ export const load = async ({ url }) => {
       const validated = activeItem ? { id: activeItem.id, label: activeItem.label, color: activeItem.color, icon: activeItem.icon, name: activeItem.name } : null;
       activeProfile.initFromStorage(validated);
     } catch (e) {
-      console.warn('Could not load profiles', e);
+      console.warn('Could not load profiles. Using defaults.', e);
     }
 
     const onSettings = url.pathname.startsWith('/settings');
     const onOnboarding = url.pathname.startsWith('/onboarding');
     const onProfile = url.pathname === '/profile' || url.pathname.startsWith('/profile/');
 
-    // Gate 1: API key must be configured
     if (!isApiKeyConfigured && !onSettings) {
       throw redirect(307, '/settings');
     }
 
-    // Gate 2: Profile must exist (onboarding)
     if (!isOnboarded && !onSettings && !onOnboarding && !onProfile) {
       throw redirect(307, '/onboarding');
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (isRedirect(err)) throw err;
     console.warn('Could not check onboarding status. Allowing navigation.', err);
   }

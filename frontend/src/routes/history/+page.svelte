@@ -11,6 +11,7 @@
 	} from '$lib/api';
 	import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
 	import CvPreview from '$lib/components/CvPreview.svelte';
+	import ScoreRing from '$lib/components/ScoreRing.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { STATUS_CONFIG } from '$lib/constants';
@@ -96,9 +97,9 @@
         if (seq !== loadSeq) return;
         cvItems = r.items;
       })
-      .catch((e: any) => {
+      .catch((e: unknown) => {
         if (seq !== loadSeq) return;
-        errorMsg = errorMessage(e);
+        errorMsg = 'Failed to load CV history. Please refresh the page.';
       })
       .finally(() => {
         if (seq !== loadSeq) return;
@@ -475,19 +476,8 @@
                   <Button variant="ghost" size="sm" onclick={() => selectedCl = null}>← Back</Button>
                 </div>
                 <div class="flex gap-3 items-start p-4">
-                  <!-- Score ring (only when match_score exists) -->
                   {#if selectedCl.match_score !== null}
-                    {@const pct = selectedCl.match_score}
-                    {@const deg = Math.round(pct * 3.6)}
-                    {@const ringColor = pct >= 70 ? '#22c55e' : pct >= 40 ? '#f59e0b' : '#ef4444'}
-                    <div
-                      class="shrink-0 w-14 h-14 rounded-full flex items-center justify-center"
-                      style="background:conic-gradient({ringColor} {deg}deg, #e2e8f0 {deg}deg)"
-                    >
-                      <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-                        <span class="text-xs font-bold" style="color:{ringColor}">{pct}%</span>
-                      </div>
-                    </div>
+                    <ScoreRing score={selectedCl.match_score} size={56} strokeWidth={6} />
                   {/if}
 
                   <!-- Identity -->

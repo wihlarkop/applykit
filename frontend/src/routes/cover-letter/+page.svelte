@@ -141,7 +141,7 @@
     if (!ap) { profileLoading = false; return; }
     getProfile(ap.id)
       .then((p) => { activeProfileData = p; })
-      .catch(() => {})
+      .catch((e: unknown) => { toastState.error('Failed to load profile. Please refresh the page.'); })
       .finally(() => { profileLoading = false; });
   });
 

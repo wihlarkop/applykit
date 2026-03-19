@@ -31,6 +31,25 @@ export function getScoreLabel(score: number): string {
 	return SCORE_LABELS[getScoreLevel(score)];
 }
 
+export function getScoreSummary(score: number): string {
+	if (score >= SCORE_THRESHOLDS.HIGH) return 'Your profile covers most key requirements.';
+	if (score >= SCORE_THRESHOLDS.MEDIUM) return 'Your profile partially matches this role.';
+	return 'Your profile has gaps for this role.';
+}
+
+export function getFitTitle(score: number): string {
+	if (score >= SCORE_THRESHOLDS.HIGH) return 'Good fit for this role';
+	if (score >= SCORE_THRESHOLDS.MEDIUM) return 'Partial fit for this role';
+	return 'Weak fit for this role';
+}
+
+export function getScoreBarColor(score: number): string {
+	const level = getScoreLevel(score);
+	if (level === 'HIGH') return 'bg-green-500';
+	if (level === 'MEDIUM') return 'bg-yellow-500';
+	return 'bg-red-500';
+}
+
 /**
  * Build a query string from a filters object, omitting null/undefined values.
  * Returns an empty string when there are no params.

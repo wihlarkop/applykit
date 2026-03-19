@@ -2,26 +2,26 @@
   import { goto } from '$app/navigation';
   import { activeProfile } from '$lib/activeProfile.svelte';
   import {
-    analyzeFit,
-    createApplication,
-    generateCoverLetterStream,
-    generateCv,
-    scrapeJob,
+      analyzeFit,
+      createApplication,
+      generateCoverLetterStream,
+      generateCv,
+      scrapeJob,
   } from '$lib/api';
+  import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
-  import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
-  import { toastState } from '$lib/toast.svelte';
   import { consumeStream } from '$lib/stream';
-  import { errorMessage } from '$lib/utils';
+  import { toastState } from '$lib/toast.svelte';
   import type { FitAnalysisResponse } from '$lib/types';
+  import { errorMessage } from '$lib/utils';
   import {
-    AlertTriangle,
-    ChevronDown,
-    Loader2,
-    Zap,
+      AlertTriangle,
+      ChevronDown,
+      Loader2,
+      Zap,
   } from '@lucide/svelte';
 
   // ---------------------------------------------------------------------------

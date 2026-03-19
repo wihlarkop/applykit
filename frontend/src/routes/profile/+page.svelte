@@ -11,10 +11,10 @@
   import { Label } from '$lib/components/ui/label';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { Textarea } from '$lib/components/ui/textarea';
-  import { toastState } from '$lib/toast.svelte';
   import { consumeStream } from '$lib/stream';
-  import { errorMessage } from '$lib/utils';
+  import { toastState } from '$lib/toast.svelte';
   import type { ProfileData, Project, WorkExperience } from '$lib/types';
+  import { errorMessage } from '$lib/utils';
   import { Award, Building2, Check, ChevronDown, FileUp, FolderGit2, GraduationCap, Loader2, Plus, RefreshCw, Save, Sparkles as SparklesIcon, Trash2, User, X } from '@lucide/svelte';
 
   let profile: ProfileData = $state({

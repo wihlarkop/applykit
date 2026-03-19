@@ -4,7 +4,7 @@
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { toastState } from '$lib/toast.svelte';
-  import { ArrowRight, CheckCircle2, Sparkles, User } from '@lucide/svelte';
+  import { ArrowRight, CircleCheck, Sparkles, User } from '@lucide/svelte';
   import confetti from 'canvas-confetti';
 
   let step = $state<'intro' | 'import' | 'done'>('intro');
@@ -61,7 +61,7 @@
               <ArrowRight class="ml-2 w-5 h-5" />
             </Button>
             <p class="text-center text-xs text-muted-foreground mt-4 font-medium flex items-center justify-center gap-1">
-              <CheckCircle2 class="w-3 h-3 text-green-500" /> RECOMMENDED
+              <CircleCheck class="w-3 h-3 text-green-500" /> RECOMMENDED
             </p>
           </CardContent>
         </Card>
@@ -101,7 +101,7 @@
     {:else if step === 'done'}
       <div class="text-center space-y-8 py-10 animate-in zoom-in-95 fade-in duration-500">
         <div class="w-24 h-24 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto shadow-xl">
-          <CheckCircle2 class="w-12 h-12" />
+          <CircleCheck class="w-12 h-12" />
         </div>
         <div class="space-y-3">
           <h2 class="text-4xl font-extrabold tracking-tight">You're all set!</h2>

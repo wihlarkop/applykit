@@ -1,11 +1,11 @@
 <script lang="ts">
+  import { invalidateAll } from '$app/navigation';
+  import { page } from '$app/state';
   import { activateProvider, getIntegrations } from '$lib/api';
   import SettingsModal from '$lib/components/SettingsModal.svelte';
   import { toastState } from '$lib/toast.svelte';
   import type { IntegrationInfo } from '$lib/types';
-  import { CircleAlert, CircleCheck, ChevronRight, Cpu, Pencil, Plus, Settings, Zap } from '@lucide/svelte';
-  import { invalidateAll } from '$app/navigation';
-  import { page } from '$app/state';
+  import { ChevronRight, CircleAlert, CircleCheck, Pencil, Plus, Settings, Zap } from '@lucide/svelte';
 
   let modalOpen = $state(false);
   let modalProviderId = $state('');
@@ -119,7 +119,7 @@
       {#each integrations as integration}
         {@const color = PROVIDER_COLORS[integration.id] ?? '#6b7280'}
         {@const icon = PROVIDER_ICONS[integration.id] ?? '◉'}
-        <div class="border rounded-lg p-4 bg-card flex items-center gap-4 transition-colors {integration.is_active ? 'border-primary/40 bg-primary/[0.02]' : 'border-border'}">
+        <div class="border rounded-lg p-4 bg-card flex items-center gap-4 transition-colors {integration.is_active ? 'border-primary/40 bg-primary/2' : 'border-border'}">
           <!-- Icon -->
           <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-base font-bold" style="background:{color}18; color:{color}">
             {icon}

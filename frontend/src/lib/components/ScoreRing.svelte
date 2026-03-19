@@ -15,12 +15,7 @@
 	const offset = $derived(circumference * (1 - score / 100));
 
 	const color = $derived(getScoreColor(score).hex);
-
-	const textColor = $derived(
-		score >= 70 ? 'text-green-600 dark:text-green-400' :
-		score >= 40 ? 'text-yellow-600 dark:text-yellow-400' :
-		'text-red-600 dark:text-red-400'
-	);
+	const textColor = $derived(getScoreColor(score).text);
 </script>
 
 <div class="relative shrink-0 {className}" style="width:{size}px;height:{size}px">

@@ -1,19 +1,17 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import {
-		createApplication,
-		deleteApplication,
-		listApplications,
-		updateApplication,
-		type ApplicationFilters,
+	    createApplication,
+	    listApplications,
+	    updateApplication,
+	    type ApplicationFilters
 	} from '$lib/api';
 	import ApplicationCard from '$lib/components/tracker/ApplicationCard.svelte';
 	import DetailPanel from '$lib/components/tracker/DetailPanel.svelte';
-	import FilterBar from '$lib/components/FilterBar.svelte';
-	import { toastState } from '$lib/toast.svelte';
-	import { errorMessage } from '$lib/utils';
 	import { STATUS_CONFIG } from '$lib/constants';
+	import { toastState } from '$lib/toast.svelte';
 	import type { ApplicationEntry, ApplicationStatus, CreateApplicationRequest } from '$lib/types';
+	import { errorMessage } from '$lib/utils';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 
@@ -151,7 +149,7 @@
   }
 </script>
 
-<div class="space-y-4 transition-[padding-right] duration-200 {selectedApp ? 'pr-[376px]' : ''}"
+<div class="space-y-4 transition-[padding-right] duration-200 {selectedApp ? 'pr-94' : ''}"
 >
   <div class="flex items-center justify-between">
     <h1 class="text-2xl font-bold">Application Tracker</h1>
@@ -160,7 +158,7 @@
   <!-- Filter bar -->
   <div class="flex items-center gap-3 flex-wrap">
     <input
-      class="flex-1 min-w-[200px] bg-card border border-border rounded-md px-3 py-2 text-sm"
+      class="flex-1 min-w-50 bg-card border border-border rounded-md px-3 py-2 text-sm"
       placeholder="🔍 Search company or role..."
       bind:value={search}
       oninput={onSearchInput}
@@ -207,7 +205,7 @@
 
           <!-- Cards (dnd zone) -->
           <div
-            class="flex flex-col gap-2 min-h-[120px] max-h-[60vh] overflow-y-auto"
+            class="flex flex-col gap-2 min-h-30 max-h-[60vh] overflow-y-auto"
             use:dndzone={{ items, flipDurationMs: 150, type: 'applications' }}
             onconsider={(e) => handleDndConsider(col.status, e)}
             onfinalize={(e) => handleDndFinalize(col.status, e)}

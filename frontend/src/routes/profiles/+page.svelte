@@ -5,8 +5,8 @@
   import ProfileModal from '$lib/components/ProfileModal.svelte';
   import { Button } from '$lib/components/ui/button';
   import { profiles } from '$lib/profiles.svelte';
-  import { errorMessage } from '$lib/utils';
   import type { ProfileListItem } from '$lib/types';
+  import { errorMessage } from '$lib/utils';
 
   let modalMode = $state<'create' | 'edit' | null>(null);
   let editingProfile = $state<ProfileListItem | null>(null);

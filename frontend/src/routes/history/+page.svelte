@@ -2,24 +2,21 @@
 	import { goto } from '$app/navigation';
 	import { activeProfile } from '$lib/activeProfile.svelte';
 	import {
-		bulkDeleteCoverLetters,
-		bulkDeleteCvs,
-		deleteCoverLetterHistoryEntry,
-		deleteCvHistoryEntry,
-		getCoverLetterHistory,
-		getCvHistory,
-		updateCoverLetterStatus,
-		updateCvStatus,
+	    bulkDeleteCoverLetters,
+	    deleteCoverLetterHistoryEntry,
+	    deleteCvHistoryEntry,
+	    getCoverLetterHistory,
+	    getCvHistory,
+	    updateCoverLetterStatus
 	} from '$lib/api';
 	import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
 	import CvPreview from '$lib/components/CvPreview.svelte';
-	import FilterBar from '$lib/components/FilterBar.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
+	import { STATUS_CONFIG } from '$lib/constants';
 	import { profiles } from '$lib/profiles.svelte';
-	import { errorMessage, formatDate, formatDateShort, getScoreColor } from '$lib/utils';
-	import { STATUS_OPTIONS, STATUS_CONFIG } from '$lib/constants';
 	import type { GeneratedCVEntry, GeneratedCoverLetterEntry, ProfileData } from '$lib/types';
+	import { errorMessage, formatDate, formatDateShort, getScoreBarColor, getScoreColor } from '$lib/utils';
 	import { Sparkles } from '@lucide/svelte';
 
 	type Tab = 'cv' | 'cover-letter';
@@ -188,11 +185,6 @@
     return getScoreColor(score).bg;
   }
 
-  function getMatchBarColor(score: number): string {
-    const level = score >= 70 ? 'HIGH' : score >= 40 ? 'MEDIUM' : 'LOW';
-    return level === 'HIGH' ? 'bg-green-500' : level === 'MEDIUM' ? 'bg-yellow-500' : 'bg-red-500';
-  }
-
   function scoreColorClass(score: number): string {
     const colors = getScoreColor(score);
     return `${colors.bg} ${colors.text}`;
@@ -324,7 +316,7 @@
         <!-- Filter bar -->
         <div class="flex items-center gap-2 flex-wrap mb-4">
           <input
-            class="flex-1 min-w-[160px] bg-card border border-border rounded-md px-3 py-1.5 text-sm"
+            class="flex-1 min-w-40 bg-card border border-border rounded-md px-3 py-1.5 text-sm"
             placeholder="🔍 Search company or role..."
             bind:value={clSearch}
             oninput={() => { clearTimeout(clSearchTimer); clSearchTimer = setTimeout(loadCoverLetters, 300); }}
@@ -416,7 +408,7 @@
                     <!-- Row 3: match score bar -->
                     {#if entry.match_score !== null}
                       <div class="mt-1.5 bg-muted rounded-full h-1 overflow-hidden">
-                        <div class="h-1 rounded-full {getMatchBarColor(entry.match_score)}" style="width:{entry.match_score}%"></div>
+                        <div class="h-1 rounded-full {getScoreBarColor(entry.match_score)}" style="width:{entry.match_score}%"></div>
                       </div>
                     {/if}
 
@@ -564,7 +556,7 @@
                         <span class="font-bold {scoreColorClass(selectedCl.fit_analysis.match_score)}">{selectedCl.fit_analysis.match_score}%</span>
                       </div>
                       <div class="bg-muted rounded-full h-2 overflow-hidden">
-                        <div class="h-2 rounded-full {getMatchBarColor(selectedCl.fit_analysis.match_score)}" style="width:{selectedCl.fit_analysis.match_score}%"></div>
+                        <div class="h-2 rounded-full {getScoreBarColor(selectedCl.fit_analysis.match_score)}" style="width:{selectedCl.fit_analysis.match_score}%"></div>
                       </div>
                     </div>
                     <!-- Strengths / Gaps -->

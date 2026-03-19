@@ -10,8 +10,8 @@
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { Textarea } from '$lib/components/ui/textarea';
   import { toastState } from '$lib/toast.svelte';
-  import { errorMessage } from '$lib/utils';
   import type { ProfileData } from '$lib/types';
+  import { errorMessage } from '$lib/utils';
   import { Download, FileText, Lock, Printer, Sparkles, UserRoundPen } from '@lucide/svelte';
   import confetti from 'canvas-confetti';
 

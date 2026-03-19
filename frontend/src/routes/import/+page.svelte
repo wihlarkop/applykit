@@ -5,8 +5,8 @@
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
-  import { errorMessage } from '$lib/utils';
   import type { ProfileData } from '$lib/types';
+  import { errorMessage } from '$lib/utils';
   import { CircleCheck, FileText, Save, Sparkles, Type, Upload } from '@lucide/svelte';
 
   type Tab = 'file' | 'text';

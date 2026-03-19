@@ -3,7 +3,7 @@
 	import { Check, AlertTriangle, TrendingUp, ChevronDown, ChevronUp, Sparkles } from '@lucide/svelte';
 	import ScoreRing from './ScoreRing.svelte';
 	import { Card, CardContent } from './ui/card';
-	import { getScoreColor, getScoreLabel } from '$lib/utils';
+	import { getFitTitle, getScoreColor, getScoreLabel, getScoreSummary } from '$lib/utils';
 
 	interface Props {
 		fitResult: FitAnalysisResponse;
@@ -27,18 +27,8 @@
 
 	const scoreColor = $derived(getScoreColor(fitResult.match_score));
 	const scoreLabel = $derived(getScoreLabel(fitResult.match_score));
-
-	const scoreSummary = $derived(
-		fitResult.match_score >= 70 ? 'Your profile covers most key requirements.' :
-		fitResult.match_score >= 40 ? 'Your profile partially matches this role.' :
-		'Your profile has gaps for this role.'
-	);
-
-	const fitTitle = $derived(
-		fitResult.match_score >= 70 ? 'Good fit for this role' :
-		fitResult.match_score >= 40 ? 'Partial fit for this role' :
-		'Weak fit for this role'
-	);
+	const scoreSummary = $derived(getScoreSummary(fitResult.match_score));
+	const fitTitle = $derived(getFitTitle(fitResult.match_score));
 </script>
 
 <Card class="shadow-sm">

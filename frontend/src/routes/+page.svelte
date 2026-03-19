@@ -1,18 +1,32 @@
 <script lang="ts">
-  import { activeProfile } from '$lib/activeProfile.svelte';
-  import { Button } from '$lib/components/ui/button';
-  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
-  import { Skeleton } from '$lib/components/ui/skeleton';
-  import { profiles } from '$lib/profiles.svelte';
-  import { ArrowRight, FileText, Lock, Mail, Sparkles, User } from '@lucide/svelte';
+	import { activeProfile } from '$lib/activeProfile.svelte';
+	import { Button } from '$lib/components/ui/button';
+	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { profiles } from '$lib/profiles.svelte';
+	import { ArrowRight, FileText, Lock, Mail, Sparkles, User } from '@lucide-svelte';
 
-  let { data } = $props();
-  const isOnboarded = $derived(data.isOnboarded);
-  const profile = $derived(activeProfile.current);
-  const activeProfileItem = $derived(profiles.all.find(p => p.id === activeProfile.current?.id));
-  const isActiveEmpty = $derived(activeProfileItem != null && !activeProfileItem.has_content);
+	let { data } = $props();
+	const isOnboarded = $derived(data.isOnboarded);
+	const profile = $derived(activeProfile.current);
+	const activeProfileItem = $derived(profiles.all.find(p => p.id === activeProfile.current?.id));
+	const isActiveEmpty = $derived(activeProfileItem != null && !activeProfileItem.has_content);
 
-  const cards = [
+	function restrictedCardClass(isRestricted: boolean): string {
+		return isRestricted
+			? 'opacity-75 grayscale-[0.5]'
+			: 'hover:shadow-xl hover:border-primary/50 hover:-translate-y-1';
+	}
+
+	function restrictedBtnClass(isRestricted: boolean): string {
+		return isRestricted ? '' : 'group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-transparent group-hover:shadow-md';
+	}
+
+	function restrictedIconClass(isRestricted: boolean): string {
+		return isRestricted ? '' : 'group-hover:scale-110';
+	}
+
+	const cards = [
     {
       href: '/profile',
       title: 'Profile Setup',
@@ -119,12 +133,12 @@
       <div class="grid gap-6 sm:grid-cols-2 {displayedCards.length === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}">
         {#each displayedCards as card}
           {@const isRestricted = !isOnboarded && card.step > 2}
-          <Card class="relative overflow-hidden group {isRestricted ? 'opacity-75 grayscale-[0.5]' : 'hover:shadow-xl hover:border-primary/50 hover:-translate-y-1'} transition-all duration-300 bg-card">
+          <Card class="relative overflow-hidden group {restrictedCardClass(isRestricted)} transition-all duration-300 bg-card">
             <div class="absolute top-0 right-0 w-24 h-24 bg-linear-to-b from-primary/5 to-transparent rounded-bl-full pointer-events-none z-0"></div>
 
             <CardHeader class="relative z-10 pb-4">
               <div class="flex items-start justify-between mb-4">
-                <div class="flex items-center justify-center w-12 h-12 rounded-xl {card.bg} {card.color} shadow-sm {isRestricted ? '' : 'group-hover:scale-110'} transition-transform duration-300">
+                <div class="flex items-center justify-center w-12 h-12 rounded-xl {card.bg} {card.color} shadow-sm {restrictedIconClass(isRestricted)} transition-transform duration-300">
                   <card.icon class="w-6 h-6" />
                 </div>
                 <span class="text-4xl font-black text-muted/30 group-hover:text-primary/10 transition-colors">
@@ -153,7 +167,7 @@
               href={isRestricted ? undefined : card.href}
               variant="outline"
               disabled={isRestricted}
-              class="w-full transition-all duration-300 {isRestricted ? '' : 'group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-transparent group-hover:shadow-md'}"
+              class="w-full transition-all duration-300 {restrictedBtnClass(isRestricted)}"
             >
               {#if isRestricted}
                 Locked

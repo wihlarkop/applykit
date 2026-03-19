@@ -528,15 +528,15 @@
       <!-- Fit analysis results -->
       {:else if rightPanel === 'fit' && fitResult}
         <div class="animate-in fade-in duration-300 space-y-4">
-          <FitAnalysisDisplay 
-            {fitResult} 
+          <FitAnalysisDisplay
+            {fitResult}
             {companyName}
             onReanalyze={handleAnalyzeFit}
             {analyzing}
             onAcceptEmphasis={acceptSuggestedEmphasis}
             bind:showInterviewPrep
           />
-          
+
           <!-- Generate CTA banner -->
           <div class="flex items-center gap-3 p-4 rounded-xl bg-primary/8 dark:bg-primary/12 border border-primary/20">
             <div class="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-sm">

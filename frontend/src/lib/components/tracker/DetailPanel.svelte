@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { deleteApplication, updateApplication } from '$lib/api';
-	import { toastState } from '$lib/toast.svelte';
-	import { errorMessage } from '$lib/utils';
 	import { STATUS_CONFIG } from '$lib/constants';
+	import { toastState } from '$lib/toast.svelte';
 	import type { ApplicationEntry, ApplicationStatus, UpdateApplicationRequest } from '$lib/types';
+	import { errorMessage } from '$lib/utils';
 
 	let {
 		app,
@@ -52,7 +52,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
   role="complementary"
-  class="fixed top-14 bottom-0 right-0 w-[360px] bg-card border-l border-t border-border shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200"
+  class="fixed top-14 bottom-0 right-0 w-90 bg-card border-l border-t border-border shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200"
   onkeydown={(e) => e.key === 'Escape' && onclose()}
 >
   <!-- Header -->
@@ -156,7 +156,7 @@
       <label for="dp-notes" class="text-xs font-medium text-muted-foreground block mb-1">Notes</label>
       <textarea
         id="dp-notes"
-        class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm min-h-[140px] resize-y"
+        class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm min-h-35 resize-y"
         placeholder="Interview notes, contacts, deadlines…"
         onblur={(e) => {
           const v = (e.target as HTMLTextAreaElement).value || null;

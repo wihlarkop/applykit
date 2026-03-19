@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { getModels, getSettings, testConnection, updateSettings } from '$lib/api';
-  import { toastState } from '$lib/toast.svelte';
-  import { errorMessage } from '$lib/utils';
-  import type { ProviderInfo, TestConnectionResponse } from '$lib/types';
-  import { CheckCircle, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
+  import { getModels, getSettings, testConnection, updateSettings } from '$lib/api';
+  import { toastState } from '$lib/toast.svelte';
+  import type { ProviderInfo, TestConnectionResponse } from '$lib/types';
+  import { errorMessage } from '$lib/utils';
+  import { CheckCircle, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
 
   let { open = $bindable(false), initialProviderId = '', initialModel = '' }: {
     open: boolean;

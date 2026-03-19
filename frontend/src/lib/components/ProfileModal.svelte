@@ -6,9 +6,9 @@
   import { Label } from '$lib/components/ui/label';
   import { profiles } from '$lib/profiles.svelte';
   import { toastState } from '$lib/toast.svelte';
-  import { untrack } from 'svelte';
   import type { CreateProfileRequest, ProfileData } from '$lib/types';
   import { errorMessage } from '$lib/utils';
+  import { untrack } from 'svelte';
 
   function portal(node: HTMLElement) {
     document.body.appendChild(node);

@@ -53,7 +53,7 @@
   {#if dropdownOpen}
     <div class="fixed inset-0 z-10" role="presentation" onclick={() => (dropdownOpen = false)} onkeydown={(e) => e.key === 'Escape' && (dropdownOpen = false)}></div>
 
-    <div class="absolute top-full mt-1 left-0 z-20 bg-card border rounded-lg shadow-lg py-1 min-w-[200px]">
+    <div class="absolute top-full mt-1 left-0 z-20 bg-card border rounded-lg shadow-lg py-1 min-w-50">
       {#each allProfiles as p}
         <button
           onclick={() => (p.id === ap?.id ? openEdit() : switchProfile(p))}

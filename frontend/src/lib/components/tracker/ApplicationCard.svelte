@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ApplicationEntry } from '$lib/types';
-	import { getScoreColor, formatDateShort } from '$lib/utils';
+	import { formatDateShort, getScoreColor } from '$lib/utils';
 
 	let { app, onclick }: { app: ApplicationEntry; onclick: () => void } = $props();
 
@@ -19,7 +19,7 @@
 >
 	<div class="flex items-center gap-2 mb-1">
 		<span
-			class="w-2 h-2 rounded-full flex-shrink-0"
+			class="w-2 h-2 rounded-full shrink-0"
 			style="background-color: {app.profile_color ?? '#6366f1'}"
 		></span>
 		<span class="text-sm font-semibold truncate">{app.company_name}</span>

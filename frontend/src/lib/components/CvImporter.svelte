@@ -5,9 +5,9 @@
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
-  import { errorMessage } from '$lib/utils';
   import type { ProfileData } from '$lib/types';
-  import { CheckCircle2, Save, Sparkles, Type, Upload } from '@lucide/svelte';
+  import { errorMessage } from '$lib/utils';
+  import { CircleCheck, Save, Sparkles, Type, Upload } from '@lucide/svelte';
 
   let { onSaveSuccess } = $props<{ onSaveSuccess?: () => void }>();
 
@@ -150,7 +150,7 @@
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4 bg-green-500/10">
           <div>
             <CardTitle class="flex items-center gap-2 text-lg text-green-700 dark:text-green-400">
-              <CheckCircle2 class="w-5 h-5" />
+              <CircleCheck class="w-5 h-5" />
               Extraction Successful
             </CardTitle>
             <CardDescription class="mt-1 text-green-600/80">Review your profile components extracted by AI.</CardDescription>

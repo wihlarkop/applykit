@@ -1,9 +1,9 @@
 <script lang="ts">
 	import type { FitAnalysisResponse } from '$lib/types';
-	import { Check, AlertTriangle, TrendingUp, ChevronDown, ChevronUp, Sparkles } from '@lucide/svelte';
+	import { getFitTitle, getScoreColor, getScoreLabel, getScoreSummary } from '$lib/utils';
+	import { AlertTriangle, Check, ChevronDown, ChevronUp, Sparkles, TrendingUp } from '@lucide/svelte';
 	import ScoreRing from './ScoreRing.svelte';
 	import { Card, CardContent } from './ui/card';
-	import { getFitTitle, getScoreColor, getScoreLabel, getScoreSummary } from '$lib/utils';
 
 	interface Props {
 		fitResult: FitAnalysisResponse;
@@ -53,7 +53,7 @@
     <!-- Score ring + summary -->
     <div class="flex items-center gap-5 p-4 rounded-xl {scoreColor.bg} ring-1 {scoreColor.ring}">
       <ScoreRing score={fitResult.match_score} size={compact ? 64 : 80} />
-      
+
       <!-- Summary -->
       <div class="flex-1 min-w-0">
         <span class="inline-flex items-center gap-1.5 text-[10.5px] font-bold {scoreColor.text} uppercase tracking-wide mb-1.5
@@ -86,7 +86,7 @@
             </ul>
           </div>
         {/if}
-        
+
         <!-- Gaps & Red flags -->
         {#if fitResult.cons.length > 0 || fitResult.red_flags.length > 0}
           <div class="rounded-lg p-3 bg-red-500/8 dark:bg-red-500/10 border border-red-500/20 space-y-2">

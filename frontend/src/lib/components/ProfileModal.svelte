@@ -1,6 +1,6 @@
 <script lang="ts">
   import { activeProfile } from '$lib/activeProfile.svelte';
-  import { createProfile, listProfiles, saveProfile } from '$lib/api';
+  import { createProfile, saveProfile } from '$lib/api';
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
@@ -8,6 +8,7 @@
   import { toastState } from '$lib/toast.svelte';
   import { untrack } from 'svelte';
   import type { CreateProfileRequest, ProfileData } from '$lib/types';
+  import { errorMessage } from '$lib/utils';
 
   function portal(node: HTMLElement) {
     document.body.appendChild(node);
@@ -51,27 +52,42 @@
           clone_from_id: cloneEnabled ? cloneFromId : null,
         };
         const created = await createProfile(req);
-        const fresh = await listProfiles();
-        profiles.set(fresh.items);
+        // Use upsert — no extra listProfiles() round-trip needed
         if (created.id) {
-          activeProfile.set({ id: created.id, label: created.label ?? label, color: created.color ?? color, icon: created.icon ?? icon, name: created.name ?? '' });
+          profiles.upsert({
+            id: created.id,
+            label: created.label ?? label,
+            color: created.color ?? color,
+            icon: created.icon ?? icon,
+            name: created.name ?? '',
+            has_content: false,
+            completeness: 0,
+          });
+          activeProfile.setFromProfileData(created);
         }
         if (!cloneEnabled) {
           toastState.info('Profile created — fill in your details before generating.');
         }
       } else if (mode === 'edit' && profile?.id) {
         const updated = await saveProfile(profile.id, { ...profile, label: label.trim(), color, icon });
-        const fresh = await listProfiles();
-        profiles.set(fresh.items);
-        const ap = activeProfile.current;
-        if (ap?.id === profile.id) {
-          activeProfile.set({ id: profile.id, label: updated.label ?? label, color: updated.color ?? color, icon: updated.icon ?? icon, name: updated.name ?? '' });
+        // Update local cache without a full refetch
+        profiles.upsert({
+          id: profile.id,
+          label: updated.label ?? label,
+          color: updated.color ?? color,
+          icon: updated.icon ?? icon,
+          name: updated.name ?? profile.name,
+          has_content: true,
+          completeness: 100,
+        });
+        if (activeProfile.current?.id === profile.id) {
+          activeProfile.setFromProfileData(updated);
         }
       }
       onsaved?.();
       onclose();
-    } catch (e: any) {
-      error = e.message ?? 'Something went wrong';
+    } catch (e) {
+      error = errorMessage(e, 'Something went wrong');
     } finally {
       saving = false;
     }

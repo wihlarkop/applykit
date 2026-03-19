@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import type { ProfileData, ProfileListItem } from './types';
 
 export type ActiveProfile = {
   id: number;
@@ -13,10 +14,25 @@ function createActiveProfile() {
 
   return {
     get current() { return profile; },
+
     set(p: ActiveProfile) {
       profile = p;
       if (browser) localStorage.setItem('activeProfile', JSON.stringify(p));
     },
+
+    /** Convenience: build from any object that has the required 5 fields. */
+    setFromProfileData(p: Pick<ProfileData | ProfileListItem, 'id' | 'label' | 'color' | 'icon' | 'name'>) {
+      const ap: ActiveProfile = {
+        id: p.id!,
+        label: p.label ?? '',
+        color: p.color ?? '',
+        icon: p.icon ?? '',
+        name: p.name ?? '',
+      };
+      profile = ap;
+      if (browser) localStorage.setItem('activeProfile', JSON.stringify(ap));
+    },
+
     // `validated` is already validated by +layout.ts against the live profile list.
     // We must NOT re-read localStorage here — it may contain a deleted profile ID.
     initFromStorage(validated: ActiveProfile | null) {
@@ -29,6 +45,7 @@ function createActiveProfile() {
       if (validated) localStorage.setItem('activeProfile', JSON.stringify(validated));
       else localStorage.removeItem('activeProfile');
     },
+
     clear() {
       profile = null;
       if (browser) localStorage.removeItem('activeProfile');

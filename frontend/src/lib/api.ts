@@ -1,10 +1,14 @@
+// snake_case identifiers in this file mirror the Python backend API contract — intentional.
 import type {
     ApplicationEntry,
+    ApplicationFilters,
     ApplicationListResponse,
+    CoverLetterHistoryFilters,
     CoverLetterRequest,
     CoverLetterResponse,
     CreateApplicationRequest,
     CreateProfileRequest,
+    CvHistoryFilters,
     FitAnalysisResponse,
     GenerateCvRequest,
     GenerateCvResponse,
@@ -25,275 +29,263 @@ import type {
     UpdateApplicationRequest,
     UpdateSettingsRequest,
 } from './types';
+import { buildQs } from './utils';
 
-const BASE_URL = 'http://localhost:8000/api';
+// ---------------------------------------------------------------------------
+// Base URL — override via VITE_API_BASE_URL env variable for non-localhost envs
+// ---------------------------------------------------------------------------
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
 
-async function request<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
+// ---------------------------------------------------------------------------
+// Core fetch helpers
+// ---------------------------------------------------------------------------
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(err.detail ?? 'Request failed');
-  }
+/** JSON request/response for the vast majority of API calls. */
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const res = await fetch(`${BASE_URL}${path}`, {
+        headers: { 'Content-Type': 'application/json', ...options.headers },
+        ...options,
+    });
 
-  if (res.status === 204 || res.headers.get('content-length') === '0') {
-    return undefined as T;
-  }
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(err.detail ?? 'Request failed');
+    }
 
-  return res.json() as Promise<T>;
+    if (res.status === 204 || res.headers.get('content-length') === '0') {
+        return undefined as T;
+    }
+
+    return res.json() as Promise<T>;
 }
 
-// Profile
-export const listProfiles = () =>
-  request<ProfileListResponse>('/profiles');
-
-export const createProfile = (data: CreateProfileRequest) =>
-  request<ProfileData>('/profiles', { method: 'POST', body: JSON.stringify(data) });
-
-export const getProfile = (profileId: number) =>
-  request<ProfileData>(`/profiles/${profileId}`);
-
-export const saveProfile = (profileId: number, data: ProfileData) =>
-  request<ProfileData>(`/profiles/${profileId}`, { method: 'PUT', body: JSON.stringify(data) });
-
-export const deleteProfile = (profileId: number) =>
-  request<void>(`/profiles/${profileId}`, { method: 'DELETE' });
-
-export const getOnboardingStatus = () =>
-  request<OnboardingStatusResponse>('/onboarding');
-
-// Status
-export const getStatus = () =>
-  request<StatusResponse>('/status');
-
-// Import CV
-export const importCvFile = (file: File) => {
-  const form = new FormData();
-  form.append('file', file);
-  return fetch(`${BASE_URL}/import/cv`, { method: 'POST', body: form }).then(
-    async (res) => {
-      if (!res.ok) {
+/** FormData upload — used for file and text CV imports. */
+async function requestForm<T>(path: string, body: FormData): Promise<T> {
+    const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', body });
+    if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
         throw new Error(err.detail ?? 'Import failed');
-      }
-      return res.json() as Promise<ProfileData>;
     }
-  );
+    return res.json() as Promise<T>;
+}
+
+/** Blob download — used for PDF generation endpoints. */
+async function requestBlob(path: string, options: RequestInit): Promise<Blob> {
+    const res = await fetch(`${BASE_URL}${path}`, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(err.detail ?? 'Download failed');
+    }
+    return res.blob();
+}
+
+// ---------------------------------------------------------------------------
+// Profile
+// ---------------------------------------------------------------------------
+
+export const listProfiles = () =>
+    request<ProfileListResponse>('/profiles');
+
+export const createProfile = (data: CreateProfileRequest) =>
+    request<ProfileData>('/profiles', { method: 'POST', body: JSON.stringify(data) });
+
+export const getProfile = (profileId: number) =>
+    request<ProfileData>(`/profiles/${profileId}`);
+
+export const saveProfile = (profileId: number, data: ProfileData) =>
+    request<ProfileData>(`/profiles/${profileId}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteProfile = (profileId: number) =>
+    request<void>(`/profiles/${profileId}`, { method: 'DELETE' });
+
+export const getOnboardingStatus = () =>
+    request<OnboardingStatusResponse>('/onboarding');
+
+// ---------------------------------------------------------------------------
+// Status
+// ---------------------------------------------------------------------------
+
+export const getStatus = () =>
+    request<StatusResponse>('/status');
+
+// ---------------------------------------------------------------------------
+// Import CV
+// ---------------------------------------------------------------------------
+
+export const importCvFile = (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return requestForm<ProfileData>('/import/cv', form);
 };
 
 export const importCvText = (text: string) => {
-  const form = new FormData();
-  form.append('text', text);
-  return fetch(`${BASE_URL}/import/cv`, { method: 'POST', body: form }).then(
-    async (res) => {
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
-        throw new Error(err.detail ?? 'Import failed');
-      }
-      return res.json() as Promise<ProfileData>;
-    }
-  );
+    const form = new FormData();
+    form.append('text', text);
+    return requestForm<ProfileData>('/import/cv', form);
 };
 
+// ---------------------------------------------------------------------------
 // Generate CV
+// ---------------------------------------------------------------------------
+
 export const generateCv = (data: GenerateCvRequest) =>
-  request<GenerateCvResponse>('/generate/cv', { method: 'POST', body: JSON.stringify(data) });
+    request<GenerateCvResponse>('/generate/cv', { method: 'POST', body: JSON.stringify(data) });
 
 export const generateCvPdf = (data: PdfRequest) =>
-  fetch(`${BASE_URL}/generate/cv/pdf`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).then(async (res) => {
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
-      throw new Error(err.detail ?? 'PDF generation failed');
-    }
-    return res.blob();
-  });
+    requestBlob('/generate/cv/pdf', { method: 'POST', body: JSON.stringify(data) });
 
-// Generate cover letter
+// ---------------------------------------------------------------------------
+// Generate Cover Letter
+// ---------------------------------------------------------------------------
+
 export const generateCoverLetter = (data: CoverLetterRequest) =>
-  request<CoverLetterResponse>('/generate/cover-letter', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
+    request<CoverLetterResponse>('/generate/cover-letter', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
 
 export const generateCoverLetterStream = (data: CoverLetterRequest): Promise<Response> =>
-  fetch(`${BASE_URL}/generate/cover-letter`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
+    fetch(`${BASE_URL}/generate/cover-letter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
 
 export const generateCoverLetterPdf = (data: PdfRequest) =>
-  fetch(`${BASE_URL}/generate/cover-letter/pdf`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).then(async (res) => {
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: 'Unknown error' }));
-      throw new Error(err.detail ?? 'PDF generation failed');
-    }
-    return res.blob();
-  });
+    requestBlob('/generate/cover-letter/pdf', { method: 'POST', body: JSON.stringify(data) });
 
-// Generate bullets
+// ---------------------------------------------------------------------------
+// Generate Bullets / Summary (streaming endpoints)
+// ---------------------------------------------------------------------------
+
 export const generateBulletsStream = (
-  profile_id: number,
-  company: string,
-  role: string,
-  bullets: string[],
-  mode: 'improve' | 'reorganize',
-  extra_context?: string
+    profile_id: number,
+    company: string,
+    role: string,
+    bullets: string[],
+    mode: 'improve' | 'reorganize',
+    extra_context?: string
 ): Promise<Response> =>
-  fetch(`${BASE_URL}/generate/bullets`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ profile_id, company, role, bullets, mode, extra_context }),
-  });
+    fetch(`${BASE_URL}/generate/bullets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_id, company, role, bullets, mode, extra_context }),
+    });
 
-// Generate summary
 export const generateSummaryStream = (profile_id: number, tone: string, extra_context?: string): Promise<Response> =>
-  fetch(`${BASE_URL}/generate/summary`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ profile_id, tone, extra_context }),
-  });
+    fetch(`${BASE_URL}/generate/summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_id, tone, extra_context }),
+    });
 
+// ---------------------------------------------------------------------------
 // Scrape
+// ---------------------------------------------------------------------------
+
 export const scrapeJob = (url: string) =>
-  request<ScrapeJobResponse>('/scrape/job', { method: 'POST', body: JSON.stringify({ url }) });
+    request<ScrapeJobResponse>('/scrape/job', { method: 'POST', body: JSON.stringify({ url }) });
 
-// Fit analysis
+// ---------------------------------------------------------------------------
+// Fit Analysis
+// ---------------------------------------------------------------------------
+
 export const analyzeFit = (profile_id: number, job_description: string) =>
-  request<FitAnalysisResponse>('/analyze/fit', {
-    method: 'POST',
-    body: JSON.stringify({ profile_id, job_description }),
-  });
+    request<FitAnalysisResponse>('/analyze/fit', {
+        method: 'POST',
+        body: JSON.stringify({ profile_id, job_description }),
+    });
 
-// CV history
-export const getCvHistory = (filters: { profile_id?: number; sort?: string; limit?: number; offset?: number } = {}) => {
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(filters)) {
-    if (v !== undefined && v !== null) params.set(k, String(v));
-  }
-  const qs = params.toString();
-  return request<GeneratedCVListResponse>(`/history/cv${qs ? `?${qs}` : ''}`);
-};
+// ---------------------------------------------------------------------------
+// CV History
+// ---------------------------------------------------------------------------
+
+export const getCvHistory = (filters: CvHistoryFilters = {}) =>
+    request<GeneratedCVListResponse>(`/history/cv${buildQs(filters)}`);
 
 export const getCvHistoryEntry = (id: number) =>
-  request<GeneratedCVEntry>(`/history/cv/${id}`);
+    request<GeneratedCVEntry>(`/history/cv/${id}`);
 
 export const deleteCvHistoryEntry = (id: number) =>
-  request<void>(`/history/cv/${id}`, { method: 'DELETE' });
+    request<void>(`/history/cv/${id}`, { method: 'DELETE' });
 
 export const updateCvStatus = (id: number, status: string | null) =>
-  request<GeneratedCVEntry>(`/history/cv/${id}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  });
+    request<GeneratedCVEntry>(`/history/cv/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+    });
 
 export const bulkDeleteCvs = (ids: number[]) =>
-  request<{ deleted: number }>('/history/cv', {
-    method: 'DELETE',
-    body: JSON.stringify({ ids }),
-  });
+    request<{ deleted: number }>('/history/cv', {
+        method: 'DELETE',
+        body: JSON.stringify({ ids }),
+    });
 
-// Cover letter history
-export interface CoverLetterHistoryFilters {
-  profile_id?: number;
-  search?: string;
-  match_min?: number;
-  match_max?: number;
-  status?: string;
-  sort?: 'date_desc' | 'date_asc' | 'match_desc' | 'company_asc';
-  limit?: number;
-  offset?: number;
-}
+// ---------------------------------------------------------------------------
+// Cover Letter History
+// ---------------------------------------------------------------------------
 
-export const getCoverLetterHistory = (filters: CoverLetterHistoryFilters = {}) => {
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(filters)) {
-    if (v !== undefined && v !== null) params.set(k, String(v));
-  }
-  const qs = params.toString();
-  return request<GeneratedCoverLetterListResponse>(`/history/cover-letter${qs ? `?${qs}` : ''}`);
-};
+export const getCoverLetterHistory = (filters: CoverLetterHistoryFilters = {}) =>
+    request<GeneratedCoverLetterListResponse>(`/history/cover-letter${buildQs(filters)}`);
 
 export const getCoverLetterHistoryEntry = (id: number) =>
-  request<GeneratedCoverLetterEntry>(`/history/cover-letter/${id}`);
+    request<GeneratedCoverLetterEntry>(`/history/cover-letter/${id}`);
 
 export const deleteCoverLetterHistoryEntry = (id: number) =>
-  request<void>(`/history/cover-letter/${id}`, { method: 'DELETE' });
+    request<void>(`/history/cover-letter/${id}`, { method: 'DELETE' });
 
 export const updateCoverLetterStatus = (id: number, status: string | null) =>
-  request<GeneratedCoverLetterEntry>(`/history/cover-letter/${id}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  });
+    request<GeneratedCoverLetterEntry>(`/history/cover-letter/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+    });
 
 export const bulkDeleteCoverLetters = (ids: number[]) =>
-  request<{ deleted: number }>('/history/cover-letter', {
-    method: 'DELETE',
-    body: JSON.stringify({ ids }),
-  });
+    request<{ deleted: number }>('/history/cover-letter', {
+        method: 'DELETE',
+        body: JSON.stringify({ ids }),
+    });
 
+// ---------------------------------------------------------------------------
 // Settings
+// ---------------------------------------------------------------------------
+
 export const getSettings = () =>
-  request<SettingsResponse>('/settings');
+    request<SettingsResponse>('/settings');
 
 export const updateSettings = (data: UpdateSettingsRequest) =>
-  request<SettingsResponse>('/settings', { method: 'PUT', body: JSON.stringify(data) });
+    request<SettingsResponse>('/settings', { method: 'PUT', body: JSON.stringify(data) });
 
 export const testConnection = (data: UpdateSettingsRequest) =>
-  request<TestConnectionResponse>('/settings/test', { method: 'POST', body: JSON.stringify(data) });
+    request<TestConnectionResponse>('/settings/test', { method: 'POST', body: JSON.stringify(data) });
 
 export const getModels = () =>
-  request<ModelsResponse>('/settings/models');
+    request<ModelsResponse>('/settings/models');
 
 export const getIntegrations = () =>
-  request<IntegrationsResponse>('/settings/integrations');
+    request<IntegrationsResponse>('/settings/integrations');
 
 export const activateProvider = (provider_id: string) =>
-  request<SettingsResponse>('/settings/activate', { method: 'PUT', body: JSON.stringify({ provider_id }) });
+    request<SettingsResponse>('/settings/activate', { method: 'PUT', body: JSON.stringify({ provider_id }) });
 
+// ---------------------------------------------------------------------------
 // Applications
-export interface ApplicationFilters {
-  profile_id?: number;
-  status?: string;
-  search?: string;
-  date_from?: string;
-  date_to?: string;
-  match_min?: number;
-  match_max?: number;
-  sort?: 'date_desc' | 'date_asc';
-}
+// ---------------------------------------------------------------------------
 
-export const listApplications = (filters: ApplicationFilters = {}) => {
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(filters)) {
-    if (v !== undefined && v !== null) params.set(k, String(v));
-  }
-  const qs = params.toString();
-  return request<ApplicationListResponse>(`/applications${qs ? `?${qs}` : ''}`);
-};
+export const listApplications = (filters: ApplicationFilters = {}) =>
+    request<ApplicationListResponse>(`/applications${buildQs(filters)}`);
 
 export const createApplication = (data: CreateApplicationRequest) =>
-  request<ApplicationEntry>('/applications', { method: 'POST', body: JSON.stringify(data) });
+    request<ApplicationEntry>('/applications', { method: 'POST', body: JSON.stringify(data) });
 
 export const getApplication = (id: number) =>
-  request<ApplicationEntry>(`/applications/${id}`);
+    request<ApplicationEntry>(`/applications/${id}`);
 
 export const updateApplication = (id: number, data: UpdateApplicationRequest) =>
-  request<ApplicationEntry>(`/applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+    request<ApplicationEntry>(`/applications/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 
 export const deleteApplication = (id: number) =>
-  request<{ deleted: number }>(`/applications/${id}`, { method: 'DELETE' });
+    request<{ deleted: number }>(`/applications/${id}`, { method: 'DELETE' });

@@ -1,9 +1,9 @@
-.PHONY: install dev backend frontend migrate lint help
+.PHONY: install dev backend frontend migrate lint playwright help
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
 install: ## Install all dependencies (backend + frontend)
-	cd backend && uv sync
+	cd backend && uv sync && playwright install chromium
 	cd frontend && bun install
 
 migrate: ## Run database migrations
@@ -33,6 +33,9 @@ migrate-down: ## Roll back the last migration
 
 lint: ## Lint frontend TypeScript/Svelte
 	cd frontend && bun run check
+
+playwright: ## Install Playwright Chromium browser for PDF generation
+	cd backend && playwright install chromium
 
 # ── Help ──────────────────────────────────────────────────────────────────────
 

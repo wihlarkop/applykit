@@ -21,7 +21,7 @@
   import { errorMessage } from '$lib/utils';
   import {
       ArrowRight, Check, Copy, Download, Link, Loader2, Lock, Mail,
-      Pencil, Sparkles, TrendingUp, UserRoundPen,
+      Pencil, Printer, Sparkles, TrendingUp, UserRoundPen,
   } from '@lucide/svelte';
 
   let { data } = $props();
@@ -241,6 +241,38 @@
     } finally {
       downloading = false;
     }
+  }
+
+  function handlePrint() {
+    if (!coverLetterText) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toastState.error('Please allow popups to print');
+      return;
+    }
+    const escaped = coverLetterText
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = `<div class="cover-letter-preview font-sans text-[13px] leading-relaxed text-black max-w-200 mx-auto p-8 whitespace-pre-wrap bg-white">${escaped}</div>`;
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Print Cover Letter</title><meta charset="utf-8"><style>
+      @page { size: A4; margin: 0; }
+      @page { @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } @bottom-right { content: ""; } }
+      body{margin:0;padding:0;background:#fff}.cover-letter-preview{font-family:ui-sans-serif,system-ui,sans-serif;max-width:800px;margin:0 auto;padding:32px}.font-sans{font-family:ui-sans-serif,system-ui,sans-serif}.text-\\[13px\\]{font-size:13px}.leading-relaxed{line-height:1.625}.text-black{color:#000}.max-w-200{max-width:800px}.mx-auto{margin-left:auto;margin-right:auto}.p-8{padding:32px}.whitespace-pre-wrap{white-space:pre-wrap}.bg-white{background-color:#fff}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+    </style></head><body>${html}</body></html>`);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+      }, 300);
+    };
+    printWindow.onerror = () => {
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+      }, 300);
+    };
   }
 </script>
 
@@ -598,6 +630,10 @@
                 {:else}
                   <Copy class="w-3.5 h-3.5 mr-1" /> Copy
                 {/if}
+              </Button>
+              <Button variant="outline" size="sm" onclick={handlePrint}>
+                <Printer class="w-3.5 h-3.5 mr-1" />
+                Print
               </Button>
               <Button variant="outline" size="sm" onclick={handleDownloadPdf} disabled={downloading}>
                 {#if downloading}

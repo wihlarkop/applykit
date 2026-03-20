@@ -15,7 +15,8 @@ dependencies = [
     "python-multipart>=0.0.22",
     "sqlalchemy>=2.0.48",
     "uvicorn[standard]>=0.41.0",
-    "playwright>=1.40.0",
+    "weasyprint>=60.0",
+    "jinja2>=3.0.0",
 ]
 
 [dependency-groups]

@@ -12,21 +12,23 @@ from app.exceptions import RateLimitError
 from app.models import GeneratedCoverLetter, GeneratedCV, Profile
 from app.schemas import (
     ATSEnhancement,
+    CoverLetterPdfRequest,
     CoverLetterRequest,
+    CvPdfRequest,
     GenerateBulletsRequest,
     GenerateCvRequest,
     GenerateCvResponse,
     GenerateSummaryRequest,
-    PdfRequest,
     ProfileData,
 )
 from app.services.llm import (
     call_llm,
     stream_llm,
 )
-from app.services.pdf import PDFRenderError, html_to_pdf
 from app.services.settings import get_llm_config
 from app.utils import format_profile_for_llm, profile_to_schema
+from integration.pdf import PDFRenderError, html_to_pdf
+from integration.template import render_cover_letter_template, render_cv_template
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +109,38 @@ def _render_pdf(html: str, filename: str) -> Response:
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def _render_cv_pdf(profile_data: dict) -> Response:
+    try:
+        html = render_cv_template(profile_data)
+        pdf_bytes = html_to_pdf(html)
+    except PDFRenderError as e:
+        raise HTTPException(
+            status_code=502,
+            detail={"detail": str(e), "code": "PDF_RENDER_FAILED"},
+        ) from e
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=cv.pdf"},
+    )
+
+
+def _render_cover_letter_pdf(letter_data: dict) -> Response:
+    try:
+        html = render_cover_letter_template(letter_data)
+        pdf_bytes = html_to_pdf(html)
+    except PDFRenderError as e:
+        raise HTTPException(
+            status_code=502,
+            detail={"detail": str(e), "code": "PDF_RENDER_FAILED"},
+        ) from e
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=cover-letter.pdf"},
     )
 
 
@@ -202,8 +236,8 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/generate/cv/pdf")
-def generate_cv_pdf(req: PdfRequest):
-    return _render_pdf(req.html, "cv.pdf")
+def generate_cv_pdf(req: CvPdfRequest):
+    return _render_cv_pdf(req.profile.model_dump())
 
 
 @router.post("/generate/cover-letter", response_class=EventSourceResponse)
@@ -381,5 +415,5 @@ async def generate_bullets(
 
 
 @router.post("/generate/cover-letter/pdf")
-def generate_cover_letter_pdf(req: PdfRequest):
-    return _render_pdf(req.html, "cover-letter.pdf")
+def generate_cover_letter_pdf(req: CoverLetterPdfRequest):
+    return _render_cover_letter_pdf(req.model_dump())

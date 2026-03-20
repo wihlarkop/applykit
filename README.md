@@ -45,7 +45,7 @@ Browser (localhost:5173)
   - Cover letter generation (LLM)
   - Fit score analysis (LLM)
   - Job URL scraping (crawl4ai)
-  - PDF export (Playwright)
+   - PDF export (WeasyPrint)
   - Generation history
        │
        ▼
@@ -63,7 +63,7 @@ Browser (localhost:5173)
 | Backend | FastAPI + Python 3.12 |
 | Database | SQLite via SQLAlchemy 2.0 + Alembic |
 | AI | LiteLLM (configured via UI Settings) |
-| PDF | Playwright (server-side) + browser print (client-side) |
+| PDF | WeasyPrint (server-side) + browser print (client-side) |
 | CV parsing | pdfplumber (PDF), python-docx (DOCX) |
 | Job scraping | crawl4ai |
 | Package managers | uv (Python), Bun (JavaScript) |
@@ -74,7 +74,10 @@ Browser (localhost:5173)
 
 - [uv](https://docs.astral.sh/uv/) — Python package manager (`pip install uv` or see docs)
 - [Bun](https://bun.sh/) — JavaScript runtime (`curl -fsSL https://bun.sh/install | bash`)
-- [Chromium](https://www.chromium.org/) — for PDF generation (installed via `playwright install chromium`)
+- **WeasyPrint system dependencies** (for PDF generation):
+  - Ubuntu/Debian: `apt-get install libcairo2 libpango-1.0-0 libgdk-pixbuf2.0-0 libffi7 shared-mime-info`
+  - macOS: `brew install cairo pango gdk-pixbuf`
+  - Windows: Included in WeasyPrint pip package
 - An LLM API key (optional, for AI features):
   - [Google AI Studio](https://aistudio.google.com/) for Gemini (recommended, generous free tier)
   - [OpenAI](https://platform.openai.com/), [Anthropic](https://console.anthropic.com/), or any [LiteLLM-supported provider](https://docs.litellm.ai/docs/providers)
@@ -104,10 +107,9 @@ cp .env.example .env
 
 ```bash
 uv sync
-playwright install chromium
 ```
 
-> **Note:** Playwright uses a real Chromium browser to render HTML/CSS to PDF, ensuring your CV and cover letters look exactly as they appear on screen.
+> **Note:** WeasyPrint requires system libraries. On Ubuntu/Debian: `apt-get install libcairo2 libpango-1.0-0 libgdk-pixbuf2.0-0 libffi7 shared-mime-info`
 
 ### 4. Run database migrations
 

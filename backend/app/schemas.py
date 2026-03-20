@@ -109,11 +109,17 @@ class CoverLetterRequest(BaseModel):
     job_description: str
     company_name: str | None = None
     extra_context: str = ""
-    tone: Literal["professional", "enthusiastic", "concise", "creative"] = "professional"
+    tone: Literal["professional", "enthusiastic", "concise", "creative"] = (
+        "professional"
+    )
     job_url: str | None = None
     fit_context: str | None = None
-    match_score: int | None = None          # from fit analysis — persisted to generated_cover_letter
-    fit_analysis_json: str | None = None    # JSON string of FitAnalysisResponse — persisted to generated_cover_letter.fit_analysis
+    match_score: int | None = (
+        None  # from fit analysis — persisted to generated_cover_letter
+    )
+    fit_analysis_json: str | None = (
+        None  # JSON string of FitAnalysisResponse — persisted to generated_cover_letter.fit_analysis
+    )
     application_id: int | None = None
 
 
@@ -125,6 +131,14 @@ class PdfRequest(BaseModel):
     html: str
 
 
+class CvPdfRequest(BaseModel):
+    profile: ProfileData
+
+
+class CoverLetterPdfRequest(BaseModel):
+    text: str
+
+
 class ATSEnhancement(BaseModel):
     summary: str
     work_experience: list[WorkExperience]
@@ -132,7 +146,9 @@ class ATSEnhancement(BaseModel):
 
 class GenerateSummaryRequest(BaseModel):
     profile_id: int
-    tone: Literal["professional", "enthusiastic", "concise", "creative"] = "professional"
+    tone: Literal["professional", "enthusiastic", "concise", "creative"] = (
+        "professional"
+    )
     extra_context: str | None = None
 
 

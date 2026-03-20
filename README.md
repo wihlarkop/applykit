@@ -62,7 +62,7 @@ Browser (localhost:5173)
 | Styling | Tailwind CSS v4 + shadcn-svelte |
 | Backend | FastAPI + Python 3.12 |
 | Database | SQLite via SQLAlchemy 2.0 + Alembic |
-| AI | LiteLLM (default: `gemini/gemini-1.5-flash`) |
+| AI | LiteLLM (configured via UI Settings) |
 | PDF | Playwright (server-side) + browser print (client-side) |
 | CV parsing | pdfplumber (PDF), python-docx (DOCX) |
 | Job scraping | crawl4ai |
@@ -75,7 +75,7 @@ Browser (localhost:5173)
 - [uv](https://docs.astral.sh/uv/) — Python package manager (`pip install uv` or see docs)
 - [Bun](https://bun.sh/) — JavaScript runtime (`curl -fsSL https://bun.sh/install | bash`)
 - [Chromium](https://www.chromium.org/) — for PDF generation (installed via `playwright install chromium`)
-- An LLM API key — free options:
+- An LLM API key (optional, for AI features):
   - [Google AI Studio](https://aistudio.google.com/) for Gemini (recommended, generous free tier)
   - [OpenAI](https://platform.openai.com/), [Anthropic](https://console.anthropic.com/), or any [LiteLLM-supported provider](https://docs.litellm.ai/docs/providers)
   - Or [Ollama](https://ollama.com/) for fully local, offline usage
@@ -98,8 +98,6 @@ cd backend
 
 # Copy environment template
 cp .env.example .env
-
-# Edit .env and set your LLM credentials (see Environment Variables section)
 ```
 
 ### 3. Install backend dependencies
@@ -138,35 +136,24 @@ Open `http://localhost:5173` — you should see the dashboard.
 
 ---
 
-## Environment Variables
+## Configuration
 
-All variables go in `backend/.env`. They are never committed or sent to the browser.
+### Database
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LLM_PROVIDER` | `gemini/gemini-1.5-flash` | LiteLLM model string |
-| `LLM_API_KEY` | *(required for AI features)* | API key for the chosen provider |
-| `DATABASE_URL` | `sqlite:///./applykit.db` | SQLite database path |
-
-### Provider examples
+The only environment variable is the database path in `backend/.env`:
 
 ```env
-# Google Gemini (free tier available)
-LLM_PROVIDER=gemini/gemini-1.5-flash
-LLM_API_KEY=AIza...
-
-# OpenAI
-LLM_PROVIDER=gpt-4o-mini
-LLM_API_KEY=sk-...
-
-# Anthropic
-LLM_PROVIDER=claude-haiku-4-5-20251001
-LLM_API_KEY=sk-ant-...
-
-# Local Ollama (no API key needed, runs fully offline)
-LLM_PROVIDER=ollama/llama3.2
-LLM_API_KEY=ollama
+DATABASE_URL=sqlite:///./applykit.db
 ```
+
+### LLM Settings
+
+LLM configuration (provider, API key) is managed via the **Settings** page in the UI — no need to edit `.env` manually.
+
+Open the app and click **Settings** (gear icon) to configure:
+- Provider (Gemini, OpenAI, Anthropic, Ollama, etc.)
+- API key
+- Model selection
 
 > **No API key?** The app still works. CV generation falls back to your raw profile data without AI enhancement. Import, cover letter generation, and fit analysis require an API key.
 
@@ -189,7 +176,7 @@ make help        # Show all available commands
 
 > **Full setup in 4 commands:**
 > ```bash
-> cp backend/.env.example backend/.env  # then edit with your API key
+> cp backend/.env.example backend/.env
 > make install
 > make migrate
 > # then in two terminals:

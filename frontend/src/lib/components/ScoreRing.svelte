@@ -42,8 +42,8 @@
       style="transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke-dashoffset 0.8s cubic-bezier(0.34,1.2,0.64,1);"
     />
   </svg>
-  <div class="absolute inset-0 flex flex-col items-center justify-center">
-    <span class="text-xl font-black leading-none {textColor}" style="font-variant-numeric: tabular-nums">{score}</span>
-    <span class="text-[9px] font-bold {textColor} opacity-70">%</span>
+  <div class="absolute inset-0 flex flex-row items-center justify-center gap-0.5">
+    <span class="text-xl font-black {textColor}" style="font-variant-numeric: tabular-nums">{score}</span>
+    <span class="text-[11px] font-bold {textColor} opacity-70">%</span>
   </div>
 </div>

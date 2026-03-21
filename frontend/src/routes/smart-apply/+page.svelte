@@ -6,7 +6,7 @@
       createApplication,
       generateCoverLetterStream,
       generateCv,
-      scrapeJob,
+      scrapeAnalyze,
   } from '$lib/api';
   import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
   import { Button } from '$lib/components/ui/button';
@@ -15,12 +15,14 @@
   import { Label } from '$lib/components/ui/label';
   import { consumeStream } from '$lib/stream';
   import { toastState } from '$lib/toast.svelte';
-  import type { FitAnalysisResponse } from '$lib/types';
+  import type { FitAnalysisResponse, ScrapeJobResponse } from '$lib/types';
   import { errorMessage } from '$lib/utils';
   import {
       AlertTriangle,
       ChevronDown,
+      Circle,
       Loader2,
+      MapPin,
       Zap,
   } from '@lucide/svelte';
 
@@ -35,7 +37,7 @@
   // ---------------------------------------------------------------------------
   // Section 2 — Analysis results
   // ---------------------------------------------------------------------------
-  let scrapeResult = $state<{ job_description: string; company_name: string | null } | null>(null);
+  let scrapeResult = $state<ScrapeJobResponse | null>(null);
   let fitResult = $state<FitAnalysisResponse | null>(null);
   let analysisError = $state('');
 
@@ -44,6 +46,9 @@
   // ---------------------------------------------------------------------------
   let companyName = $state('');
   let roleTitle = $state('');
+  let location = $state('');
+  let salary = $state('');
+  let jobDescriptionExpanded = $state(false);
 
   // ---------------------------------------------------------------------------
   // Section 4 — Generate options
@@ -51,12 +56,10 @@
   let generateCvEnabled = $state(true);
   let cvEnhance = $state(true);
   let cvContext = $state('');
-  let cvOptionsOpen = $state(false);
 
   let generateClEnabled = $state(true);
   let clTone = $state<'professional' | 'enthusiastic' | 'concise' | 'creative'>('professional');
   let clContext = $state('');
-  let clOptionsOpen = $state(false);
 
   const TONES = [
     { value: 'professional' as const, label: 'Professional', desc: 'Formal & polished' },
@@ -75,19 +78,8 @@
   const analysisReady = $derived(!!scrapeResult);
   const canGenerate = $derived(analysisReady && (generateCvEnabled || generateClEnabled));
 
-  // ---------------------------------------------------------------------------
-  // Helpers — extract role/company from job description text
-  // ---------------------------------------------------------------------------
-  function extractFromTitleLine(raw: string): { company: string; role: string } {
-    const titleLine = raw.match(/^Title:\s*(.+)$/m);
-    if (!titleLine) return { company: '', role: '' };
-    const full = titleLine[1].trim();
-    const atMatch = full.match(/^(.+?)\s+at\s+([^|]+)/i);
-    if (atMatch) return { role: atMatch[1].trim(), company: atMatch[2].trim() };
-    const dashMatch = full.match(/^(.+?)\s*[-–]\s*(.+?)(?:\s*\|.*)?$/);
-    if (dashMatch) return { role: dashMatch[1].trim(), company: dashMatch[2].trim() };
-    return { company: '', role: full.replace(/\|.*$/, '').trim() };
-  }
+  // Step indicator
+  const currentStep = $derived(analysisReady ? (generating ? 3 : 2) : 1);
 
   // ---------------------------------------------------------------------------
   // Step 1: Analyze job
@@ -106,31 +98,30 @@
     fitResult = null;
 
     try {
-      let jobDescription = rawText;
-      let company: string | null = null;
-
-      if (url) {
-        const scraped = await scrapeJob(url);
-        jobDescription = scraped.job_description;
-        company = scraped.company_name;
-      }
-
-      const extracted = extractFromTitleLine(jobDescription);
-      companyName = company || extracted.company || '';
-      roleTitle = extracted.role || '';
-
-      scrapeResult = { job_description: jobDescription, company_name: company };
+      const analyzed = await scrapeAnalyze(url ? { url } : { text: rawText });
+      companyName = analyzed.company_name || '';
+      roleTitle = analyzed.role_title || '';
+      location = analyzed.location || '';
+      salary = analyzed.salary || '';
+      scrapeResult = {
+        job_description: analyzed.job_description,
+        company_name: analyzed.company_name,
+        role_title: analyzed.role_title,
+        location: analyzed.location,
+        salary: analyzed.salary,
+        source: analyzed.source,
+      };
 
       // Run fit analysis — non-fatal if it fails
       try {
-        fitResult = await analyzeFit(ap.id, jobDescription);
+        fitResult = await analyzeFit(ap.id, analyzed.job_description);
       } catch (e: unknown) {
         analysisError = errorMessage(e) ?? 'Fit analysis failed.';
         toastState.error(`Fit analysis failed: ${errorMessage(e)}`);
       }
     } catch (e: unknown) {
       analysisError = errorMessage(e) ?? 'Analysis failed.';
-      toastState.error(`Scrape failed: ${errorMessage(e)}. Try pasting the job description instead.`);
+      toastState.error(`Analysis failed: ${errorMessage(e)}. Try pasting the job description instead.`);
     } finally {
       analysisLoading = false;
     }
@@ -153,6 +144,9 @@
         job_url: inputMode === 'url' ? jobUrl.trim() || null : null,
         profile_id: ap.id,
         status: 'applied',
+        location: location || null,
+        salary: salary || null,
+        job_description: scrapeResult.job_description || null,
       });
 
       // 2. Generate CV (if enabled)
@@ -213,6 +207,24 @@
     <p class="text-sm text-muted-foreground">Paste a job URL, tailor your documents, and track your application — in one flow.</p>
   </div>
 
+  <!-- Step indicator -->
+  <div class="flex items-center gap-2">
+    <div class="flex items-center gap-1.5">
+      <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium {currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}">1</div>
+      <span class="text-sm {currentStep >= 1 ? 'text-foreground' : 'text-muted-foreground'}">Analyze</span>
+    </div>
+    <div class="flex-1 h-px bg-border"></div>
+    <div class="flex items-center gap-1.5">
+      <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium {currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}">2</div>
+      <span class="text-sm {currentStep >= 2 ? 'text-foreground' : 'text-muted-foreground'}">Configure</span>
+    </div>
+    <div class="flex-1 h-px bg-border"></div>
+    <div class="flex items-center gap-1.5">
+      <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium {currentStep >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}">3</div>
+      <span class="text-sm {currentStep >= 3 ? 'text-foreground' : 'text-muted-foreground'}">Generate</span>
+    </div>
+  </div>
+
   <!-- Section 1: Job Input -->
   <Card class="shadow-sm">
     <CardContent class="p-6 space-y-4">
@@ -270,16 +282,6 @@
 
   <!-- Sections 2–5: shown after analysis -->
   {#if scrapeResult}
-    <!-- Fit analysis card -->
-    {#if fitResult}
-      <FitAnalysisDisplay {fitResult} compact />
-    {:else if analysisError}
-      <div class="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-4 py-3 border border-amber-200 dark:border-amber-800">
-        <AlertTriangle class="w-4 h-4 shrink-0" />
-        Fit analysis unavailable — you can still generate documents.
-      </div>
-    {/if}
-
     <!-- Job details: editable -->
     <Card class="shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
       <CardContent class="p-6 space-y-4">
@@ -293,11 +295,53 @@
             <Label for="role-title">Role</Label>
             <Input id="role-title" bind:value={roleTitle} placeholder="Job title" class="h-10" />
           </div>
+          <div class="space-y-2">
+            <Label for="location">Location</Label>
+            <div class="relative">
+              <MapPin class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input id="location" bind:value={location} placeholder="e.g. San Francisco, CA or Remote" class="h-10 pl-9" />
+            </div>
+          </div>
+          <div class="space-y-2">
+            <Label for="salary">Salary</Label>
+            <Input id="salary" bind:value={salary} placeholder="e.g. $120,000 - $150,000" class="h-10" />
+          </div>
         </div>
+        <!-- Job Description (collapsible) -->
+        {#if scrapeResult?.job_description}
+          <div class="pt-2 border-t border-border/50">
+            <button
+              onclick={() => jobDescriptionExpanded = !jobDescriptionExpanded}
+              class="flex items-center justify-between w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span>Job Description</span>
+              <ChevronDown class="w-4 h-4 transition-transform {jobDescriptionExpanded ? 'rotate-180' : ''}" />
+            </button>
+            {#if jobDescriptionExpanded}
+              <div class="mt-2 bg-muted/50 rounded-lg p-3 text-sm max-h-60 overflow-y-auto whitespace-pre-wrap">
+                {scrapeResult.job_description}
+              </div>
+            {:else}
+              <p class="mt-1 text-xs text-muted-foreground truncate">
+                {scrapeResult.job_description.slice(0, 150)}...
+              </p>
+            {/if}
+          </div>
+        {/if}
       </CardContent>
     </Card>
 
-    <!-- Section 4: Generate options -->
+    <!-- Fit analysis card -->
+    {#if fitResult}
+      <FitAnalysisDisplay {fitResult} compact />
+    {:else if analysisError}
+      <div class="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-4 py-3 border border-amber-200 dark:border-amber-800">
+        <AlertTriangle class="w-4 h-4 shrink-0" />
+        Fit analysis unavailable — you can still generate documents.
+      </div>
+    {/if}
+
+    <!-- Section 4: What to Generate -->
     <div class="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
       <h2 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground px-1">What to generate</h2>
 
@@ -309,18 +353,10 @@
               <input type="checkbox" bind:checked={generateCvEnabled} class="w-4 h-4 accent-primary rounded" />
               <span class="font-semibold text-sm">Generate CV</span>
             </label>
-            {#if generateCvEnabled}
-              <button
-                onclick={() => cvOptionsOpen = !cvOptionsOpen}
-                class="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-              >
-                Options <ChevronDown class="w-3 h-3 transition-transform {cvOptionsOpen ? 'rotate-180' : ''}" />
-              </button>
-            {/if}
           </div>
 
-          {#if generateCvEnabled && cvOptionsOpen}
-            <div class="space-y-3 pt-1 border-t border-border/50 animate-in fade-in duration-150">
+          {#if generateCvEnabled}
+            <div class="space-y-3 pt-1 border-t border-border/50">
               <label class="flex items-center gap-2 cursor-pointer text-sm">
                 <input type="checkbox" bind:checked={cvEnhance} class="w-4 h-4 accent-primary rounded" />
                 ATS-enhance bullets and summary
@@ -348,19 +384,11 @@
               <input type="checkbox" bind:checked={generateClEnabled} class="w-4 h-4 accent-primary rounded" />
               <span class="font-semibold text-sm">Generate Cover Letter</span>
             </label>
-            {#if generateClEnabled}
-              <button
-                onclick={() => clOptionsOpen = !clOptionsOpen}
-                class="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
-              >
-                Options <ChevronDown class="w-3 h-3 transition-transform {clOptionsOpen ? 'rotate-180' : ''}" />
-              </button>
-            {/if}
           </div>
 
-          {#if generateClEnabled && clOptionsOpen}
-            <div class="space-y-3 pt-1 border-t border-border/50 animate-in fade-in duration-150">
-              <!-- Tone -->
+          {#if generateClEnabled}
+            <div class="space-y-3 pt-1 border-t border-border/50">
+              <!-- Tone — visible by default -->
               <div class="space-y-1.5">
                 <span class="text-xs font-medium text-muted-foreground">Tone</span>
                 <div class="grid grid-cols-2 gap-2">

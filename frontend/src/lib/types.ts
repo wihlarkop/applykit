@@ -99,7 +99,19 @@ export interface GenerateCvResponse {
 export interface ScrapeJobResponse {
   job_description: string;
   company_name: string | null;
-  source: 'greenhouse_api' | 'lever_api' | 'jina' | 'crawl4ai';
+  role_title: string | null;
+  location: string | null;
+  salary: string | null;
+  source: 'greenhouse_api' | 'lever_api' | 'ashby_api' | 'jina' | 'crawl4ai';
+}
+
+export interface ScrapeAnalyzeResponse {
+  company_name: string | null;
+  role_title: string | null;
+  location: string | null;
+  salary: string | null;
+  job_description: string;
+  source: 'greenhouse_api' | 'lever_api' | 'ashby_api' | 'jina' | 'crawl4ai';
 }
 
 export interface FitAnalysisResponse {
@@ -119,6 +131,9 @@ export interface CoverLetterRequest {
   profile_id: number;
   job_description: string;
   company_name?: string | null;
+  role_title?: string | null;
+  location?: string | null;
+  salary?: string | null;
   extra_context?: string;
   tone?: Tone;
   job_url?: string | null;
@@ -170,6 +185,9 @@ export interface GeneratedCoverLetterEntry {
   id: number;
   created_at: string;
   company_name: string | null;
+  role_title: string | null;
+  location: string | null;
+  salary: string | null;
   job_description: string;
   extra_context: string | null;
   cover_letter_text: string;
@@ -253,6 +271,9 @@ export interface ApplicationEntry {
   match_score: number | null;
   linked_cover_letter_id: number | null;
   linked_cv_id: number | null;
+  location: string | null;
+  salary: string | null;
+  job_description: string | null;
 }
 
 export interface ApplicationListResponse {
@@ -268,6 +289,9 @@ export interface CreateApplicationRequest {
   notes?: string | null;
   applied_date?: string | null;
   profile_id?: number | null;
+  location?: string | null;
+  salary?: string | null;
+  job_description?: string | null;
 }
 
 export interface UpdateApplicationRequest {
@@ -277,6 +301,9 @@ export interface UpdateApplicationRequest {
   job_url?: string | null;
   notes?: string | null;
   applied_date?: string | null;
+  location?: string | null;
+  salary?: string | null;
+  job_description?: string | null;
 }
 
 // ---- Filter types (mirror the API query params) ----

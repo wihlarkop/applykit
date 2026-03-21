@@ -108,6 +108,9 @@ class CoverLetterRequest(BaseModel):
     profile_id: int
     job_description: str
     company_name: str | None = None
+    role_title: str | None = None
+    location: str | None = None
+    salary: str | None = None
     extra_context: str = ""
     tone: Literal["professional", "enthusiastic", "concise", "creative"] = (
         "professional"
@@ -186,6 +189,9 @@ class GeneratedCoverLetterEntry(BaseModel):
     id: int
     created_at: datetime
     company_name: str | None
+    role_title: str | None
+    location: str | None
+    salary: str | None
     job_description: str
     extra_context: str | None
     cover_letter_text: str
@@ -270,7 +276,35 @@ class ScrapeJobRequest(BaseModel):
 class ScrapeJobResponse(BaseModel):
     job_description: str
     company_name: str | None
-    source: Literal["greenhouse_api", "lever_api", "jina", "crawl4ai"]
+    role_title: str | None
+    location: str | None
+    salary: str | None
+    source: Literal["greenhouse_api", "lever_api", "ashby_api", "jina", "crawl4ai"]
+
+
+class ParseJobDescriptionRequest(BaseModel):
+    text: str
+
+
+class ParseJobDescriptionResponse(BaseModel):
+    company_name: str | None
+    role_title: str | None
+    location: str | None
+    salary: str | None
+
+
+class ScrapeAnalyzeRequest(BaseModel):
+    url: str | None = None
+    text: str | None = None
+
+
+class ScrapeAnalyzeResponse(BaseModel):
+    company_name: str | None
+    role_title: str | None
+    location: str | None
+    salary: str | None
+    job_description: str
+    source: Literal["greenhouse_api", "lever_api", "ashby_api", "jina", "crawl4ai"]
 
 
 # --- Fit analysis schemas ---
@@ -317,6 +351,9 @@ class CreateApplicationRequest(BaseModel):
     notes: str | None = None
     applied_date: date | None = None
     profile_id: int | None = None
+    location: str | None = None
+    salary: str | None = None
+    job_description: str | None = None
 
 
 class UpdateApplicationRequest(BaseModel):
@@ -326,6 +363,9 @@ class UpdateApplicationRequest(BaseModel):
     job_url: str | None = None
     notes: str | None = None
     applied_date: date | None = None
+    location: str | None = None
+    salary: str | None = None
+    job_description: str | None = None
 
 
 class ApplicationEntry(BaseModel):
@@ -344,6 +384,9 @@ class ApplicationEntry(BaseModel):
     match_score: int | None
     linked_cover_letter_id: int | None
     linked_cv_id: int | None
+    location: str | None
+    salary: str | None
+    job_description: str | None
 
     model_config = {"from_attributes": True}
 

@@ -24,6 +24,7 @@ import type {
     PdfRequest,
     ProfileData,
     ProfileListResponse,
+    ScrapeAnalyzeResponse,
     ScrapeJobResponse,
     SettingsResponse,
     StatusResponse,
@@ -43,8 +44,8 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api
 // ---------------------------------------------------------------------------
 
 /** JSON request/response for the vast majority of API calls. */
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const res = await fetch(`${BASE_URL}${path}`, {
+async function request<T>(path: string, options: RequestInit = {}, fetchFn: typeof fetch = fetch): Promise<T> {
+    const res = await fetchFn(`${BASE_URL}${path}`, {
         headers: { 'Content-Type': 'application/json', ...options.headers },
         ...options,
     });
@@ -88,30 +89,30 @@ async function requestBlob(path: string, options: RequestInit): Promise<Blob> {
 // Profile
 // ---------------------------------------------------------------------------
 
-export const listProfiles = () =>
-    request<ProfileListResponse>('/profiles');
+export const listProfiles = (fetchFn?: typeof fetch) =>
+    request<ProfileListResponse>('/profiles', {}, fetchFn);
 
-export const createProfile = (data: CreateProfileRequest) =>
-    request<ProfileData>('/profiles', { method: 'POST', body: JSON.stringify(data) });
+export const createProfile = (data: CreateProfileRequest, fetchFn?: typeof fetch) =>
+    request<ProfileData>('/profiles', { method: 'POST', body: JSON.stringify(data) }, fetchFn);
 
-export const getProfile = (profileId: number) =>
-    request<ProfileData>(`/profiles/${profileId}`);
+export const getProfile = (profileId: number, fetchFn?: typeof fetch) =>
+    request<ProfileData>(`/profiles/${profileId}`, {}, fetchFn);
 
-export const saveProfile = (profileId: number, data: ProfileData) =>
-    request<ProfileData>(`/profiles/${profileId}`, { method: 'PUT', body: JSON.stringify(data) });
+export const saveProfile = (profileId: number, data: ProfileData, fetchFn?: typeof fetch) =>
+    request<ProfileData>(`/profiles/${profileId}`, { method: 'PUT', body: JSON.stringify(data) }, fetchFn);
 
-export const deleteProfile = (profileId: number) =>
-    request<void>(`/profiles/${profileId}`, { method: 'DELETE' });
+export const deleteProfile = (profileId: number, fetchFn?: typeof fetch) =>
+    request<void>(`/profiles/${profileId}`, { method: 'DELETE' }, fetchFn);
 
-export const getOnboardingStatus = () =>
-    request<OnboardingStatusResponse>('/onboarding');
+export const getOnboardingStatus = (fetchFn?: typeof fetch) =>
+    request<OnboardingStatusResponse>('/onboarding', {}, fetchFn);
 
 // ---------------------------------------------------------------------------
 // Status
 // ---------------------------------------------------------------------------
 
-export const getStatus = () =>
-    request<StatusResponse>('/status');
+export const getStatus = (fetchFn?: typeof fetch) =>
+    request<StatusResponse>('/status', {}, fetchFn);
 
 // ---------------------------------------------------------------------------
 // Import CV
@@ -190,6 +191,12 @@ export const generateSummaryStream = (profile_id: number, tone: string, extra_co
 
 export const scrapeJob = (url: string) =>
     request<ScrapeJobResponse>('/scrape/job', { method: 'POST', body: JSON.stringify({ url }) });
+
+export const scrapeAnalyze = (data: { url?: string; text?: string }) =>
+    request<ScrapeAnalyzeResponse>('/scrape/analyze', { method: 'POST', body: JSON.stringify(data) });
+
+export const parseJobDescription = (text: string) =>
+    request<{ company_name: string | null; role_title: string | null; location: string | null; salary: string | null }>('/scrape/parse', { method: 'POST', body: JSON.stringify({ text }) });
 
 // ---------------------------------------------------------------------------
 // Fit Analysis

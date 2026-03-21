@@ -63,7 +63,13 @@
             has_content: false,
             completeness: 0,
           });
-          activeProfile.setFromProfileData(created);
+          activeProfile.setFromProfileData({
+            id: created.id,
+            label: created.label ?? label,
+            color: created.color ?? color,
+            icon: created.icon ?? icon,
+            name: created.name ?? '',
+          });
         }
         if (!cloneEnabled) {
           toastState.info('Profile created — fill in your details before generating.');
@@ -81,7 +87,13 @@
           completeness: 100,
         });
         if (activeProfile.current?.id === profile.id) {
-          activeProfile.setFromProfileData(updated);
+          activeProfile.setFromProfileData({
+            id: profile.id,
+            label: updated.label ?? label,
+            color: updated.color ?? color,
+            icon: updated.icon ?? icon,
+            name: updated.name ?? profile.name,
+          });
         }
       }
       onsaved?.();

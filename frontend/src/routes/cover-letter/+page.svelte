@@ -5,7 +5,7 @@
       generateCoverLetterPdf,
       generateCoverLetterStream,
       getProfile,
-      scrapeJob,
+      scrapeAnalyze,
   } from '$lib/api';
   import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
   import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
@@ -20,8 +20,8 @@
   import type { FitAnalysisResponse, ProfileData, Tone } from '$lib/types';
   import { errorMessage } from '$lib/utils';
   import {
-      ArrowRight, Check, Copy, Download, Link, Loader2, Lock, Mail,
-      Pencil, Sparkles, TrendingUp, UserRoundPen,
+      ArrowRight, Check, ChevronDown, Copy, Download, Link, Loader2, Lock, Mail,
+      MapPin, Pencil, Sparkles, TrendingUp, UserRoundPen,
   } from '@lucide/svelte';
 
   let { data } = $props();
@@ -35,7 +35,10 @@
   let importedDomain = $state('');
   let companyName = $state('');
   let roleTitle = $state('');
+  let location = $state('');
+  let salary = $state('');
   let jobDescription = $state('');
+  let jobDescriptionExpanded = $state(false);
   let extraContext = $state('');
   let tone = $state<Tone>('professional');
 
@@ -107,13 +110,14 @@
   const step1Done = $derived(!!jobDescription.trim());
   const step2Done = $derived(!!fitResult);
 
-  const isProfileEmpty = $derived(
-    !profileLoading &&
-    (activeProfileData === null ||
-      (activeProfileData.work_experience.length === 0 &&
-        activeProfileData.skills.length === 0 &&
-        activeProfileData.education.length === 0))
-  );
+  const isProfileEmpty = $derived.by(() => {
+    if (profileLoading || !activeProfileData) return true;
+    return (
+      activeProfileData.work_experience.length === 0 &&
+      activeProfileData.skills.length === 0 &&
+      activeProfileData.education.length === 0
+    );
+  });
 
   // Right panel state machine
   const rightPanel = $derived(
@@ -141,7 +145,7 @@
     if (!ap) { profileLoading = false; return; }
     getProfile(ap.id)
       .then((p) => { activeProfileData = p; })
-      .catch((e: unknown) => { toastState.error('Failed to load profile. Please refresh the page.'); })
+      .catch((e: unknown) => { toastState.error(`Failed to load profile: ${errorMessage(e)}`); })
       .finally(() => { profileLoading = false; });
   });
 
@@ -149,17 +153,34 @@
     if (!jobUrl.trim()) return;
     scraping = true;
     try {
-      const res = await scrapeJob(jobUrl.trim());
-      const extracted = extractFromTitleLine(res.job_description);
-      jobDescription = cleanScrapedText(res.job_description);
-      if (res.company_name) companyName = res.company_name;
-      else if (extracted.company) companyName = extracted.company;
-      if (!roleTitle && extracted.role) roleTitle = extracted.role;
+      const analyzed = await scrapeAnalyze({ url: jobUrl.trim() });
+      jobDescription = cleanScrapedText(analyzed.job_description);
+      companyName = analyzed.company_name || '';
+      roleTitle = analyzed.role_title || '';
+      location = analyzed.location || '';
+      salary = analyzed.salary || '';
       isImported = true;
       try { importedDomain = new URL(jobUrl.trim()).hostname.replace('www.', ''); } catch { importedDomain = jobUrl; }
       toastState.success('Job posting imported!');
     } catch (e: unknown) {
       toastState.error(errorMessage(e));
+    } finally {
+      scraping = false;
+    }
+  }
+
+  async function handleParsePasted() {
+    if (!jobDescription.trim()) return;
+    scraping = true;
+    try {
+      const analyzed = await scrapeAnalyze({ text: jobDescription });
+      if (analyzed.company_name) companyName = analyzed.company_name;
+      if (analyzed.role_title) roleTitle = analyzed.role_title;
+      if (analyzed.location) location = analyzed.location;
+      if (analyzed.salary) salary = analyzed.salary;
+      toastState.success('Fields extracted from job description!');
+    } catch (e: unknown) {
+      toastState.error(`Failed to parse: ${errorMessage(e)}`);
     } finally {
       scraping = false;
     }
@@ -194,6 +215,9 @@
         job_description: jobDescription,
         extra_context: [roleTitle ? `Target role: ${roleTitle}` : '', extraContext].filter(Boolean).join('\n') || undefined,
         company_name: companyName.trim() || null,
+        role_title: roleTitle.trim() || null,
+        location: location.trim() || null,
+        salary: salary.trim() || null,
         tone,
         job_url: jobUrl.trim() || null,
         fit_context: fitResult?.suggested_emphasis || null,
@@ -286,20 +310,7 @@
       <Card class="shadow-sm">
         <CardContent class="p-5 space-y-4">
 
-          <div class="grid grid-cols-2 gap-3">
-            <!-- Company name -->
-            <div class="space-y-1.5">
-              <Label for="company" class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company</Label>
-              <Input id="company" bind:value={companyName} placeholder="Acme Corp" class="h-9" />
-            </div>
-            <!-- Role / position -->
-            <div class="space-y-1.5">
-              <Label for="role" class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Role</Label>
-              <Input id="role" bind:value={roleTitle} placeholder="e.g. Backend Engineer" class="h-9" />
-            </div>
-          </div>
-
-          <!-- Job description -->
+          <!-- Job description input (URL or Paste) - FIRST -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <Label class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Job Description *</Label>
@@ -314,16 +325,29 @@
             </div>
 
             {#if isImported}
-              <!-- Clean imported job card -->
+              <!-- Collapsible job description -->
               <div class="rounded-lg border border-border bg-muted/20 overflow-hidden">
                 <div class="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/40">
                   <Link class="w-3 h-3 text-muted-foreground shrink-0" />
                   <span class="text-xs text-muted-foreground truncate flex-1">{importedDomain}</span>
                   <span class="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide">Imported</span>
                 </div>
-                <div class="px-3 py-3 max-h-[30vh] overflow-y-auto">
-                  <p class="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{jobDescription}</p>
-                </div>
+                <button
+                  onclick={() => jobDescriptionExpanded = !jobDescriptionExpanded}
+                  class="flex items-center justify-between w-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <span>{jobDescriptionExpanded ? 'Hide' : 'Show'} description</span>
+                  <ChevronDown class="w-3.5 h-3.5 transition-transform {jobDescriptionExpanded ? 'rotate-180' : ''}" />
+                </button>
+                {#if jobDescriptionExpanded}
+                  <div class="px-3 pb-3 max-h-[30vh] overflow-y-auto">
+                    <p class="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{jobDescription}</p>
+                  </div>
+                {:else}
+                  <div class="px-3 pb-3">
+                    <p class="text-xs text-muted-foreground truncate">{jobDescription.slice(0, 150)}...</p>
+                  </div>
+                {/if}
               </div>
             {:else}
               <div class="flex gap-1 border-b border-border mb-2">
@@ -344,18 +368,50 @@
                     {scraping ? 'Fetching…' : 'Import'}
                   </Button>
                 </div>
-                <p class="text-xs text-muted-foreground">Supports Greenhouse, Lever, and most job boards.</p>
+                <p class="text-xs text-muted-foreground">Supports Greenhouse, Lever, Ashby, and most job boards.</p>
               {:else}
                 <Textarea
                   id="jd"
                   bind:value={jobDescription}
                   placeholder="Paste the full job posting here..."
-                  rows={8}
+                  rows={6}
                   class="bg-background/50 resize-y max-h-[35vh] text-sm"
                 />
+                <Button onclick={handleParsePasted} disabled={scraping || !jobDescription.trim()} size="sm" variant="outline" class="mt-2">
+                  {#if scraping}<Loader2 class="w-3.5 h-3.5 animate-spin mr-1" />{/if}
+                  Parse with AI
+                </Button>
               {/if}
             {/if}
           </div>
+
+          <!-- Company, Role, Location, Salary - SECOND -->
+          <div class="grid grid-cols-2 gap-3">
+            <!-- Company name -->
+            <div class="space-y-1.5">
+              <Label for="company" class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Company</Label>
+              <Input id="company" bind:value={companyName} placeholder="Acme Corp" class="h-9" />
+            </div>
+            <!-- Role / position -->
+            <div class="space-y-1.5">
+              <Label for="role" class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Role</Label>
+              <Input id="role" bind:value={roleTitle} placeholder="e.g. Backend Engineer" class="h-9" />
+            </div>
+            <!-- Location -->
+            <div class="space-y-1.5">
+              <Label for="location" class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Location</Label>
+              <div class="relative">
+                <MapPin class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input id="location" bind:value={location} placeholder="e.g. San Francisco, CA or Remote" class="h-9 pl-8" />
+              </div>
+            </div>
+            <!-- Salary -->
+            <div class="space-y-1.5">
+              <Label for="salary" class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Salary</Label>
+              <Input id="salary" bind:value={salary} placeholder="e.g. $120,000 - $150,000" class="h-9" />
+            </div>
+          </div>
+
         </CardContent>
       </Card>
 

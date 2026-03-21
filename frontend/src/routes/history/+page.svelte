@@ -13,15 +13,17 @@
 	} from '$lib/api';
 	import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
 	import CvPreview from '$lib/components/CvPreview.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ScoreRing from '$lib/components/ScoreRing.svelte';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { STATUS_CONFIG } from '$lib/constants';
 	import { profiles } from '$lib/profiles.svelte';
 	import type { GeneratedCVEntry, GeneratedCoverLetterEntry, ProfileData } from '$lib/types';
 	import { errorMessage, formatDate, formatDateShort, getScoreBarColor, getScoreColor } from '$lib/utils';
 	import { toastState } from '$lib/toast.svelte';
-	import { Download, Sparkles } from '@lucide/svelte';
+	import { Clock, Download, FileText, Sparkles } from '@lucide/svelte';
 
 	type Tab = 'cv' | 'cover-letter';
 	let tab: Tab = $state('cv');
@@ -73,7 +75,7 @@
       const updated = await updateCoverLetterStatus(id, status);
       clItems = clItems.map((e) => (e.id === id ? updated : e));
     } catch (e: unknown) {
-      errorMsg = `Failed to update status: ${errorMessage(e)}`;
+      toastState.error(`Failed to update status: ${errorMessage(e)}`);
     }
   }
 
@@ -85,7 +87,7 @@
       selectedClIds = new Set();
       confirmBulkDelete = false;
     } catch (e: unknown) {
-      errorMsg = `Failed to delete: ${errorMessage(e)}`;
+      toastState.error(`Failed to delete: ${errorMessage(e)}`);
     }
   }
 
@@ -93,7 +95,6 @@
     const profileId = filterProfileId;
     const seq = ++loadSeq;
     loading = true;
-    errorMsg = '';
     selectedCv = null;
     selectedCl = null;
     // CV tab — simple call unchanged
@@ -104,7 +105,7 @@
       })
       .catch((e: unknown) => {
         if (seq !== loadSeq) return;
-        errorMsg = 'Failed to load CV history. Please refresh the page.';
+        toastState.error(`Failed to load CV history: ${errorMessage(e)}`);
       })
       .finally(() => {
         if (seq !== loadSeq) return;
@@ -124,7 +125,7 @@
       cvItems = cvItems.filter((e) => e.id !== id);
       if (selectedCv?.id === id) selectedCv = null;
     } catch (e: unknown) {
-      errorMsg = `Failed to delete: ${errorMessage(e)}`;
+      toastState.error(`Failed to delete: ${errorMessage(e)}`);
     }
   }
 
@@ -134,7 +135,7 @@
       clItems = clItems.filter((e) => e.id !== id);
       if (selectedCl?.id === id) selectedCl = null;
     } catch (e: unknown) {
-      errorMsg = `Failed to delete: ${errorMessage(e)}`;
+      toastState.error(`Failed to delete: ${errorMessage(e)}`);
     }
   }
 
@@ -150,8 +151,9 @@
   async function handleCopyCl() {
     try {
       await navigator.clipboard.writeText(selectedCl?.cover_letter_text ?? '');
+      toastState.success('Copied to clipboard!');
     } catch {
-      errorMsg = 'Failed to copy to clipboard.';
+      toastState.error('Failed to copy to clipboard.');
     }
   }
 
@@ -284,14 +286,42 @@
   </div>
 
   {#if loading}
-    <p class="text-muted-foreground">Loading…</p>
+    <div class="grid gap-4 lg:grid-cols-[280px_1fr]">
+      <div class="space-y-2">
+        {#each Array(3) as _}
+          <div class="border rounded-lg p-3">
+            <Skeleton class="h-4 w-20 mb-2" />
+            <Skeleton class="h-3 w-16" />
+          </div>
+        {/each}
+      </div>
+      <div class="border rounded-lg p-8">
+        <Skeleton class="h-6 w-48 mx-auto mb-4" />
+        <Skeleton class="h-4 w-full mb-2" />
+        <Skeleton class="h-4 w-3/4 mb-4" />
+        <Skeleton class="h-4 w-full mb-2" />
+        <Skeleton class="h-4 w-5/6" />
+      </div>
+    </div>
   {:else if errorMsg}
-    <p class="text-sm text-destructive">{errorMsg}</p>
+    <EmptyState
+      icon={Clock}
+      iconClass="text-destructive"
+      iconBg="bg-destructive/10"
+      title="Failed to load history"
+      description={errorMsg}
+    />
   {:else}
 
     {#if tab === 'cv'}
       {#if cvItems.length === 0}
-        <p class="text-muted-foreground">No CVs generated yet{filterProfileId != null ? ' for this profile' : ''}. <a href="/generate" class="underline">Generate one</a>.</p>
+        <EmptyState
+          icon={FileText}
+          title="No CVs generated yet"
+          description={filterProfileId != null ? 'Generate a CV for this profile.' : 'Create your first CV to see it here.'}
+        >
+          <Button href="/generate" size="sm">Generate CV</Button>
+        </EmptyState>
       {:else}
         <div class="grid gap-4 lg:grid-cols-[280px_1fr]">
           <div class="space-y-2">
@@ -351,9 +381,12 @@
               </div>
             </div>
           {:else}
-            <div class="border rounded-lg p-8 text-center text-muted-foreground">
-              Select an entry to preview.
-            </div>
+            <EmptyState
+              icon={FileText}
+              iconClass="text-muted-foreground"
+              title="Select a CV to preview"
+              description="Choose a CV from the list to see the details."
+            />
           {/if}
         </div>
       {/if}
@@ -361,7 +394,13 @@
 
     {#if tab === 'cover-letter'}
       {#if clItems.length === 0}
-        <p class="text-muted-foreground">No cover letters generated yet{filterProfileId != null ? ' for this profile' : ''}. <a href="/cover-letter" class="underline">Write one</a>.</p>
+        <EmptyState
+          icon={FileText}
+          title="No cover letters generated yet"
+          description={filterProfileId != null ? 'Write a cover letter for this profile.' : 'Create your first cover letter to see it here.'}
+        >
+          <Button href="/cover-letter" size="sm">Write Cover Letter</Button>
+        </EmptyState>
       {:else}
         <!-- Filter bar -->
         <div class="flex items-center gap-2 flex-wrap mb-4">

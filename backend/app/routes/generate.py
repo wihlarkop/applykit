@@ -275,6 +275,9 @@ async def generate_cover_letter(
     full_text = "".join(accumulated)
     entry = GeneratedCoverLetter(
         company_name=req.company_name,
+        role_title=req.role_title,
+        location=req.location,
+        salary=req.salary,
         job_description=req.job_description,
         extra_context=req.extra_context or None,
         cover_letter_text=full_text,

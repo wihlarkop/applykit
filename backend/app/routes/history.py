@@ -76,6 +76,9 @@ def _enrich_cl(entry: GeneratedCoverLetter, profiles: dict) -> dict:
         "id": entry.id,
         "created_at": entry.created_at,
         "company_name": entry.company_name,
+        "role_title": getattr(entry, "role_title", None),
+        "location": getattr(entry, "location", None),
+        "salary": getattr(entry, "salary", None),
         "job_description": entry.job_description,
         "extra_context": entry.extra_context,
         "cover_letter_text": entry.cover_letter_text,
@@ -231,7 +234,11 @@ def update_cover_letter_status(
         else:
             # Auto-create an Application record and link it
             app = Application(
-                company_name=_extract_company(entry),
+                company_name=entry.company_name or "Unknown",
+                role_title=entry.role_title or "",
+                location=entry.location,
+                salary=entry.salary,
+                job_description=entry.job_description,
                 status=body.status,
                 job_url=entry.job_url,
                 profile_id=entry.profile_id,

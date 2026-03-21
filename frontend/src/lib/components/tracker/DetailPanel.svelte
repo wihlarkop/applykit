@@ -121,6 +121,36 @@
       />
     </div>
 
+    <!-- Location -->
+    <div>
+      <label for="dp-location" class="text-xs font-medium text-muted-foreground block mb-1">Location</label>
+      <input
+        id="dp-location"
+        class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
+        placeholder="e.g. San Francisco, CA or Remote"
+        value={app.location ?? ''}
+        onblur={(e) => {
+          const v = (e.target as HTMLInputElement).value || null;
+          if (v !== app.location) patch({ location: v });
+        }}
+      />
+    </div>
+
+    <!-- Salary -->
+    <div>
+      <label for="dp-salary" class="text-xs font-medium text-muted-foreground block mb-1">Salary</label>
+      <input
+        id="dp-salary"
+        class="w-full bg-background border border-border rounded-md px-3 py-2 text-sm"
+        placeholder="e.g. $120,000 - $150,000"
+        value={app.salary ?? ''}
+        onblur={(e) => {
+          const v = (e.target as HTMLInputElement).value || null;
+          if (v !== app.salary) patch({ salary: v });
+        }}
+      />
+    </div>
+
     <!-- Applied date -->
     <div>
       <label for="dp-date" class="text-xs font-medium text-muted-foreground block mb-1">Applied date</label>
@@ -164,6 +194,16 @@
         }}
       >{app.notes ?? ''}</textarea>
     </div>
+
+    <!-- Job Description (read-only) -->
+    {#if app.job_description}
+      <div>
+        <p class="text-xs font-medium text-muted-foreground block mb-1">Job Description</p>
+        <div class="bg-muted/50 rounded-md px-3 py-2 text-sm max-h-40 overflow-y-auto whitespace-pre-wrap">
+          {app.job_description.slice(0, 500)}{app.job_description.length > 500 ? '…' : ''}
+        </div>
+      </div>
+    {/if}
 
     <!-- Linked Documents -->
     {#if app.linked_cover_letter_id || app.linked_cv_id}

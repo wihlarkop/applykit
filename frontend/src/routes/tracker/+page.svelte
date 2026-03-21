@@ -3,15 +3,17 @@
 	import {
 	    createApplication,
 	    listApplications,
-	    updateApplication,
-	    type ApplicationFilters
+	    updateApplication
 	} from '$lib/api';
+	import type { ApplicationFilters } from '$lib/types';
 	import ApplicationCard from '$lib/components/tracker/ApplicationCard.svelte';
 	import DetailPanel from '$lib/components/tracker/DetailPanel.svelte';
 	import { STATUS_CONFIG } from '$lib/constants';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { toastState } from '$lib/toast.svelte';
 	import type { ApplicationEntry, ApplicationStatus, CreateApplicationRequest } from '$lib/types';
 	import { errorMessage } from '$lib/utils';
+	import { Briefcase } from '@lucide/svelte';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 
@@ -204,18 +206,28 @@
           </div>
 
           <!-- Cards (dnd zone) -->
-          <div
-            class="flex flex-col gap-2 min-h-30 max-h-[60vh] overflow-y-auto"
-            use:dndzone={{ items, flipDurationMs: 150, type: 'applications' }}
-            onconsider={(e) => handleDndConsider(col.status, e)}
-            onfinalize={(e) => handleDndFinalize(col.status, e)}
-          >
-            {#each items as app (app.id)}
-              <div animate:flip={{ duration: 150 }}>
-                <ApplicationCard {app} onclick={() => (selectedApp = app)} />
-              </div>
-            {/each}
-          </div>
+          {#if items.length === 0}
+            <div class="flex flex-col items-center justify-center py-8 text-center">
+              <EmptyState
+                icon={Briefcase}
+                title="No applications"
+                description="Add your first application to this column."
+              />
+            </div>
+          {:else}
+            <div
+              class="flex flex-col gap-2 min-h-30 max-h-[60vh] overflow-y-auto"
+              use:dndzone={{ items, flipDurationMs: 150, type: 'applications' }}
+              onconsider={(e) => handleDndConsider(col.status, e)}
+              onfinalize={(e) => handleDndFinalize(col.status, e)}
+            >
+              {#each items as app (app.id)}
+                <div animate:flip={{ duration: 150 }}>
+                  <ApplicationCard {app} onclick={() => (selectedApp = app)} />
+                </div>
+              {/each}
+            </div>
+          {/if}
 
           <!-- Add form or button -->
           {#if addingInColumn === col.status}

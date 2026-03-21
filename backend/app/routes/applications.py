@@ -37,6 +37,9 @@ def _enrich_app(app: Application, profiles: dict) -> dict:
         "match_score": None,  # filled in by _resolve_scores()
         "linked_cover_letter_id": None,  # filled in by _resolve_docs()
         "linked_cv_id": None,  # filled in by _resolve_docs()
+        "location": app.location,
+        "salary": app.salary,
+        "job_description": app.job_description,
     }
 
 
@@ -93,9 +96,7 @@ def _resolve_docs(app_ids: list[int], db: Session) -> tuple[dict, dict, dict]:
 
 
 @router.post("/applications", response_model=ApplicationEntry)
-def create_application(
-    body: CreateApplicationRequest, db: Session = Depends(get_db)
-):
+def create_application(body: CreateApplicationRequest, db: Session = Depends(get_db)):
     app = Application(
         company_name=body.company_name,
         role_title=body.role_title,
@@ -104,6 +105,9 @@ def create_application(
         notes=body.notes,
         applied_date=body.applied_date or date.today(),
         profile_id=body.profile_id,
+        location=body.location,
+        salary=body.salary,
+        job_description=body.job_description,
     )
     db.add(app)
     db.commit()
@@ -144,9 +148,13 @@ def list_applications(
     if date_to:
         q = q.filter(Application.applied_date <= date_to)
     if sort == "date_asc":
-        q = q.order_by(Application.applied_date.asc().nullslast(), Application.created_at.asc())
+        q = q.order_by(
+            Application.applied_date.asc().nullslast(), Application.created_at.asc()
+        )
     else:
-        q = q.order_by(Application.applied_date.desc().nullslast(), Application.created_at.desc())
+        q = q.order_by(
+            Application.applied_date.desc().nullslast(), Application.created_at.desc()
+        )
 
     apps = q.all()
     pm = _profile_map(apps, db)
@@ -176,7 +184,9 @@ def list_applications(
 def get_application(app_id: int, db: Session = Depends(get_db)):
     app = db.query(Application).filter_by(id=app_id).first()
     if not app:
-        raise HTTPException(status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"})
+        raise HTTPException(
+            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
+        )
     pm = _profile_map([app], db)
     entry = _enrich_app(app, pm)
     cl_id, cv_id, scores = _resolve_docs([app.id], db)
@@ -192,7 +202,9 @@ def update_application(
 ):
     app = db.query(Application).filter_by(id=app_id).first()
     if not app:
-        raise HTTPException(status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"})
+        raise HTTPException(
+            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
+        )
     for field, value in body.model_dump(exclude_unset=True).items():
         if field == "status" and value is not None:
             value = value if isinstance(value, str) else value.value
@@ -213,7 +225,9 @@ def update_application(
 def delete_application(app_id: int, db: Session = Depends(get_db)):
     app = db.query(Application).filter_by(id=app_id).first()
     if not app:
-        raise HTTPException(status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"})
+        raise HTTPException(
+            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
+        )
     # Nullify FKs on linked documents before deleting
     db.query(GeneratedCoverLetter).filter_by(application_id=app_id).update(
         {"application_id": None}

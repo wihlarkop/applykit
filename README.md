@@ -65,8 +65,36 @@ Browser (localhost:5173)
 | AI | LiteLLM (configured via UI Settings) |
 | PDF | WeasyPrint (server-side) + browser print (client-side) |
 | CV parsing | pdfplumber (PDF), python-docx (DOCX) |
-| Job scraping | crawl4ai |
+| Job scraping | Jina Reader (primary) + Crawl4AI (fallback) + LLM parsing |
 | Package managers | uv (Python), Bun (JavaScript) |
+
+---
+
+## Smart Apply - Supported Job Boards
+
+Smart Apply can automatically extract job details from various job posting platforms:
+
+### ATS Platforms with API Support (Fastest, Most Accurate)
+
+| Platform | Status | Extracted Fields |
+|----------|--------|------------------|
+| Greenhouse | ✅ Supported | Company, Role, Location |
+| Lever | ✅ Supported | Company, Role, Location |
+| Ashby | ✅ Supported | Company, Role, Location |
+| JazzHR | 📋 Planned | TBD |
+| BambooHR | 📋 Planned | TBD |
+| Workday | 📋 Planned | Requires browser automation (complex) |
+
+### Generic Websites
+
+For job boards without API access, Smart Apply uses Jina to scrape the page content and LLM to extract structured fields. This works on most websites.
+
+### How Smart Apply Works
+
+1. Paste a job URL → Smart Apply detects the platform
+2. For Greenhouse/Lever/Ashby → Direct API extraction (fastest, most accurate)
+3. For other sites → Jina scrape + LLM field extraction
+4. For JS-heavy sites → Crawl4AI browser automation fallback
 
 ---
 
@@ -293,6 +321,16 @@ Items marked ✅ are already shipped. Everything else is planned or in considera
 | ✅ | Job application tracker | Visual Kanban board for tracking applications |
 | ⬜ | PostgreSQL support | First-class support for production/shared deployments — change `DATABASE_URL` to `postgresql://...` and run `pip install psycopg2-binary` |
 | ⬜ | One-click portfolio generator | Export profile as a static HTML/CSS portfolio site |
+
+### ATS Platform Support
+| Status | Platform | Extracted Fields | Notes |
+|--------|----------|------------------|-------|
+| ✅ | Greenhouse | Company, Role, Location | Full API - fastest |
+| ✅ | Lever | Company, Role, Location | Full API - fastest |
+| ✅ | Ashby | Company, Role, Location | Full API - fastest |
+| 📋 | JazzHR | TBD | API integration planned |
+| 📋 | BambooHR | TBD | API integration planned |
+| 📋 | Workday | TBD | Requires browser automation |
 
 ---
 

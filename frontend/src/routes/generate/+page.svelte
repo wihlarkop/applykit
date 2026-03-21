@@ -27,13 +27,14 @@
   let activeProfileData: ProfileData | null = $state(null);
   let profileLoading = $state(true);
 
-  const isProfileEmpty = $derived(
-    !profileLoading &&
-    (!activeProfileData ||
-     ((activeProfileData?.work_experience.length ?? 0) === 0 &&
-      (activeProfileData?.skills.length ?? 0) === 0 &&
-      (activeProfileData?.education.length ?? 0) === 0))
-  );
+  const isProfileEmpty = $derived.by(() => {
+    if (profileLoading || !activeProfileData) return true;
+    return (
+      activeProfileData.work_experience.length === 0 &&
+      activeProfileData.skills.length === 0 &&
+      activeProfileData.education.length === 0
+    );
+  });
 
   $effect(() => {
     const ap = activeProfile.current;
@@ -44,7 +45,7 @@
     if (!ap) { profileLoading = false; return; }
     getProfile(ap.id)
       .then(p => { activeProfileData = p; })
-      .catch(() => { toastState.error('Failed to load profile data.'); })
+      .catch((e) => { toastState.error(`Failed to load profile data: ${errorMessage(e)}`); })
       .finally(() => { profileLoading = false; });
   });
 

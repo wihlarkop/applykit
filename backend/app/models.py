@@ -57,6 +57,9 @@ class GeneratedCoverLetter(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     company_name = Column(String, nullable=True)
+    role_title = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    salary = Column(String, nullable=True)
     job_description = Column(Text, nullable=False)
     extra_context = Column(Text, nullable=True)
     cover_letter_text = Column(Text, nullable=False)
@@ -86,6 +89,9 @@ class Application(Base):
     profile_id = Column(
         Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True
     )
+    location = Column(String, nullable=True)
+    salary = Column(String, nullable=True)
+    job_description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     updated_at = Column(
         DateTime,

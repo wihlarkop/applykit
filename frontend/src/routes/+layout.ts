@@ -6,21 +6,21 @@ import { activeProfile } from '$lib/activeProfile.svelte';
 
 export const ssr = false;
 
-export const load = async ({ url }) => {
+export const load = async ({ url, fetch }) => {
   let isOnboarded = true;
   let isApiKeyConfigured = true;
 
   try {
-    const [onboarding, llmStatus] = await Promise.all([getOnboardingStatus(), getStatus()]);
+    const [onboarding, llmStatus] = await Promise.all([getOnboardingStatus(fetch), getStatus(fetch)]);
     isOnboarded = onboarding.is_onboarded;
     isApiKeyConfigured = llmStatus.api_key_configured;
 
     try {
-      let res = await listProfiles();
+      let res = await listProfiles(fetch);
 
       if (res.items.length === 0) {
-        await createProfile({ label: 'Default', color: '#6366f1', icon: '💼' });
-        res = await listProfiles();
+        await createProfile({ label: 'Default', color: '#6366f1', icon: '💼' }, fetch);
+        res = await listProfiles(fetch);
       }
 
       profiles.set(res.items);

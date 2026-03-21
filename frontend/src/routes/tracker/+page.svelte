@@ -97,20 +97,21 @@
   }
 
   async function handleDndFinalize(status: ApplicationStatus, e: CustomEvent) {
-    const draggedApp: ApplicationEntry = e.detail.items.find(
-      (i: ApplicationEntry) => i.id === e.detail.info.id
-    ) ?? e.detail.items[0];
-    if (!draggedApp) return;
-
+    const { items: newItems, info: { id: draggedId } } = e.detail;
+    
+    // Update local state
     const updated = apps.filter((a) => a.status !== status);
-    const newItems = e.detail.items.map((i: ApplicationEntry) => ({ ...i, status }));
-    apps = [...updated, ...newItems];
+    apps = [...updated, ...newItems.map((i: ApplicationEntry) => ({ ...i, status }))];
 
-    try {
-      await updateApplication(draggedApp.id, { status });
-    } catch (err: unknown) {
-      toastState.error('Failed to update application. Please try again.');
-      await load();
+    // Only update backend if the item was dropped into this column
+    const isPresent = newItems.some((i: ApplicationEntry) => i.id === draggedId);
+    if (isPresent) {
+      try {
+        await updateApplication(draggedId, { status });
+      } catch (err: unknown) {
+        toastState.error('Failed to update application. Please try again.');
+        await load();
+      }
     }
   }
 
@@ -153,8 +154,11 @@
 
 <div class="space-y-4 transition-[padding-right] duration-200 {selectedApp ? 'pr-94' : ''}"
 >
-  <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-bold">Application Tracker</h1>
+  <div class="flex items-center justify-between mt-2">
+    <div>
+      <h1 class="text-3xl font-black tracking-tight">Tracker</h1>
+      <p class="text-sm text-muted-foreground">Manage and track your job applications in one place.</p>
+    </div>
   </div>
 
   <!-- Filter bar -->
@@ -185,6 +189,15 @@
       <option value="medium">Medium (40–69%)</option>
       <option value="low">Low (&lt;40%)</option>
     </select>
+
+    {#if search || dateRange !== 'all' || matchFilter !== 'all'}
+      <button 
+        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; load(); }}
+        class="text-xs text-primary font-bold px-2 py-1 hover:bg-primary/5 rounded-md transition-colors"
+      >
+        ✕ Clear filters
+      </button>
+    {/if}
   </div>
 
   {#if loading}
@@ -199,24 +212,26 @@
       {#each COLUMNS as col}
         {@const items = colItems[col.status] ?? []}
         <div class="bg-card border border-border rounded-xl p-3 flex flex-col">
-          <!-- Column header -->
-          <div class="flex items-center justify-between mb-3">
-            <span class="text-xs font-semibold uppercase tracking-wide {col.color}">{col.label}</span>
-            <span class="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">{items.length}</span>
+          <!-- Column header (sticky) -->
+          <div class="sticky top-0 bg-card/95 backdrop-blur-sm z-10 flex items-center justify-between mb-3 py-1 border-b border-border/40">
+            <span class="text-[10px] font-black uppercase tracking-widest {col.color}">{col.label}</span>
+            <span class="text-[10px] font-bold text-muted-foreground bg-muted/50 rounded-full px-2 py-0.5 border border-border/40">{items.length}</span>
           </div>
 
           <!-- Cards (dnd zone) -->
-          {#if items.length === 0}
-            <div class="flex flex-col items-center justify-center py-8 text-center">
-              <EmptyState
-                icon={Briefcase}
-                title="No applications"
-                description="Add your first application to this column."
-              />
-            </div>
-          {:else}
+          <div class="relative flex-1 flex flex-col min-h-32 mt-2">
+            {#if items.length === 0}
+              <div class="absolute inset-0 flex flex-col items-center justify-center py-8 text-center pointer-events-none opacity-40">
+                <EmptyState
+                  icon={Briefcase}
+                  title="Empty"
+                  description="Drop here"
+                />
+              </div>
+            {/if}
+
             <div
-              class="flex flex-col gap-2 min-h-30 max-h-[60vh] overflow-y-auto"
+              class="flex-1 flex flex-col gap-2 max-h-[60vh] overflow-y-auto pb-4"
               use:dndzone={{ items, flipDurationMs: 150, type: 'applications' }}
               onconsider={(e) => handleDndConsider(col.status, e)}
               onfinalize={(e) => handleDndFinalize(col.status, e)}
@@ -227,7 +242,7 @@
                 </div>
               {/each}
             </div>
-          {/if}
+          </div>
 
           <!-- Add form or button -->
           {#if addingInColumn === col.status}

@@ -4,11 +4,13 @@ import type {
     ApplicationFilters,
     ApplicationListResponse,
     CoverLetterHistoryFilters,
+    CoverLetterPdfRequest,
     CoverLetterRequest,
     CoverLetterResponse,
     CreateApplicationRequest,
     CreateProfileRequest,
     CvHistoryFilters,
+    CvPdfRequest,
     FitAnalysisResponse,
     GenerateCvRequest,
     GenerateCvResponse,
@@ -134,7 +136,7 @@ export const importCvText = (text: string) => {
 export const generateCv = (data: GenerateCvRequest) =>
     request<GenerateCvResponse>('/generate/cv', { method: 'POST', body: JSON.stringify(data) });
 
-export const generateCvPdf = (data: PdfRequest) =>
+export const generateCvPdf = (data: CvPdfRequest) =>
     requestBlob('/generate/cv/pdf', { method: 'POST', body: JSON.stringify(data) });
 
 // ---------------------------------------------------------------------------
@@ -154,7 +156,7 @@ export const generateCoverLetterStream = (data: CoverLetterRequest): Promise<Res
         body: JSON.stringify(data),
     });
 
-export const generateCoverLetterPdf = (data: PdfRequest) =>
+export const generateCoverLetterPdf = (data: CoverLetterPdfRequest) =>
     requestBlob('/generate/cover-letter/pdf', { method: 'POST', body: JSON.stringify(data) });
 
 // ---------------------------------------------------------------------------

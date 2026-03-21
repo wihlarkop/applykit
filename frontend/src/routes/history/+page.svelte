@@ -5,6 +5,8 @@
 	    bulkDeleteCoverLetters,
 	    deleteCoverLetterHistoryEntry,
 	    deleteCvHistoryEntry,
+	    generateCvPdf,
+	    generateCoverLetterPdf,
 	    getCoverLetterHistory,
 	    getCvHistory,
 	    updateCoverLetterStatus
@@ -18,7 +20,8 @@
 	import { profiles } from '$lib/profiles.svelte';
 	import type { GeneratedCVEntry, GeneratedCoverLetterEntry, ProfileData } from '$lib/types';
 	import { errorMessage, formatDate, formatDateShort, getScoreBarColor, getScoreColor } from '$lib/utils';
-	import { Printer, Sparkles } from '@lucide/svelte';
+	import { toastState } from '$lib/toast.svelte';
+	import { Download, Sparkles } from '@lucide/svelte';
 
 	type Tab = 'cv' | 'cover-letter';
 	let tab: Tab = $state('cv');
@@ -31,6 +34,8 @@
 	let loadSeq = 0;
 
 	let selectedCv: GeneratedCVEntry | null = $state(null);
+	let cvPreviewEl: HTMLDivElement | undefined = $state(undefined);
+	let downloading = $state(false);
 	let selectedCl: GeneratedCoverLetterEntry | null = $state(null);
 	let previewTab = $state<'letter' | 'analysis'>('letter');
 
@@ -158,114 +163,44 @@
     goto('/generate');
   }
 
-  function handlePrintCv() {
-    const profile = selectedCv ? parseCvProfile(selectedCv) : null;
-    if (!profile) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    
-    const contactParts = [profile.email, profile.phone, profile.location, profile.linkedin, profile.github, profile.portfolio].filter(Boolean);
-    const contactsHtml = contactParts.map(c => `<span>${c}</span>`).join('<span style="margin:0 8px;color:#6b7280">|</span>');
-    
-    let html = `<div style="font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.5;color:#000;max-width:800px;margin:0 auto;padding:32px;background:#fff">
-      <div style="text-align:center;margin-bottom:16px">
-        <h1 style="font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 4px">${profile.name}</h1>
-        <div style="font-size:12px;color:#6b7280;display:flex;justify-content:center;flex-wrap:wrap;gap:4px 12px;margin-top:4px">${contactsHtml}</div>
-      </div>`;
-    
-    if (profile.summary) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Summary</h2>
-        <p style="color:#4b5563;margin:0">${profile.summary}</p></section>`;
+  async function handleDownloadCv() {
+    if (!selectedCv) return;
+    const profileData = parseCvProfile(selectedCv);
+    if (!profileData) return;
+    downloading = true;
+    try {
+      const blob = await generateCvPdf({ profile: profileData });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cv.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+      toastState.success('CV Downloaded!');
+    } catch (e: unknown) {
+      toastState.error(`Download failed: ${errorMessage(e)}`);
+    } finally {
+      downloading = false;
     }
-    
-    if (profile.work_experience.length) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Experience</h2>`;
-      profile.work_experience.forEach(w => {
-        html += `<div style="margin-bottom:12px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">${w.role}</span><span style="font-size:12px;color:#6b7280">${w.start_date} – ${w.end_date ?? 'Present'}</span></div>
-          <div style="font-size:12px;color:#6b7280;margin-bottom:4px">${w.company}</div>
-          <ul style="margin:0;padding-left:16px">${w.bullets.map(b => `<li style="margin-bottom:2px">${b}</li>`).join('')}</ul></div>`;
-      });
-      html += `</section>`;
-    }
-    
-    if (profile.education.length) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Education</h2>`;
-      profile.education.forEach(e => {
-        html += `<div style="margin-bottom:8px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">${e.degree} in ${e.field}</span><span style="font-size:12px;color:#6b7280">${e.start_date} – ${e.end_date ?? 'Present'}</span></div>
-          <div style="font-size:12px;color:#6b7280">${e.institution}</div></div>`;
-      });
-      html += `</section>`;
-    }
-    
-    if (profile.skills.length) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Skills</h2>
-        <p style="color:#4b5563;margin:0">${profile.skills.join(' · ')}</p></section>`;
-    }
-    
-    if (profile.projects.length) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Projects</h2>`;
-      profile.projects.forEach(p => {
-        html += `<div style="margin-bottom:8px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">${p.name}</span>${p.link ? `<a href="${p.link}" style="font-size:12px;color:#2563eb;text-decoration:none">${p.link}</a>` : ''}</div>
-          <p style="color:#4b5563;margin:4px 0 0">${p.description}</p>
-          ${p.tech_stack.length ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0">${p.tech_stack.join(', ')}</p>` : ''}</div>`;
-      });
-      html += `</section>`;
-    }
-    
-    if (profile.certifications.length) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Certifications</h2>`;
-      profile.certifications.forEach(c => {
-        html += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-          <span>${c.name} — <span style="color:#6b7280">${c.issuer}</span></span>
-          <span style="font-size:12px;color:#6b7280">${c.date}</span></div>`;
-      });
-      html += `</section>`;
-    }
-    
-    html += `</div>`;
-    
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Print CV</title><meta charset="utf-8"><style>
-      @page { size: A4; margin: 0; }
-      @page { @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } @bottom-right { content: ""; } }
-      body{margin:0;padding:0;background:#fff}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-    </style></head><body>${html}</body></html>`);
-    printWindow.document.close();
-    printWindow.onload = () => {
-      setTimeout(() => { printWindow.focus(); printWindow.print(); printWindow.close(); }, 300);
-    };
-    printWindow.onerror = () => {
-      setTimeout(() => { printWindow.focus(); printWindow.print(); printWindow.close(); }, 300);
-    };
   }
 
-  function handlePrintCl() {
+  async function handleDownloadCl() {
     if (!selectedCl) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    const escaped = selectedCl.cover_letter_text
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const html = `<div style="font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.625;color:#000;padding:32px;white-space:pre-wrap;max-width:800px;margin:0 auto;background:#fff">${escaped}</div>`;
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Print Cover Letter</title><meta charset="utf-8"><style>
-      @page { size: A4; margin: 0; }
-      @page { @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } @bottom-right { content: ""; } }
-      body{margin:0;padding:0;background:#fff}@media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-    </style></head><body>${html}</body></html>`);
-    printWindow.document.close();
-    printWindow.onload = () => {
-      setTimeout(() => { printWindow.focus(); printWindow.print(); printWindow.close(); }, 300);
-    };
-    printWindow.onerror = () => {
-      setTimeout(() => { printWindow.focus(); printWindow.print(); printWindow.close(); }, 300);
-    };
+    downloading = true;
+    try {
+      const blob = await generateCoverLetterPdf({ text: selectedCl.cover_letter_text });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'cover-letter.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+      toastState.success('Cover Letter Downloaded!');
+    } catch (e: unknown) {
+      toastState.error(`Download failed: ${errorMessage(e)}`);
+    } finally {
+      downloading = false;
+    }
   }
 
   function displayCompany(entry: GeneratedCoverLetterEntry): string {
@@ -391,8 +326,9 @@
               <div class="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
                 <span class="text-sm text-muted-foreground">{formatDate(selectedCv.created_at)}</span>
                 <div class="flex gap-2">
-                  <Button variant="outline" size="sm" onclick={handlePrintCv}>
-                    <Printer class="w-4 h-4 mr-1" /> Print
+                  <Button variant="outline" size="sm" onclick={handleDownloadCv} disabled={downloading}>
+                    <Download class="w-4 h-4 mr-1" />
+                    {downloading ? 'Downloading…' : 'Download'}
                   </Button>
                   <Button variant="outline" size="sm" onclick={() => selectedCv && handleRegenerate(selectedCv)}>
                     <Sparkles class="w-4 h-4 mr-1" /> Regenerate
@@ -624,8 +560,9 @@
 
                   <!-- Action buttons -->
                   <div class="flex gap-1.5 shrink-0 mr-6">
-                    <Button variant="outline" size="sm" onclick={handlePrintCl}>
-                      <Printer class="w-4 h-4 mr-1" /> Print
+                    <Button variant="outline" size="sm" onclick={handleDownloadCl}>
+                      <Download class="w-4 h-4 mr-1" />
+                      {downloading ? 'Downloading…' : 'Download'}
                     </Button>
                     <Button variant="outline" size="sm" onclick={handleCopyCl}>Copy</Button>
                     <Button variant="destructive" size="sm" onclick={() => selectedCl && handleDeleteCl(selectedCl.id)}>Delete</Button>

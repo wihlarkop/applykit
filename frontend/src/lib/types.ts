@@ -136,6 +136,14 @@ export interface PdfRequest {
   html: string;
 }
 
+export interface CvPdfRequest {
+  profile: ProfileData;
+}
+
+export interface CoverLetterPdfRequest {
+  text: string;
+}
+
 export interface ApiError {
   detail: string;
   code?: string;

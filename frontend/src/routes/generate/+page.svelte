@@ -12,7 +12,7 @@
   import { toastState } from '$lib/toast.svelte';
   import type { ProfileData } from '$lib/types';
   import { errorMessage } from '$lib/utils';
-  import { Download, FileText, Lock, Printer, Sparkles, UserRoundPen } from '@lucide/svelte';
+  import { Download, FileText, Lock, Sparkles, UserRoundPen } from '@lucide/svelte';
   import confetti from 'canvas-confetti';
 
   let { data } = $props();
@@ -72,11 +72,10 @@
   }
 
   async function handleDownloadPdf() {
-    if (!previewEl) return;
+    if (!profile) return;
     downloading = true;
     try {
-      const html = previewEl.innerHTML;
-      const blob = await generateCvPdf({ html });
+      const blob = await generateCvPdf({ profile });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -90,99 +89,6 @@
       downloading = false;
     }
   }
-
-  function handlePrintCv() {
-    if (!profile) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toastState.error('Please allow popups to print');
-      return;
-    }
-    
-    const p = profile;
-    const contactParts = [p.email, p.phone, p.location, p.linkedin, p.github, p.portfolio].filter(Boolean);
-    const contactsHtml = contactParts.map(c => `<span>${c}</span>`).join('<span style="margin:0 8px;color:#6b7280">|</span>');
-    
-    let html = `<div style="font-family:ui-sans-serif,system-ui,sans-serif;font-size:13px;line-height:1.5;color:#000;width:210mm;margin:0 auto;padding:20mm;background:#fff">
-      <div style="text-align:center;margin-bottom:16px">
-        <h1 style="font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 4px">${p.name}</h1>
-        <div style="font-size:12px;color:#6b7280;display:flex;justify-content:center;flex-wrap:wrap;gap:4px 12px;margin-top:4px">${contactsHtml}</div>
-      </div>`;
-    
-    if (p.summary) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Summary</h2>
-        <p style="color:#4b5563;margin:0">${p.summary}</p></section>`;
-    }
-    
-    if (p.work_experience.length) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Experience</h2>`;
-      p.work_experience.forEach(w => {
-        html += `<div style="margin-bottom:12px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">${w.role}</span><span style="font-size:12px;color:#6b7280">${w.start_date} – ${w.end_date ?? 'Present'}</span></div>
-          <div style="font-size:12px;color:#6b7280;margin-bottom:4px">${w.company}</div>
-          <ul style="margin:0;padding-left:16px">${w.bullets.map(b => `<li style="margin-bottom:2px">${b}</li>`).join('')}</ul></div>`;
-      });
-      html += `</section>`;
-    }
-    
-    if (p.education.length) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Education</h2>`;
-      p.education.forEach(e => {
-        html += `<div style="margin-bottom:8px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">${e.degree} in ${e.field}</span><span style="font-size:12px;color:#6b7280">${e.start_date} – ${e.end_date ?? 'Present'}</span></div>
-          <div style="font-size:12px;color:#6b7280">${e.institution}</div></div>`;
-      });
-      html += `</section>`;
-    }
-    
-    if (p.skills.length) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Skills</h2>
-        <p style="color:#4b5563;margin:0">${p.skills.join(' · ')}</p></section>`;
-    }
-    
-    if (p.projects.length) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Projects</h2>`;
-      p.projects.forEach(proj => {
-        html += `<div style="margin-bottom:8px">
-          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-weight:600">${proj.name}</span>${proj.link ? `<a href="${proj.link}" style="font-size:12px;color:#2563eb;text-decoration:none">${proj.link}</a>` : ''}</div>
-          <p style="color:#4b5563;margin:4px 0 0">${proj.description}</p>
-          ${proj.tech_stack.length ? `<p style="font-size:12px;color:#6b7280;margin:2px 0 0">${proj.tech_stack.join(', ')}</p>` : ''}</div>`;
-      });
-      html += `</section>`;
-    }
-    
-    if (p.certifications && p.certifications.length) {
-      html += `<section style="margin-bottom:16px">
-        <h2 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;border-bottom:1px solid #d1d5db;padding-bottom:2px;margin-bottom:8px">Certifications</h2>`;
-      p.certifications.forEach(c => {
-        html += `<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
-          <span>${c.name} — <span style="color:#6b7280">${c.issuer}</span></span>
-          <span style="font-size:12px;color:#6b7280">${c.date}</span></div>`;
-      });
-      html += `</section>`;
-    }
-    
-    html += `</div>`;
-    
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Print CV</title><meta charset="utf-8"><style>
-      @page { size: A4; margin: 0; }
-      @page { @top-left { content: ""; } @top-right { content: ""; } @bottom-left { content: ""; } @bottom-right { content: ""; } }
-      body { margin: 0; padding: 0; background: #fff; }
-      @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
-    </style></head><body>${html}</body></html>`);
-    printWindow.document.close();
-    printWindow.onload = () => {
-      setTimeout(() => { printWindow.focus(); printWindow.print(); printWindow.close(); }, 500);
-    };
-    printWindow.onerror = () => {
-      setTimeout(() => { printWindow.focus(); printWindow.print(); printWindow.close(); }, 500);
-    };
-  }
 </script>
 
 
@@ -193,9 +99,6 @@
   >
     {#snippet actions()}
       {#if profile}
-        <Button variant="outline" size="sm" onclick={handlePrintCv} class="shadow-sm hidden sm:flex">
-          <Printer class="w-4 h-4 mr-2" /> Print
-        </Button>
         <Button variant="outline" size="sm" onclick={handleDownloadPdf} disabled={downloading} class="shadow-sm">
           <Download class="w-4 h-4 mr-2" />
           {downloading ? 'Downloading…' : 'Download PDF'}

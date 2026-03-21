@@ -11,9 +11,12 @@
 	);
 </script>
 
-<button
-	type="button"
+<div
+	role="button"
+	tabindex="0"
+	draggable="false"
 	onclick={onclick}
+	onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') onclick(); }}
 	class="w-full text-left bg-card border border-border rounded-lg p-3 cursor-pointer hover:border-primary/50 transition-colors group"
 	class:border-dashed={!app.linked_cover_letter_id && !app.linked_cv_id}
 >
@@ -47,4 +50,4 @@
 	{#if !app.linked_cover_letter_id && !app.linked_cv_id}
 		<p class="text-[10px] text-muted-foreground/50 pl-4 mt-1 italic">no docs linked</p>
 	{/if}
-</button>
+</div>

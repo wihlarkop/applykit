@@ -1,6 +1,16 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -105,3 +115,29 @@ class AppSetting(Base):
 
     key = Column(String, primary_key=True)
     value = Column(Text, nullable=False)
+
+
+class LlmUsageLog(Base):
+    __tablename__ = "llm_usage_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+
+    operation = Column(String, nullable=False)
+
+    provider = Column(String, nullable=False)
+    model = Column(String, nullable=False)
+
+    prompt_tokens = Column(Integer, nullable=True)
+    completion_tokens = Column(Integer, nullable=True)
+    total_tokens = Column(Integer, nullable=True)
+
+    cost = Column(Float, nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+
+    profile_id = Column(
+        Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True
+    )
+
+    success = Column(Boolean, default=True)
+    error_message = Column(Text, nullable=True)

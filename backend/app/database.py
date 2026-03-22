@@ -16,3 +16,11 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def get_db_context():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

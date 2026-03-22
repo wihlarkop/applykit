@@ -27,7 +27,13 @@ def analyze_fit_endpoint(body: FitAnalysisRequest, db: Session = Depends(get_db)
     profile_json = format_profile_for_llm(profile_data)
 
     try:
-        return analyze_fit(profile_json, body.job_description, provider, api_key)
+        return analyze_fit(
+            profile_json,
+            body.job_description,
+            provider,
+            api_key,
+            profile_id=body.profile_id,
+        )
     except APIKeyNotConfiguredError as e:
         raise HTTPException(
             status_code=400,

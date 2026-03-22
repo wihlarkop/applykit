@@ -1,7 +1,7 @@
 import json
 
 from app.schemas import ParseJobDescriptionResponse
-from app.services.llm import call_llm
+from app.services.llm import call_llm, OPERATION_JOB_PARSING
 
 PARSE_SYSTEM_PROMPT = """\
 You are an expert at extracting structured information from job descriptions.
@@ -36,6 +36,8 @@ def parse_job_description(
         provider=provider,
         api_key=api_key,
         timeout=20,
+        operation=OPERATION_JOB_PARSING,
+        profile_id=None,
     )
     cleaned = (
         raw.strip()

@@ -24,6 +24,10 @@ from app.schemas import (
 from app.services.llm import (
     call_llm,
     stream_llm,
+    OPERATION_CV_GENERATION,
+    OPERATION_COVER_LETTER,
+    OPERATION_SUMMARY_GENERATION,
+    OPERATION_BULLETS_GENERATION,
 )
 from app.services.settings import get_llm_config
 from app.utils import format_profile_for_llm, profile_to_schema
@@ -200,6 +204,8 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
                 system=ATS_SYSTEM_PROMPT,
                 provider=provider,
                 api_key=api_key,
+                operation=OPERATION_CV_GENERATION,
+                profile_id=req.profile_id,
             )
             cleaned = (
                 llm_output.strip()
@@ -263,6 +269,8 @@ async def generate_cover_letter(
             system=COVER_LETTER_SYSTEM_PROMPT,
             provider=provider,
             api_key=api_key,
+            operation=OPERATION_COVER_LETTER,
+            profile_id=req.profile_id,
         ):
             accumulated.append(chunk)
             yield ServerSentEvent(data=str(chunk), event="token")
@@ -335,6 +343,8 @@ async def generate_summary(
             system=SUMMARY_SYSTEM_PROMPT,
             provider=provider,
             api_key=api_key,
+            operation=OPERATION_SUMMARY_GENERATION,
+            profile_id=req.profile_id,
         ):
             yield ServerSentEvent(data=str(chunk), event="token")
     except Exception as e:
@@ -407,7 +417,12 @@ async def generate_bullets(
 
     try:
         async for chunk in stream_llm(
-            user_prompt, system=system, provider=provider, api_key=api_key
+            user_prompt,
+            system=system,
+            provider=provider,
+            api_key=api_key,
+            operation=OPERATION_BULLETS_GENERATION,
+            profile_id=req.profile_id,
         ):
             yield ServerSentEvent(data=str(chunk), event="token")
     except Exception as e:

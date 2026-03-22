@@ -1,7 +1,7 @@
 import json
 
 from app.schemas import FitAnalysisResponse
-from app.services.llm import call_llm
+from app.services.llm import call_llm, OPERATION_FIT_ANALYSIS
 
 FIT_SYSTEM_PROMPT = """\
 You are a career coach analyzing a candidate's fit for a job.
@@ -21,13 +21,22 @@ def analyze_fit(
     job_description: str,
     provider: str,
     api_key: str,
+    profile_id: int | None = None,
 ) -> FitAnalysisResponse:
     user_prompt = (
         f"Profile:\n{profile_json}\n\n"
         f"Job Description:\n{job_description}\n\n"
         "Analyze fit and return JSON."
     )
-    raw = call_llm(user_prompt, system=FIT_SYSTEM_PROMPT, provider=provider, api_key=api_key, timeout=30)
+    raw = call_llm(
+        user_prompt,
+        system=FIT_SYSTEM_PROMPT,
+        provider=provider,
+        api_key=api_key,
+        timeout=30,
+        operation=OPERATION_FIT_ANALYSIS,
+        profile_id=profile_id,
+    )
     cleaned = (
         raw.strip()
         .removeprefix("```json")

@@ -394,3 +394,39 @@ class ApplicationEntry(BaseModel):
 class ApplicationListResponse(BaseModel):
     items: list[ApplicationEntry]
     total: int
+
+
+# --- LLM Usage schemas ---
+
+
+class LlmUsageEntry(BaseModel):
+    id: int
+    created_at: datetime
+    operation: str
+    provider: str
+    model: str
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    total_tokens: int | None
+    cost: float | None
+    latency_ms: int | None
+    profile_id: int | None
+    success: bool
+    error_message: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class LlmUsageListResponse(BaseModel):
+    items: list[LlmUsageEntry]
+    total: int
+    total_tokens: int
+    total_cost: float
+
+
+class LlmUsageFilters(BaseModel):
+    operation: str | None = None
+    profile_id: int | None = None
+    date_from: date | None = None
+    date_to: date | None = None
+    success: bool | None = None

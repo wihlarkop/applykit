@@ -20,6 +20,7 @@ from app.routes import (
     profiles,
     scrape,
     settings,
+    usage,
 )
 
 
@@ -117,6 +118,7 @@ app.include_router(history.router, prefix="/api")
 app.include_router(import_cv.router, prefix="/api")
 app.include_router(scrape.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
+app.include_router(usage.router, prefix="/api")
 
 
 if __name__ == "__main__":

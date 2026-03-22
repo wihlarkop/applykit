@@ -4,7 +4,7 @@
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { profiles } from '$lib/profiles.svelte';
-	import { ArrowRight, FileText, Lock, Mail, Sparkles, User } from '@lucide/svelte';
+	import { ArrowRight, Briefcase, FileText, Lock, Mail, Sparkles, User } from '@lucide/svelte';
 
 	let { data } = $props();
 	const isOnboarded = $derived(data.isOnboarded);
@@ -66,6 +66,26 @@
       step: 4,
       color: 'text-emerald-500',
       bg: 'bg-emerald-500/10'
+    },
+    {
+      href: '/smart-apply',
+      title: 'Smart Apply',
+      description: 'Paste a job URL, auto-parse details, and generate tailored CV + CL.',
+      action: 'Apply Now',
+      icon: Briefcase,
+      step: 5,
+      color: 'text-cyan-500',
+      bg: 'bg-cyan-500/10'
+    },
+    {
+      href: '/tracker',
+      title: 'Application Tracker',
+      description: 'Track your job applications across different stages.',
+      action: 'Track Jobs',
+      icon: Briefcase,
+      step: 6,
+      color: 'text-rose-500',
+      bg: 'bg-rose-500/10'
     },
   ];
     const displayedCards = $derived(
@@ -130,7 +150,7 @@
         <ArrowRight class="w-6 h-6 text-primary" />
         Your Application Workflow
       </h2>
-      <div class="grid gap-6 sm:grid-cols-2 {displayedCards.length === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}">
+      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {#each displayedCards as card}
           {@const isRestricted = !isOnboarded && card.step > 2}
           <Card class="relative overflow-hidden group {restrictedCardClass(isRestricted)} transition-all duration-300 bg-card">

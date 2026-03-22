@@ -95,109 +95,111 @@
     );
   </script>
 
-  <div class="space-y-10 pb-10">
-    <div class="relative overflow-hidden rounded-3xl bg-linear-to-br from-primary/10 via-background to-secondary/10 p-8 sm:p-12 border shadow-sm">
-      <div class="relative z-10 max-w-2xl">
-        <div class="inline-flex items-center rounded-full border bg-background/50 px-3 py-1 text-sm font-medium mb-6 backdrop-blur-sm">
-          <Sparkles class="mr-2 h-4 w-4 text-primary" />
-          AI-Powered Application Toolkit
+  <div class="h-[calc(100dvh-2.5rem)] flex flex-col gap-6 overflow-hidden">
+    <!-- Restored Premium Hero Section -->
+    <div class="relative overflow-hidden rounded-3xl bg-linear-to-br from-primary/10 via-background to-secondary/10 p-8 sm:p-10 border shadow-sm flex-shrink-0">
+      <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div class="max-w-2xl text-left">
+          <div class="inline-flex items-center rounded-full border bg-background/50 px-3 py-1 text-xs font-semibold mb-6 backdrop-blur-sm uppercase tracking-widest text-muted-foreground/80">
+            <Sparkles class="mr-2 h-3.5 w-3.5 text-primary" />
+            AI Application Toolkit
+          </div>
+          <h1 class="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight mb-4 text-foreground leading-[1.1]">
+            {#if isOnboarded === undefined}
+              <Skeleton class="h-12 w-80 rounded-xl" />
+            {:else if isOnboarded && (profile?.name || profile?.label)}
+              Ready for the next role, <span class="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-500">{profile.name || profile.label}</span>?
+            {:else}
+              Welcome to <span class="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-500">ApplyKit</span>
+            {/if}
+          </h1>
+          <p class="text-base md:text-lg text-muted-foreground leading-relaxed max-w-xl">
+            {#if isOnboarded}
+              Your profile is ready. Use our AI tools to tailor your application for any job in seconds.
+            {:else}
+              Your self-hosted, local-first CV and cover letter generator. Keep your data private.
+            {/if}
+          </p>
         </div>
-        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight mb-4 text-foreground">
-          {#if isOnboarded === undefined}
-            <Skeleton class="h-12 w-64 rounded-xl" />
-          {:else if isOnboarded && (profile?.name || profile?.label)}
-            Ready for the next role, <span class="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-500">{profile.name || profile.label}</span>?
-          {:else}
-            Welcome to <span class="text-transparent bg-clip-text bg-linear-to-r from-primary to-purple-500">ApplyKit</span>
-          {/if}
-        </h1>
-        <p class="text-lg text-muted-foreground mb-8 leading-relaxed">
-          {#if isOnboarded}
-            Your profile is ready. Use our AI tools to tailor your application for any job in seconds.
-          {:else}
-            Your self-hosted, local-first CV and cover letter generator.
-            Keep your data private while leveraging AI to land your dream job.
-          {/if}
-        </p>
+        
         <div class="flex flex-wrap gap-4">
           {#if !isOnboarded}
-            <Button href="/onboarding" size="lg" class="rounded-full shadow-md">
+            <Button href="/onboarding" size="lg" class="rounded-full shadow-lg px-8 py-6 text-base font-bold">
               Get Started
-              <ArrowRight class="ml-2 h-4 w-4" />
-            </Button>
-            <Button href="/onboarding" variant="outline" size="lg" class="rounded-full bg-background/50 backdrop-blur-sm">
-              Import Existing CV
+              <ArrowRight class="ml-2 h-5 w-5" />
             </Button>
           {:else}
-            <Button href="/generate" size="lg" class="rounded-full shadow-md">
-              <Sparkles class="mr-2 h-4 w-4" />
-              Generate ATS CV
-            </Button>
-            <Button href="/cover-letter" variant="outline" size="lg" class="rounded-full bg-background/50 backdrop-blur-sm">
-              <Mail class="mr-2 h-4 w-4" />
-              Write Cover Letter
+            <Button href="/generate" size="lg" class="rounded-full shadow-lg px-8 py-6 text-base font-bold">
+              <Sparkles class="mr-2 h-5 w-5" />
+              Generate CV
             </Button>
           {/if}
         </div>
       </div>
       <!-- Decorative background elements -->
-      <div class="absolute -right-20 -top-20 h-75 w-75 rounded-full bg-primary/20 blur-[80px] pointer-events-none"></div>
-      <div class="absolute -bottom-32 left-1/2 h-62.5 w-100 -translate-x-1/2 rounded-full bg-purple-500/20 blur-[80px] pointer-events-none"></div>
+      <div class="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-primary/15 blur-[100px] pointer-events-none"></div>
+      <div class="absolute -bottom-32 left-1/2 h-60 w-96 -translate-x-1/2 rounded-full bg-purple-500/10 blur-[100px] pointer-events-none"></div>
     </div>
 
-    <div>
-      <h2 class="text-2xl font-bold tracking-tight mb-6 flex items-center gap-2">
-        <ArrowRight class="w-6 h-6 text-primary" />
-        Your Application Workflow
+    <!-- Navigation Section -->
+    <div class="flex-1 flex flex-col min-h-0 min-w-0">
+      <h2 class="text-base font-semibold tracking-tight mb-3 flex items-center gap-2 flex-shrink-0">
+        <ArrowRight class="w-4 h-4 text-primary" />
+        Quick Navigation
       </h2>
-      <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 h-fit pb-2">
         {#each displayedCards as card}
           {@const isRestricted = !isOnboarded && card.step > 2}
-          <Card class="relative overflow-hidden group {restrictedCardClass(isRestricted)} transition-all duration-300 bg-card">
-            <div class="absolute top-0 right-0 w-24 h-24 bg-linear-to-b from-primary/5 to-transparent rounded-bl-full pointer-events-none z-0"></div>
-
-            <CardHeader class="relative z-10 pb-4">
-              <div class="flex items-start justify-between mb-4">
-                <div class="flex items-center justify-center w-12 h-12 rounded-xl {card.bg} {card.color} shadow-sm {restrictedIconClass(isRestricted)} transition-transform duration-300">
-                  <card.icon class="w-6 h-6" />
+          <a 
+            href={isRestricted ? undefined : card.href}
+            class="relative flex flex-col group {restrictedCardClass(isRestricted)} transition-all duration-400 
+                   bg-card/30 backdrop-blur-lg border border-white/5 rounded-xl overflow-hidden h-44
+                   hover:bg-card/50 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5
+                   {isRestricted ? 'cursor-not-allowed' : 'cursor-pointer'}"
+          >
+            <div class="absolute top-0 right-0 w-16 h-16 bg-linear-to-b from-primary/10 to-transparent rounded-bl-full pointer-events-none z-0 opacity-40 group-hover:opacity-100 transition-opacity"></div>
+            
+            <div class="p-4 flex flex-col h-full relative z-10">
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center justify-center w-9 h-9 rounded-lg {card.bg} {card.color} shadow-sm transition-transform duration-400 group-hover:scale-110">
+                  <card.icon class="w-4.5 h-4.5" />
                 </div>
-                <span class="text-4xl font-black text-muted/30 group-hover:text-primary/10 transition-colors">
+                <span class="text-2xl font-black text-muted/15 group-hover:text-primary/10 transition-colors duration-400">
                   {card.displayStep}
                 </span>
               </div>
-            <CardTitle class="text-xl mb-1 flex items-center gap-2">
-              {card.title}
-              {#if isRestricted}
-                <Lock class="w-4 h-4 text-muted-foreground" />
+              
+              <div class="flex-1 min-w-0">
+                <h3 class="text-base font-bold mb-1 truncate group-hover:text-primary transition-colors">
+                  {card.title}
+                  {#if isRestricted}
+                    <Lock class="w-3 h-3 text-muted-foreground inline mb-0.5" />
+                  {/if}
+                </h3>
+                <p class="text-[11px] text-muted-foreground leading-relaxed line-clamp-3">
+                  {#if isRestricted}
+                    Complete setup first to unlock this feature.
+                  {:else}
+                    {card.description}
+                  {/if}
+                </p>
+              </div>
+
+              {#if isOnboarded && isActiveEmpty && (card.href === '/generate' || card.href === '/cover-letter')}
+                <div class="mt-2 text-[10px] text-yellow-500 font-medium flex items-center gap-1">
+                  <span>⚠</span> Profile Empty
+                </div>
               {/if}
-            </CardTitle>
-            <CardDescription class="text-sm line-clamp-2 min-h-10">
-              {#if isRestricted}
-                Complete your profile setup first to unlock this feature.
-              {:else}
-                {card.description}
+              
+              {#if !isRestricted}
+                <div class="mt-2 text-[10px] font-bold text-primary flex items-center gap-1 opacity-0 group-hover:opacity-100 transform translate-x-[-4px] group-hover:translate-x-0 transition-all duration-500">
+                  Go to {card.title} <ArrowRight class="w-3 h-3" />
+                </div>
               {/if}
-            </CardDescription>
-            {#if isOnboarded && isActiveEmpty && (card.href === '/generate' || card.href === '/cover-letter')}
-              <span class="inline-flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400 font-medium mt-1"><span>⚠</span> Profile is empty</span>
-            {/if}
-          </CardHeader>
-          <CardContent class="relative z-10">
-            <Button
-              href={isRestricted ? undefined : card.href}
-              variant="outline"
-              disabled={isRestricted}
-              class="w-full transition-all duration-300 {restrictedBtnClass(isRestricted)}"
-            >
-              {#if isRestricted}
-                Locked
-              {:else}
-                {card.action}
-              {/if}
-            </Button>
-          </CardContent>
-        </Card>
-      {/each}
+            </div>
+          </a>
+        {/each}
+      </div>
     </div>
   </div>
-</div>

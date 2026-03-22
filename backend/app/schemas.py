@@ -411,7 +411,7 @@ class LlmUsageEntry(BaseModel):
     completion_tokens: int | None
     total_tokens: int | None
     cost: float | None
-    latency_ms: int | None
+    latency_ms: float | None
     profile_id: int | None
     success: bool
     error_message: str | None

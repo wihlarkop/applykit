@@ -70,6 +70,25 @@ def call_llm(
         cost = getattr(response, "cost", None)
         latency_ms = getattr(response, "_response_ms", None)
 
+        # DEBUG: Print all response attributes
+        print(f"[DEBUG] litellm response type: {type(response)}")
+        print(
+            f"[DEBUG] response attributes: {[a for a in dir(response) if not a.startswith('_')]}"
+        )
+        print(f"[DEBUG] usage: {usage}")
+        print(f"[DEBUG] cost: {cost}")
+        print(f"[DEBUG] latency_ms: {latency_ms}")
+
+        # Try calculating cost manually if not set
+        if cost is None and usage is not None:
+            try:
+                cost = litellm.completion_cost(
+                    completion_response=response, model=provider
+                )
+                print(f"[DEBUG] calculated cost: {cost}")
+            except Exception as e:
+                print(f"[DEBUG] cost calculation failed: {e}")
+
         if operation:
             threading.Thread(
                 target=_log_usage_thread,

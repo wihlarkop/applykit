@@ -34,7 +34,7 @@ PROVIDER_LABELS = {
 }
 
 
-def _mask_api_key(key: str) -> str:
+def _mask_api_key(key: str) -> str | None:
     """Return a masked version of an API key for display."""
     if not key:
         return None
@@ -81,6 +81,7 @@ def get_integrations(db: Session = Depends(get_db)):
                 is_active=is_active,
                 api_key_configured=bool(api_key),
                 masked_api_key=_mask_api_key(api_key) if api_key else None,
+                api_key=api_key if api_key else None,
                 current_model=current_model,
             )
         )

@@ -7,10 +7,11 @@
   import { errorMessage } from '$lib/utils';
   import { CheckCircle, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
 
-  let { open = $bindable(false), initialProviderId = '', initialModel = '' }: {
+  let { open = $bindable(false), initialProviderId = '', initialModel = '', initialApiKey = '' }: {
     open: boolean;
     initialProviderId?: string;
     initialModel?: string;
+    initialApiKey?: string;
   } = $props();
 
   let providers: ProviderInfo[] = $state([]);
@@ -57,7 +58,10 @@
         selectedProviderId = providers[0].id;
         selectedModel = providers[0].models[0]?.value ?? '';
       }
-      // Don't pre-fill API key for security — user must re-enter to change
+      // Pre-fill API key if provided (from edit button)
+      if (initialApiKey) {
+        apiKey = initialApiKey;
+      }
     } catch {
       saveError = 'Failed to load settings.';
     } finally {

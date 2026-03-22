@@ -34,6 +34,15 @@ PROVIDER_LABELS = {
 }
 
 
+def _mask_api_key(key: str) -> str:
+    """Return a masked version of an API key for display."""
+    if not key:
+        return None
+    if len(key) <= 8:
+        return "•" * len(key)
+    return key[:4] + "•" * (len(key) - 8) + key[-4:]
+
+
 @router.get("/settings", response_model=SettingsResponse)
 def get_settings(db: Session = Depends(get_db)):
     db_model = get_setting(db, "llm_provider")
@@ -71,6 +80,7 @@ def get_integrations(db: Session = Depends(get_db)):
                 label=PROVIDER_LABELS.get(provider_id, provider_id),
                 is_active=is_active,
                 api_key_configured=bool(api_key),
+                masked_api_key=_mask_api_key(api_key) if api_key else None,
                 current_model=current_model,
             )
         )

@@ -141,6 +141,9 @@
                 <CircleCheck class="w-3 h-3 text-green-500 shrink-0" />
                 <span class="text-xs text-muted-foreground">
                   Connected
+                  {#if integration.masked_api_key}
+                    · <code class="text-xs bg-muted px-1 rounded">{integration.masked_api_key}</code>
+                  {/if}
                   {#if integration.current_model}
                     · <span class="font-mono">{integration.current_model.split('/').pop()}</span>
                   {/if}

@@ -255,6 +255,7 @@ class IntegrationInfo(BaseModel):
     label: str
     is_active: bool
     api_key_configured: bool
+    masked_api_key: str | None
     current_model: str | None
 
 

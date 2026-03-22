@@ -247,6 +247,7 @@ export interface IntegrationInfo {
   label: string;
   is_active: boolean;
   api_key_configured: boolean;
+  masked_api_key: string | null;
   current_model: string | null;
 }
 

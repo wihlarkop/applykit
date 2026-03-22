@@ -1,11 +1,11 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
-  import { activateProvider, getIntegrations } from '$lib/api';
+  import { activateProvider, getIntegrations, getLlmUsageStats } from '$lib/api';
   import SettingsModal from '$lib/components/SettingsModal.svelte';
   import { toastState } from '$lib/toast.svelte';
-  import type { IntegrationInfo } from '$lib/types';
-  import { ChevronRight, CircleAlert, CircleCheck, Pencil, Plus, Settings, Zap } from '@lucide/svelte';
+  import type { IntegrationInfo, LlmUsageStats } from '$lib/types';
+  import { Calendar, ChevronRight, CircleAlert, CircleCheck, Cpu, Pencil, Plus, Settings, Zap } from '@lucide/svelte';
 
   let modalOpen = $state(false);
   let modalProviderId = $state('');
@@ -14,6 +14,7 @@
   let integrations: IntegrationInfo[] = $state([]);
   let loading = $state(true);
   let activating = $state('');
+  let usageStats: LlmUsageStats | null = $state(null);
 
   const PROVIDER_COLORS: Record<string, string> = {
     gemini: '#8b5cf6',
@@ -29,7 +30,7 @@
     ollama: '⬢',
   };
 
-  $effect(() => { loadIntegrations(); });
+  $effect(() => { loadIntegrations(); loadUsageStats(); });
 
   async function loadIntegrations() {
     loading = true;
@@ -38,6 +39,14 @@
       integrations = res.integrations;
     } finally {
       loading = false;
+    }
+  }
+
+  async function loadUsageStats() {
+    try {
+      usageStats = await getLlmUsageStats();
+    } catch {
+      // Silently fail - usage stats is not critical
     }
   }
 
@@ -109,6 +118,32 @@
         <p class="text-sm text-yellow-700 dark:text-yellow-400">No active model — configure a provider to enable AI features.</p>
       </div>
     {/if}
+  {/if}
+
+  <!-- LLM Usage Stats -->
+  {#if usageStats}
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-medium text-muted-foreground uppercase tracking-wide">LLM Usage</h2>
+        <a href="/usage" class="text-xs text-primary hover:underline">View details →</a>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+          <Calendar class="w-4 h-4 text-muted-foreground shrink-0" />
+          <div>
+            <p class="text-xs text-muted-foreground">Today</p>
+            <p class="font-mono font-medium">{usageStats.today.calls} calls · ${usageStats.today.cost.toFixed(4)}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+          <Cpu class="w-4 h-4 text-muted-foreground shrink-0" />
+          <div>
+            <p class="text-xs text-muted-foreground">This Week</p>
+            <p class="font-mono font-medium">{usageStats.this_week.calls} calls · ${usageStats.this_week.cost.toFixed(4)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
   {/if}
 
   <div class="space-y-3">

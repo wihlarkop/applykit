@@ -339,3 +339,45 @@ export interface ApplicationFilters {
   match_max?: number;
   sort?: 'date_desc' | 'date_asc';
 }
+
+// LLM Usage types
+export interface LlmUsageEntry {
+  id: number;
+  created_at: string;
+  operation: string;
+  provider: string;
+  model: string;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+  cost: number | null;
+  latency_ms: number | null;
+  profile_id: number | null;
+  success: boolean;
+  error_message: string | null;
+}
+
+export interface LlmUsageListResponse {
+  items: LlmUsageEntry[];
+  total: number;
+  total_tokens: number;
+  total_cost: number;
+}
+
+export interface LlmUsageStats {
+  today: { calls: number; tokens: number; cost: number };
+  this_week: { calls: number; tokens: number; cost: number };
+  by_operation: Array<{
+    operation: string;
+    count: number;
+    tokens: number;
+    cost: number;
+  }>;
+}
+
+export interface LlmUsageFilters {
+  date_from?: string;
+  date_to?: string;
+  limit?: number;
+  offset?: number;
+}

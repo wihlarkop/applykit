@@ -19,6 +19,9 @@ import type {
     GeneratedCoverLetterEntry,
     GeneratedCoverLetterListResponse,
     IntegrationsResponse,
+    LlmUsageFilters,
+    LlmUsageListResponse,
+    LlmUsageStats,
     ModelsResponse,
     OnboardingStatusResponse,
     PdfRequest,
@@ -298,3 +301,15 @@ export const updateApplication = (id: number, data: UpdateApplicationRequest) =>
 
 export const deleteApplication = (id: number) =>
     request<{ deleted: number }>(`/applications/${id}`, { method: 'DELETE' });
+
+// ---------------------------------------------------------------------------
+// LLM Usage
+// ---------------------------------------------------------------------------
+
+export const getLlmUsage = (filters?: LlmUsageFilters) => {
+    const params = filters ? buildQs(filters) : '';
+    return request<LlmUsageListResponse>(`/usage${params}`);
+};
+
+export const getLlmUsageStats = () =>
+    request<LlmUsageStats>('/usage/stats', { method: 'GET' });

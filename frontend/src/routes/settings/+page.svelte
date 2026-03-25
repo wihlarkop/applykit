@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
-  import { activateProvider, getIntegrations } from '$lib/api';
+  import { activateProvider, disconnectProvider, getIntegrations } from '$lib/api';
   import SettingsModal from '$lib/components/SettingsModal.svelte';
   import { toastState } from '$lib/toast.svelte';
   import type { IntegrationInfo } from '$lib/types';
@@ -15,6 +15,8 @@
   let loading = $state(true);
   let activating = $state('');
   let confirmingActivate = $state('');
+  let disconnecting = $state('');
+  let confirmingDisconnect = $state('');
 
   const PROVIDER_COLORS: Record<string, string> = {
     gemini: '#8b5cf6',
@@ -62,6 +64,21 @@
     } finally {
       activating = '';
       confirmingActivate = '';
+    }
+  }
+
+  async function handleDisconnect(providerId: string) {
+    disconnecting = providerId;
+    try {
+      const res = await disconnectProvider(providerId);
+      integrations = res.integrations;
+      await invalidateAll();
+      toastState.success('Provider disconnected.');
+    } catch {
+      toastState.error('Failed to disconnect provider.');
+    } finally {
+      disconnecting = '';
+      confirmingDisconnect = '';
     }
   }
 
@@ -177,6 +194,30 @@
                 >
                   <Zap class="w-3 h-3" />
                   Set Active
+                </button>
+              {/if}
+            {/if}
+            {#if integration.api_key_configured && !integration.is_active && integration.id !== 'ollama'}
+              {#if confirmingDisconnect === integration.id}
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs text-muted-foreground">Remove key?</span>
+                  <button
+                    onclick={() => handleDisconnect(integration.id)}
+                    disabled={disconnecting === integration.id}
+                    class="px-2.5 py-1 rounded-md text-xs font-semibold bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
+                  >Yes</button>
+                  <button
+                    onclick={() => confirmingDisconnect = ''}
+                    class="px-2.5 py-1 rounded-md text-xs border border-border hover:bg-accent transition-colors"
+                  >No</button>
+                </div>
+              {:else}
+                <button
+                  onclick={() => confirmingDisconnect = integration.id}
+                  disabled={disconnecting === integration.id}
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
+                >
+                  Remove
                 </button>
               {/if}
             {/if}

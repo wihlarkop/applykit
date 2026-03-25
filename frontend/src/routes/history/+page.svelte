@@ -54,6 +54,8 @@
 	let selectedClIds = $state<Set<number>>(new Set());
 	let selectedCvIds = $state<Set<number>>(new Set());
 	let confirmBulkDelete = $state(false);
+	let confirmDeleteClId = $state<number | null>(null);
+	let confirmDeleteCvId = $state<number | null>(null);
 
 	const STATUS_PIPELINE = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
 		value,
@@ -353,7 +355,7 @@
                   <Button
                     variant="destructive"
                     size="sm"
-                    onclick={() => selectedCv && handleDeleteCv(selectedCv.id)}
+                    onclick={() => selectedCv && (confirmDeleteCvId = selectedCv.id)}
                   >
                     Delete
                   </Button>
@@ -472,7 +474,7 @@
                 onDownload={handleDownloadCl}
                 {downloading}
                 onCopy={handleCopyCl}
-                onDelete={() => selectedCl && handleDeleteCl(selectedCl.id)}
+                onDelete={() => selectedCl && (confirmDeleteClId = selectedCl.id)}
               />
 
               <!-- Tab bar (only when fit_analysis available) -->
@@ -513,6 +515,34 @@
     {/if}
 
   {/if}
+
+{#if confirmDeleteCvId !== null}
+  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
+    <span class="text-sm">Delete this CV?</span>
+    <button
+      onclick={() => { handleDeleteCv(confirmDeleteCvId!); confirmDeleteCvId = null; }}
+      class="text-xs font-semibold text-destructive hover:underline"
+    >Delete</button>
+    <button
+      onclick={() => confirmDeleteCvId = null}
+      class="text-xs text-muted-foreground hover:underline"
+    >Cancel</button>
+  </div>
+{/if}
+
+{#if confirmDeleteClId !== null}
+  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
+    <span class="text-sm">Delete this cover letter?</span>
+    <button
+      onclick={() => { handleDeleteCl(confirmDeleteClId!); confirmDeleteClId = null; }}
+      class="text-xs font-semibold text-destructive hover:underline"
+    >Delete</button>
+    <button
+      onclick={() => confirmDeleteClId = null}
+      class="text-xs text-muted-foreground hover:underline"
+    >Cancel</button>
+  </div>
+{/if}
 </div>
 
 <style>

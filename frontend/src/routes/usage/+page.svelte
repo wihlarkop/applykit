@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getLlmUsage, getLlmUsageStats } from '$lib/api';
 	import type { LlmUsageEntry, LlmUsageStats } from '$lib/types';
-	import { Calendar, Clock, Coins, Cpu, ChevronLeft, ChevronRight } from '@lucide/svelte';
+	import { ArrowLeft, Calendar, Clock, Coins, Cpu, ChevronRight } from '@lucide/svelte';
 
 	let stats: LlmUsageStats | null = $state(null);
 	let usageData: { items: LlmUsageEntry[]; total: number; total_tokens: number; total_cost: number } | null = $state(null);
@@ -80,9 +80,14 @@
 
 <div class="max-w-6xl mx-auto w-full px-4 py-8 space-y-6">
 	<div class="flex items-center justify-between">
-		<div>
-			<h1 class="text-2xl font-bold">LLM Usage</h1>
-			<p class="text-sm text-muted-foreground">Track your AI API usage and costs</p>
+		<div class="flex items-center gap-3">
+			<a href="/settings" class="flex items-center justify-center w-9 h-9 rounded-lg border border-border hover:bg-muted transition-colors">
+				<ArrowLeft class="w-4 h-4" />
+			</a>
+			<div>
+				<h1 class="text-2xl font-bold">LLM Usage</h1>
+				<p class="text-sm text-muted-foreground">Track your AI API usage and costs</p>
+			</div>
 		</div>
 	</div>
 

@@ -87,8 +87,8 @@
           </div>
         {/if}
 
-        <!-- Gaps & Red flags -->
-        {#if fitResult.cons.length > 0 || fitResult.red_flags.length > 0}
+        <!-- Gaps -->
+        {#if fitResult.cons.length > 0}
           <div class="rounded-lg p-3 bg-red-500/8 dark:bg-red-500/10 border border-red-500/20 space-y-2">
             <p class="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wide flex items-center gap-1.5">
               <AlertTriangle class="w-3 h-3" /> Gaps
@@ -100,15 +100,27 @@
                   <span>{con}</span>
                 </li>
               {/each}
-              {#each fitResult.red_flags as flag}
-                <li class="text-xs text-red-600/80 flex gap-1.5 leading-relaxed">
-                  <span class="shrink-0 mt-0.5 font-bold">·</span>
-                  <span>{flag}</span>
-                </li>
-              {/each}
             </ul>
           </div>
         {/if}
+      </div>
+    {/if}
+
+    <!-- Red Flags -->
+    {#if fitResult.red_flags && fitResult.red_flags.length > 0}
+      <div class="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 p-3 space-y-1.5">
+        <div class="flex items-center gap-1.5 mb-2">
+          <AlertTriangle class="w-3.5 h-3.5 text-red-500 shrink-0" />
+          <span class="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wide">Red Flags</span>
+        </div>
+        <ul class="space-y-1">
+          {#each fitResult.red_flags as flag}
+            <li class="text-xs text-red-700 dark:text-red-300 flex gap-1.5 leading-relaxed">
+              <span class="shrink-0 mt-0.5">⚠</span>
+              <span>{flag}</span>
+            </li>
+          {/each}
+        </ul>
       </div>
     {/if}
 

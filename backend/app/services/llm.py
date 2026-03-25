@@ -1,17 +1,16 @@
 """LLM service: synchronous and streaming calls with usage logging."""
 
-from typing import AsyncGenerator
-import asyncio
 import re
 import threading
 import time
+from collections.abc import AsyncGenerator
 
 import litellm
 
+from app.database import get_db_context
 from app.exceptions import RateLimitError
 from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError
 from app.models import LlmUsageLog
-from app.database import get_db_context
 
 # Operation types for LLM usage tracking
 OPERATION_CV_GENERATION = "cv_generation"
@@ -25,6 +24,7 @@ OPERATION_BULLETS_GENERATION = "bullets_generation"
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _prepare_messages(prompt: str, system: str | None = None) -> list[dict]:
     """Build the messages list from a user prompt and optional system prompt."""
@@ -86,6 +86,7 @@ def clean_llm_json(raw: str) -> str:
 # ---------------------------------------------------------------------------
 # Usage logging (background)
 # ---------------------------------------------------------------------------
+
 
 def _log_usage_thread(
     operation: str,
@@ -159,6 +160,7 @@ def _log_usage_background(
 # Synchronous LLM call
 # ---------------------------------------------------------------------------
 
+
 def call_llm(
     prompt: str,
     system: str | None = None,
@@ -228,6 +230,7 @@ def call_llm(
 # ---------------------------------------------------------------------------
 # Async streaming LLM call
 # ---------------------------------------------------------------------------
+
 
 async def stream_llm(
     prompt: str,

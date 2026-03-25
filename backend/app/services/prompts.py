@@ -48,7 +48,7 @@ RULES:
 - Use the candidate's name naturally within the letter only if it fits.
 - If extra context / emphasis instructions are provided, incorporate them.
 - Return plain text only. No markdown formatting.
-- Use only standard ASCII punctuation. Do not use en-dashes (–), em-dashes (—), curly/smart quotes (' ' " "), or ellipsis (…). Use a plain hyphen (-) where a dash is needed and straight quotes (') otherwise."""
+- Use only standard ASCII punctuation. Do not use en-dashes (-), em-dashes (-), curly/smart quotes (' ' " "), or ellipsis (...). Use a plain hyphen (-) where a dash is needed and straight quotes (') otherwise."""
 
 
 # --- Summary Generation ---

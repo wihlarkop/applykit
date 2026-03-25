@@ -23,13 +23,13 @@ from app.schemas import (
     ProfileData,
 )
 from app.services.llm import (
+    OPERATION_BULLETS_GENERATION,
+    OPERATION_COVER_LETTER,
+    OPERATION_CV_GENERATION,
+    OPERATION_SUMMARY_GENERATION,
     call_llm,
     clean_llm_json,
     stream_llm,
-    OPERATION_CV_GENERATION,
-    OPERATION_COVER_LETTER,
-    OPERATION_SUMMARY_GENERATION,
-    OPERATION_BULLETS_GENERATION,
 )
 from app.services.prompts import (
     ATS_SYSTEM_PROMPT,
@@ -52,6 +52,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # PDF helpers
 # ---------------------------------------------------------------------------
+
 
 def _render_cv_pdf(profile_data: dict) -> Response:
     try:
@@ -95,6 +96,7 @@ def _handle_stream_error(e: Exception) -> ServerSentEvent:
 # Prompt builders
 # ---------------------------------------------------------------------------
 
+
 def _build_cover_letter_prompt(p: ProfileData, req: CoverLetterRequest) -> str:
     """Build a structured user prompt for cover letter generation."""
     parts = [format_profile_for_llm(p)]
@@ -121,6 +123,7 @@ def _build_cover_letter_prompt(p: ProfileData, req: CoverLetterRequest) -> str:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.post("/generate/cv", response_model=GenerateCvResponse)
 def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):

@@ -1,6 +1,7 @@
 """Shared HTTP client via async context manager."""
 
 from collections.abc import AsyncGenerator
+
 import httpx
 
 

@@ -1,7 +1,7 @@
 import json
 
 from app.schemas import ParseJobDescriptionResponse
-from app.services.llm import call_llm, clean_llm_json, OPERATION_JOB_PARSING
+from app.services.llm import OPERATION_JOB_PARSING, call_llm, clean_llm_json
 from app.services.prompts import PARSE_JD_SYSTEM_PROMPT, PARSE_JD_USER_TEMPLATE
 
 

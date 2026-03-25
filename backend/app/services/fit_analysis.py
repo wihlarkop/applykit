@@ -1,7 +1,7 @@
 import json
 
 from app.schemas import FitAnalysisResponse
-from app.services.llm import call_llm, clean_llm_json, OPERATION_FIT_ANALYSIS
+from app.services.llm import OPERATION_FIT_ANALYSIS, call_llm, clean_llm_json
 from app.services.prompts import FIT_SYSTEM_PROMPT
 
 

@@ -164,7 +164,7 @@
           <a 
             href={isRestricted ? undefined : card.href}
             class="relative flex flex-col group {restrictedCardClass(isRestricted)} transition-all duration-400 
-                   bg-card/30 backdrop-blur-lg border border-white/5 rounded-xl overflow-hidden h-44
+                   bg-card/30 backdrop-blur-lg border border-white/5 rounded-xl overflow-hidden h-48 sm:h-44
                    hover:bg-card/50 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5
                    {isRestricted ? 'cursor-not-allowed' : 'cursor-pointer'}"
           >
@@ -181,13 +181,13 @@
               </div>
               
               <div class="flex-1 min-w-0">
-                <h3 class="text-base font-bold mb-1 truncate group-hover:text-primary transition-colors">
+                <h3 class="text-sm sm:text-base font-bold mb-1 line-clamp-1 group-hover:text-primary transition-colors">
                   {card.title}
                   {#if isRestricted}
                     <Lock class="w-3 h-3 text-muted-foreground inline mb-0.5" />
                   {/if}
                 </h3>
-                <p class="text-[11px] text-muted-foreground leading-relaxed line-clamp-3">
+                <p class="text-[10px] sm:text-[11px] text-muted-foreground leading-relaxed line-clamp-2 sm:line-clamp-3">
                   {#if isRestricted}
                     Complete setup first to unlock this feature.
                   {:else}

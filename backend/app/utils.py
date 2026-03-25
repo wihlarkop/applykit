@@ -89,4 +89,3 @@ def batch_load_profiles(entries: list, db: Session) -> dict[int, Profile]:
     if not ids:
         return {}
     return {p.id: p for p in db.query(Profile).filter(Profile.id.in_(ids)).all()}
-

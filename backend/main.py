@@ -29,13 +29,7 @@ _settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: create shared HTTP client
-    from app.http_client import init_http_client, close_http_client
-
-    app.state.http_client = init_http_client()
     yield
-    # Shutdown: close shared HTTP client
-    await close_http_client()
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:

@@ -1,8 +1,13 @@
 # ApplyKit
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.12-blue)](https://python.org)
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-2-orange)](https://kit.svelte.dev)
 
-Self-hosted, local-first CV and cover letter generator powered by AI. Your data stays on your machine — no cloud, no account, no subscription.
+**Self-hosted, local-first CV and cover letter generator powered by AI.**
+Your data stays on your machine — no cloud, no account, no subscription.
+
+> ⚠️ **Self-hosted only.** ApplyKit is designed to run locally or on your own server. It has no authentication — do not expose it to the public internet without adding your own auth layer.
 
 ---
 
@@ -13,13 +18,14 @@ Self-hosted, local-first CV and cover letter generator powered by AI. Your data 
 - **AI cover letter generation** — writes a tailored cover letter from your profile + job description in seconds
 - **CV import** — paste or upload an existing PDF/DOCX and AI extracts your profile automatically
 - **Job URL scraper** — paste a job posting URL and AI extracts the description
-- **Fit analysis** — see how well your profile matches a job description with match score and gap analysis
-- **Job application tracker** — track your applications through Applied → Interviewing → Offer → Rejected stages
-- **History** — every generated CV and cover letter is saved and browsable, filterable by profile
+- **Fit analysis** — see how well your profile matches a job description with match score, strengths, gaps, and red flags
+- **Smart Apply** — paste a URL, auto-parse job details, and generate a tailored CV + cover letter in one flow
+- **Job application tracker** — Kanban board for tracking applications through Applied → Interviewing → Offer → Rejected
+- **History** — every generated CV and cover letter is saved, browsable, and filterable by profile
 - **PDF export** — download as PDF or use browser print (A4 format)
-- **LLM-agnostic** — works with Gemini, OpenAI, Anthropic, Mistral, or any local model via Ollama
+- **LLM-agnostic** — works with Gemini, OpenAI, Anthropic, or any local model via Ollama
 - **Works without an API key** — CV generation falls back to your raw profile data if no LLM is configured
-- **Dark mode** — deep night theme with high-contrast accessibility variants
+- **Dark mode** — full dark theme support
 
 ---
 
@@ -44,8 +50,8 @@ Browser (localhost:5173)
   - ATS CV enhancement (LLM)
   - Cover letter generation (LLM)
   - Fit score analysis (LLM)
-  - Job URL scraping (crawl4ai)
-   - PDF export (WeasyPrint)
+  - Job URL scraping (Jina + Crawl4AI)
+  - PDF export (WeasyPrint)
   - Generation history
        │
        ▼
@@ -70,55 +76,52 @@ Browser (localhost:5173)
 
 ---
 
-## Smart Apply - Supported Job Boards
-
-Smart Apply can automatically extract job details from various job posting platforms:
-
-### ATS Platforms with API Support (Fastest, Most Accurate)
-
-| Platform | Status | Extracted Fields |
-|----------|--------|------------------|
-| Greenhouse | ✅ Supported | Company, Role, Location |
-| Lever | ✅ Supported | Company, Role, Location |
-| Ashby | ✅ Supported | Company, Role, Location |
-| JazzHR | 📋 Planned | TBD |
-| BambooHR | 📋 Planned | TBD |
-| Workday | 📋 Planned | Requires browser automation (complex) |
-
-### Generic Websites
-
-For job boards without API access, Smart Apply uses Jina to scrape the page content and LLM to extract structured fields. This works on most websites.
-
-### How Smart Apply Works
-
-1. Paste a job URL → Smart Apply detects the platform
-2. For Greenhouse/Lever/Ashby → Direct API extraction (fastest, most accurate)
-3. For other sites → Jina scrape + LLM field extraction
-4. For JS-heavy sites → Crawl4AI browser automation fallback
-
----
-
 ## Prerequisites
 
-- [uv](https://docs.astral.sh/uv/) — Python package manager (`pip install uv` or see docs)
-- [Bun](https://bun.sh/) — JavaScript runtime (`curl -fsSL https://bun.sh/install | bash`)
+- [uv](https://docs.astral.sh/uv/) — Python package manager
+- [Bun](https://bun.sh/) — JavaScript runtime
 - **WeasyPrint system dependencies** (for PDF generation):
   - Ubuntu/Debian: `apt-get install libcairo2 libpango-1.0-0 libgdk-pixbuf2.0-0 libffi7 shared-mime-info`
   - macOS: `brew install cairo pango gdk-pixbuf`
-  - Windows: Included in WeasyPrint pip package
-- An LLM API key (optional, for AI features):
-  - [Google AI Studio](https://aistudio.google.com/) for Gemini (recommended, generous free tier)
+  - Windows: Included in the WeasyPrint pip package
+- An LLM API key (optional — required for AI features):
+  - [Google AI Studio](https://aistudio.google.com/) for Gemini (recommended, has a generous free tier)
   - [OpenAI](https://platform.openai.com/), [Anthropic](https://console.anthropic.com/), or any [LiteLLM-supported provider](https://docs.litellm.ai/docs/providers)
   - Or [Ollama](https://ollama.com/) for fully local, offline usage
 
 ---
 
-## Setup
+## Quick Start
+
+```bash
+# 1. Clone
+git clone https://github.com/your-username/applykit.git
+cd applykit
+
+# 2. Configure
+cp backend/.env.example backend/.env
+
+# 3. Install dependencies
+make install
+
+# 4. Run database migrations
+make migrate
+
+# 5. Start (two separate terminals)
+make backend    # http://localhost:8000
+make frontend   # http://localhost:5173
+```
+
+Open **http://localhost:5173** — you'll be guided through setup on first launch.
+
+---
+
+## Setup (Manual)
 
 ### 1. Clone the repository
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/your-username/applykit.git
 cd applykit
 ```
 
@@ -126,8 +129,6 @@ cd applykit
 
 ```bash
 cd backend
-
-# Copy environment template
 cp .env.example .env
 ```
 
@@ -136,8 +137,6 @@ cp .env.example .env
 ```bash
 uv sync
 ```
-
-> **Note:** WeasyPrint requires system libraries. On Ubuntu/Debian: `apt-get install libcairo2 libpango-1.0-0 libgdk-pixbuf2.0-0 libffi7 shared-mime-info`
 
 ### 4. Run database migrations
 
@@ -149,7 +148,7 @@ uv run alembic upgrade head
 
 ```bash
 uv run main.py
-# Runs at http://localhost:8000
+# API: http://localhost:8000
 # Swagger UI: http://localhost:8000/docs
 ```
 
@@ -159,10 +158,23 @@ uv run main.py
 cd ../frontend
 bun install
 bun run dev
-# Runs at http://localhost:5173
+# Frontend: http://localhost:5173
 ```
 
-Open `http://localhost:5173` — you should see the dashboard.
+---
+
+## Makefile Commands
+
+```bash
+make install        # Install all dependencies (backend + frontend)
+make migrate        # Run database migrations
+make backend        # Start backend server (http://localhost:8000)
+make frontend       # Start frontend dev server (http://localhost:5173)
+make lint           # Lint frontend TypeScript/Svelte
+make migrate-new MSG="description"  # Create a new migration
+make migrate-down                   # Roll back the last migration
+make help           # Show all commands
+```
 
 ---
 
@@ -170,49 +182,21 @@ Open `http://localhost:5173` — you should see the dashboard.
 
 ### Database
 
-The only environment variable is the database path in `backend/.env`:
+Edit `backend/.env` to change the database path:
 
 ```env
 DATABASE_URL=sqlite:///./applykit.db
 ```
 
+SQLite is the default and requires no additional setup. PostgreSQL is on the roadmap.
+
 ### LLM Settings
 
-LLM configuration (provider, API key) is managed via the **Settings** page in the UI — no need to edit `.env` manually.
+LLM configuration (provider, API key, model) is managed via the **Settings** page in the UI — no need to edit `.env` manually.
 
-Open the app and click **Settings** (gear icon) to configure:
-- Provider (Gemini, OpenAI, Anthropic, Ollama, etc.)
-- API key
-- Model selection
+Click the **Settings** icon (gear) in the top navigation to connect a provider. You can connect multiple providers and switch between them at any time.
 
-> **No API key?** The app still works. CV generation falls back to your raw profile data without AI enhancement. Import, cover letter generation, and fit analysis require an API key.
-
----
-
-## Quick Start (Makefile)
-
-A `Makefile` is included for common tasks:
-
-```bash
-make install     # Install all dependencies (backend + frontend)
-make migrate     # Run database migrations
-make backend     # Start backend server (http://localhost:8000)
-make frontend    # Start frontend dev server (http://localhost:5173)
-make lint        # Lint frontend TypeScript/Svelte
-make migrate-new MSG="add column"  # Create a new migration
-make migrate-down                  # Roll back the last migration
-make help        # Show all available commands
-```
-
-> **Full setup in 4 commands:**
-> ```bash
-> cp backend/.env.example backend/.env
-> make install
-> make migrate
-> # then in two terminals:
-> make backend
-> make frontend
-> ```
+> **No API key?** The app still works. CV generation falls back to your raw profile data without AI enhancement. Import, cover letter generation, and fit analysis require an LLM to be configured.
 
 ---
 
@@ -220,120 +204,175 @@ make help        # Show all available commands
 
 ### 1. Create a profile
 
-On first launch you'll be prompted to set up your profile. Fill in:
+On first launch you'll be guided through setup. Fill in:
 - Personal info (name, email, location, LinkedIn, GitHub)
 - Work experience with bullet points
-- Education
-- Skills
-- Projects and certifications
+- Education, skills, projects, certifications
 
-Or use **AI Sync** (the sparkle button at the top of the profile page) to upload an existing CV and auto-fill everything instantly.
+Or use **AI Sync** (sparkle button on the profile page) to upload an existing CV and auto-fill everything instantly.
 
-### 2. Multi-profile setup (optional)
+### 2. Generate a CV
 
-ApplyKit supports multiple profiles — useful if you're applying for roles in different fields or want different versions of your CV.
-
-- Click the profile switcher in the top navigation bar to create a new profile
-- Each profile has its own label, color, icon, and content
-- History is stored per-profile and can be filtered by profile
-
-### 3. Generate a CV
-
-1. Go to **Generate CV** (or press the button on the dashboard)
+1. Go to **Generate CV**
 2. Optionally paste a job description — the AI will tailor bullet points to match its keywords
 3. Click **Generate ATS CV**
-4. Preview the result, then **Download PDF** or **Print**
+4. Preview, then **Download PDF** or **Print**
 
-Generated CVs are saved to history automatically.
-
-### 4. Write a cover letter
+### 3. Write a cover letter
 
 1. Go to **Cover Letter**
-2. Fill in the company name (optional), job description, and any emphasis notes
+2. Fill in company name (optional), job description, and any emphasis notes
 3. Click **Write Cover Letter**
-4. Copy the text, download as PDF, or print
+4. Copy, download as PDF, or print
 
-Generated letters are saved to history automatically.
+### 4. Analyze job fit
 
-### 5. Analyze job fit
+Paste a job description in the Cover Letter page and click **Analyze Fit** to see:
+- Match score (0–100%)
+- Strengths and gaps
+- Missing keywords
+- Red flags
+- Suggested emphasis for your cover letter
 
-1. Go to **Cover Letter** and paste a job description
-2. Click **Analyze Fit** to see:
-   - Match score (0-100%)
-   - Strengths and gaps
-   - Missing keywords
-   - Suggested emphasis for your cover letter
+### 5. Smart Apply
+
+1. Go to **Smart Apply**
+2. Paste a job posting URL — ApplyKit scrapes it automatically
+3. Review the extracted job details
+4. Generate a tailored CV + cover letter in one click
 
 ### 6. Track applications
 
-1. Go to **Tracker**
-2. Add jobs you're applying to
-3. Drag cards between columns: Applied → Interviewing → Offer → Rejected
-4. Link generated CVs and cover letters to each application
+Go to **Tracker** to add jobs, drag cards between stages, and link generated CVs and cover letters to each application.
 
-### 7. Import an existing CV
+### 7. Browse history
 
-1. Go to **Import CV** (or use AI Sync from the profile page)
-2. Upload a PDF/DOCX file, or paste the text directly
-3. The AI extracts all fields and populates your profile
-4. Review and save
+Go to **History** to see every generated CV and cover letter. Filter by profile, search, sort by match score, and preview or re-download any entry.
 
-### 8. Browse history
+---
 
-Go to **History** to see every generated CV and cover letter. Filter by profile using the pill buttons at the top. Click any entry to preview it, regenerate from it, copy, print, or delete.
+## Smart Apply — Supported Job Boards
+
+### ATS Platforms (Direct API — Fastest)
+
+| Platform | Status |
+|----------|--------|
+| Greenhouse | ✅ Supported |
+| Lever | ✅ Supported |
+| Ashby | ✅ Supported |
+| JazzHR | 📋 Planned |
+| BambooHR | 📋 Planned |
+| Workday | 📋 Planned (requires browser automation) |
+
+### Generic Websites
+
+For boards without direct API support, Smart Apply uses Jina to scrape the page and an LLM to extract structured fields. This works on most job sites.
+
+---
+
+## Security
+
+ApplyKit has **no built-in authentication**. It is designed to run:
+- On `localhost` for personal use (default)
+- On a private server with network-level access control
+
+**Do not expose ApplyKit to the public internet** without putting an auth proxy (e.g. Authelia, Nginx basic auth, Cloudflare Access) in front of it.
+
+All LLM API keys are stored in your local SQLite database and never leave your machine.
 
 ---
 
 ## Roadmap
 
-Items marked ✅ are already shipped. Everything else is planned or in consideration.
+Items marked ✅ are shipped. Items marked 📋 are planned.
 
-### UX Polish
-| Status | Feature | Description |
-|--------|---------|-------------|
-| ✅ | Animated toast notifications | Floating feedback for every action |
-| ✅ | Skeleton screen loading | Shimmer placeholders during AI generation |
-| ✅ | Profile scrollspy navigation | Sticky sidebar with section highlighting |
-| ✅ | Confetti on first CV generation | Moment of delight after generating |
-| ✅ | Multi-profile support | Separate identities for different target roles |
-| ✅ | Generation history | Browse, preview, and delete past CVs and letters |
-| ✅ | Dark mode | Deep Night theme with high-contrast accessibility variants |
-| ⬜ | Real-time CV preview | Split-screen editor with live-updating preview |
+### Core App
+| Status | Feature |
+|--------|---------|
+| ✅ | Multi-profile support |
+| ✅ | ATS CV generation with job description tailoring |
+| ✅ | AI cover letter generation |
+| ✅ | CV import from PDF/DOCX |
+| ✅ | Fit score analysis (match %, strengths, gaps, red flags) |
+| ✅ | Job URL scraper (Greenhouse, Lever, Ashby + generic) |
+| ✅ | Smart Apply (URL → CV + CL in one flow) |
+| ✅ | Job application tracker (Kanban) |
+| ✅ | Generation history with search and filters |
+| ✅ | PDF export (WeasyPrint server-side + browser print) |
+| ✅ | LLM usage log with token/cost tracking |
+| 📋 | Docker Compose setup for one-command install |
+| 📋 | PostgreSQL support |
+| 📋 | Real-time CV split-screen preview |
+| 📋 | One-click portfolio site generator |
 
-### AI Features
-| Status | Feature | Description |
-|--------|---------|-------------|
-| ✅ | ATS CV enhancement | AI rewrites bullet points and summary for a target job description |
-| ✅ | Cover letter generation | Tailored cover letter from profile + job description |
-| ✅ | CV import (PDF/DOCX) | AI extracts profile fields from an uploaded file |
-| ✅ | Fit score analysis | 0–100 match score with strengths/gaps/missing keywords |
-| ✅ | Job URL scraper | Paste a job posting URL instead of text — AI extracts the description |
-| ⬜ | LinkedIn persona optimizer | AI-generated headlines and About sections |
-| ⬜ | Multi-language CV translation | One-click translation of the full profile |
-| ⬜ | Networking outreach generator | LinkedIn cold messages, recruiter emails, post-interview follow-ups |
-| ⬜ | Salary negotiation AI | Market value research + customized negotiation scripts |
-| ⬜ | AI interview coach (voice) | Practice elevator pitch using Web Speech API, get verbal feedback |
+### AI Providers
+| Status | Provider |
+|--------|---------|
+| ✅ | Gemini (Google AI Studio) |
+| ✅ | OpenAI |
+| ✅ | Anthropic |
+| ✅ | Ollama (local, offline) |
+| ✅ | Any LiteLLM-compatible provider |
+| ✅ | Connect / disconnect providers from UI |
+| ✅ | Switch active provider with confirmation |
 
-### Platform
-| Status | Feature | Description |
-|--------|---------|-------------|
-| ✅ | SQLite support | Zero-config default database |
-| ✅ | Job application tracker | Visual Kanban board for tracking applications |
-| ⬜ | PostgreSQL support | First-class support for production/shared deployments — change `DATABASE_URL` to `postgresql://...` and run `pip install psycopg2-binary` |
-| ⬜ | One-click portfolio generator | Export profile as a static HTML/CSS portfolio site |
+### UX & Polish
+| Status | Feature |
+|--------|---------|
+| ✅ | Dark mode |
+| ✅ | Mobile-responsive layout |
+| ✅ | Toast notifications |
+| ✅ | Skeleton loading states |
+| ✅ | Onboarding flow |
+| ✅ | Profile color + icon picker |
+| ✅ | Confirm before overwriting profile via import |
+| ✅ | Warn when profile switch clears in-progress cover letter |
+| ✅ | Inline delete confirmation (no accidental deletions) |
+| ✅ | Tracker error state and no-results message |
+| ✅ | Fit analysis retry button |
+| ✅ | Red flags visually distinct from cons |
+| ✅ | Profile badge on CV history cards |
+| ✅ | Usage table mobile responsive |
+| 📋 | Keyboard shortcuts |
+| 📋 | Bulk export history |
 
-### ATS Platform Support
-| Status | Platform | Extracted Fields | Notes |
-|--------|----------|------------------|-------|
-| ✅ | Greenhouse | Company, Role, Location | Full API - fastest |
-| ✅ | Lever | Company, Role, Location | Full API - fastest |
-| ✅ | Ashby | Company, Role, Location | Full API - fastest |
-| 📋 | JazzHR | TBD | API integration planned |
-| 📋 | BambooHR | TBD | API integration planned |
-| 📋 | Workday | TBD | Requires browser automation |
+### Future Ideas
+| Feature | Description |
+|---------|-------------|
+| LinkedIn optimizer | AI-generated headlines and About sections |
+| Multi-language CV | One-click translation of the full profile |
+| Outreach generator | LinkedIn cold messages, recruiter emails, follow-ups |
+| Interview coach | Practice elevator pitch with voice feedback (Web Speech API) |
+| Browser extension | One-click Smart Apply from any job board |
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Here's how to get started:
+
+1. **Fork** the repository and create a branch: `git checkout -b feat/your-feature`
+2. **Set up** locally following the Quick Start guide above
+3. **Make your changes** — keep PRs focused on a single feature or fix
+4. **Test** your changes manually (run both backend and frontend)
+5. **Submit a PR** with a clear description of what changed and why
+
+### Good first issues
+
+- Adding support for a new ATS platform in Smart Apply
+- Improving PDF export styling
+- Adding keyboard shortcuts
+- Translating the UI
+
+### Guidelines
+
+- Keep the self-hosted, local-first philosophy — no mandatory cloud services
+- Don't add authentication logic to the core app (out of scope)
+- Follow existing code style: Svelte 5 runes, Tailwind CSS, FastAPI patterns
+- For large features, open an issue first to discuss the approach
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE)

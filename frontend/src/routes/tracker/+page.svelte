@@ -155,7 +155,7 @@
   }
 </script>
 
-<div class="space-y-4 transition-[padding-right] duration-200 {selectedApp ? 'pr-94' : ''}"
+<div class="space-y-4 transition-[padding-right] duration-200 {selectedApp ? 'md:pr-94' : ''}"
 >
   <div class="flex items-center justify-between mt-2">
     <div>

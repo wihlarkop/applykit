@@ -283,6 +283,9 @@ export const getIntegrations = () =>
 export const activateProvider = (provider_id: string) =>
     request<SettingsResponse>('/settings/activate', { method: 'PUT', body: JSON.stringify({ provider_id }) });
 
+export const disconnectProvider = (provider_id: string) =>
+    request<IntegrationsResponse>(`/settings/integrations/${provider_id}`, { method: 'DELETE' });
+
 // ---------------------------------------------------------------------------
 // Applications
 // ---------------------------------------------------------------------------

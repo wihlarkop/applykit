@@ -73,6 +73,11 @@ def set_provider_api_key(db: Session, provider_id: str, api_key: str) -> None:
     set_setting(db, f"api_key_{provider_id}", api_key)
 
 
+def clear_provider_api_key(db: Session, provider_id: str) -> None:
+    """Remove the stored API key for a provider."""
+    set_setting(db, f"api_key_{provider_id}", "")
+
+
 def set_active_model(db: Session, model: str) -> None:
     """Set the single active model. Only one model can be active at a time —
     this overwrites any previously active model via a single DB key upsert."""

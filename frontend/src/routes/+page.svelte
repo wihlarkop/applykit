@@ -12,21 +12,7 @@
 	const activeProfileItem = $derived(profiles.all.find(p => p.id === activeProfile.current?.id));
 	const isActiveEmpty = $derived(activeProfileItem != null && !activeProfileItem.has_content);
 
-	function restrictedCardClass(isRestricted: boolean): string {
-		return isRestricted
-			? 'opacity-75 grayscale-[0.5]'
-			: 'hover:shadow-xl hover:border-primary/50 hover:-translate-y-1';
-	}
-
-	function restrictedBtnClass(isRestricted: boolean): string {
-		return isRestricted ? '' : 'group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-transparent group-hover:shadow-md';
-	}
-
-	function restrictedIconClass(isRestricted: boolean): string {
-		return isRestricted ? '' : 'group-hover:scale-110';
-	}
-
-	const cards = [
+const cards = [
     {
       href: '/profile',
       title: 'Profile Setup',
@@ -105,7 +91,7 @@
     );
   </script>
 
-  <div class="h-[calc(100dvh-2.5rem)] flex flex-col gap-6 overflow-hidden">
+  <div class="flex flex-col gap-6">
     <!-- Restored Premium Hero Section -->
     <div class="relative overflow-hidden rounded-3xl bg-linear-to-br from-primary/10 via-background to-secondary/10 p-8 sm:p-10 border shadow-sm flex-shrink-0">
       <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
@@ -152,62 +138,45 @@
     </div>
 
     <!-- Navigation Section -->
-    <div class="flex-1 flex flex-col min-h-0 min-w-0">
+    <div class="flex flex-col">
       <h2 class="text-base font-semibold tracking-tight mb-3 flex items-center gap-2 flex-shrink-0">
         <ArrowRight class="w-4 h-4 text-primary" />
         Quick Navigation
       </h2>
       
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 h-fit pb-2">
-        {#each displayedCards as card}
+      <div class="rounded-xl border border-border/60 overflow-hidden bg-card/20">
+        {#each displayedCards as card, i}
           {@const isRestricted = !isOnboarded && card.step > 2}
-          <a 
+          <a
             href={isRestricted ? undefined : card.href}
-            class="relative flex flex-col group {restrictedCardClass(isRestricted)} transition-all duration-400 
-                   bg-card/30 backdrop-blur-lg border border-white/5 rounded-xl overflow-hidden h-48 sm:h-44
-                   hover:bg-card/50 hover:border-primary/20 hover:shadow-xl hover:shadow-primary/5
-                   {isRestricted ? 'cursor-not-allowed' : 'cursor-pointer'}"
+            class="flex items-center gap-4 px-4 py-3.5 group transition-colors
+                   {isRestricted ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent/60'}
+                   {i < displayedCards.length - 1 ? 'border-b border-border/40' : ''}"
           >
-            <div class="absolute top-0 right-0 w-16 h-16 bg-linear-to-b from-primary/10 to-transparent rounded-bl-full pointer-events-none z-0 opacity-40 group-hover:opacity-100 transition-opacity"></div>
-            
-            <div class="p-4 flex flex-col h-full relative z-10">
-              <div class="flex items-start justify-between mb-3">
-                <div class="flex items-center justify-center w-9 h-9 rounded-lg {card.bg} {card.color} shadow-sm transition-transform duration-400 group-hover:scale-110">
-                  <card.icon class="w-4.5 h-4.5" />
-                </div>
-                <span class="text-2xl font-black text-muted/15 group-hover:text-primary/10 transition-colors duration-400">
-                  {card.displayStep}
-                </span>
-              </div>
-              
-              <div class="flex-1 min-w-0">
-                <h3 class="text-sm sm:text-base font-bold mb-1 line-clamp-1 group-hover:text-primary transition-colors">
-                  {card.title}
-                  {#if isRestricted}
-                    <Lock class="w-3 h-3 text-muted-foreground inline mb-0.5" />
-                  {/if}
-                </h3>
-                <p class="text-[10px] sm:text-[11px] text-muted-foreground leading-relaxed line-clamp-2 sm:line-clamp-3">
-                  {#if isRestricted}
-                    Complete setup first to unlock this feature.
-                  {:else}
-                    {card.description}
-                  {/if}
-                </p>
-              </div>
-
-              {#if isOnboarded && isActiveEmpty && (card.href === '/generate' || card.href === '/cover-letter')}
-                <div class="mt-2 text-[10px] text-yellow-500 font-medium flex items-center gap-1">
-                  <span>⚠</span> Profile Empty
-                </div>
-              {/if}
-              
-              {#if !isRestricted}
-                <div class="mt-2 text-[10px] font-bold text-primary flex items-center gap-1 opacity-0 group-hover:opacity-100 transform translate-x-[-4px] group-hover:translate-x-0 transition-all duration-500">
-                  Go to {card.title} <ArrowRight class="w-3 h-3" />
-                </div>
-              {/if}
+            <div class="flex items-center justify-center w-9 h-9 rounded-lg {card.bg} {card.color} shrink-0 transition-transform duration-200 group-hover:scale-105">
+              <card.icon class="w-4 h-4" />
             </div>
+
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5">
+                <span class="text-sm font-semibold group-hover:text-primary transition-colors">
+                  {card.title}
+                </span>
+                {#if isRestricted}
+                  <Lock class="w-3 h-3 text-muted-foreground shrink-0" />
+                {/if}
+                {#if isOnboarded && isActiveEmpty && (card.href === '/generate' || card.href === '/cover-letter')}
+                  <span class="text-[10px] text-yellow-500 font-medium">⚠ Empty</span>
+                {/if}
+              </div>
+              <p class="text-xs text-muted-foreground truncate">
+                {isRestricted ? 'Complete setup first to unlock.' : card.description}
+              </p>
+            </div>
+
+            {#if !isRestricted}
+              <ArrowRight class="w-4 h-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+            {/if}
           </a>
         {/each}
       </div>

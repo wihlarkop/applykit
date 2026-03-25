@@ -1,12 +1,13 @@
+import json
 import re
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.exceptions import not_found_404
-from app.models import Application, GeneratedCoverLetter, GeneratedCV, Profile
+from app.models import Application, GeneratedCoverLetter, GeneratedCV
 from app.schemas import (
     BulkDeleteRequest,
     GeneratedCoverLetterEntry,
@@ -15,6 +16,7 @@ from app.schemas import (
     GeneratedCVListResponse,
     UpdateStatusRequest,
 )
+from app.utils import batch_load_profiles
 
 router = APIRouter()
 
@@ -38,14 +40,6 @@ def _extract_company(entry: GeneratedCoverLetter) -> str:
     return first_line[:30] or "Unknown Company"
 
 
-def _profile_map(entries: list, db: Session) -> dict:
-    """Batch-load profiles for a list of history entries to avoid N+1 queries."""
-    ids = {e.profile_id for e in entries if e.profile_id}
-    if not ids:
-        return {}
-    return {p.id: p for p in db.query(Profile).filter(Profile.id.in_(ids)).all()}
-
-
 def _enrich_cv(entry: GeneratedCV, profiles: dict) -> dict:
     p = profiles.get(entry.profile_id) if entry.profile_id else None
     return {
@@ -53,7 +47,7 @@ def _enrich_cv(entry: GeneratedCV, profiles: dict) -> dict:
         "created_at": entry.created_at,
         "enhanced": bool(entry.enhanced),
         "profile_snapshot": entry.profile_snapshot,
-        "application_status": getattr(entry, "application_status", None),
+        "application_status": entry.application_status,
         "profile_id": entry.profile_id,
         "profile_label": p.label if p else None,
         "profile_color": p.color if p else None,
@@ -62,32 +56,29 @@ def _enrich_cv(entry: GeneratedCV, profiles: dict) -> dict:
 
 
 def _enrich_cl(entry: GeneratedCoverLetter, profiles: dict) -> dict:
-    import json as _json
-
     p = profiles.get(entry.profile_id) if entry.profile_id else None
     fit = None
-    raw_fit = getattr(entry, "fit_analysis", None)
-    if raw_fit:
+    if entry.fit_analysis:
         try:
-            fit = _json.loads(raw_fit)
+            fit = json.loads(entry.fit_analysis)
         except Exception:
             fit = None
     return {
         "id": entry.id,
         "created_at": entry.created_at,
         "company_name": entry.company_name,
-        "role_title": getattr(entry, "role_title", None),
-        "location": getattr(entry, "location", None),
-        "salary": getattr(entry, "salary", None),
+        "role_title": entry.role_title,
+        "location": entry.location,
+        "salary": entry.salary,
         "job_description": entry.job_description,
         "extra_context": entry.extra_context,
         "cover_letter_text": entry.cover_letter_text,
-        "tone": getattr(entry, "tone", "professional"),
-        "job_url": getattr(entry, "job_url", None),
-        "match_score": getattr(entry, "match_score", None),
+        "tone": entry.tone or "professional",
+        "job_url": entry.job_url,
+        "match_score": entry.match_score,
         "fit_analysis": fit,
-        "application_status": getattr(entry, "application_status", None),
-        "application_id": getattr(entry, "application_id", None),
+        "application_status": entry.application_status,
+        "application_id": entry.application_id,
         "profile_id": entry.profile_id,
         "profile_label": p.label if p else None,
         "profile_color": p.color if p else None,
@@ -115,7 +106,7 @@ def list_cv_history(
         q = q.order_by(GeneratedCV.created_at.desc())
     total = q.count()
     items = q.offset(offset).limit(limit).all()
-    pm = _profile_map(items, db)
+    pm = batch_load_profiles(items, db)
     return GeneratedCVListResponse(
         items=[_enrich_cv(e, pm) for e in items], total=total
     )
@@ -126,7 +117,7 @@ def get_cv_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCV).filter_by(id=entry_id).first()
     if not entry:
         raise not_found_404("CV entry")
-    return _enrich_cv(entry, _profile_map([entry], db))
+    return _enrich_cv(entry, batch_load_profiles([entry], db))
 
 
 @router.delete("/history/cv/{entry_id}", status_code=204)
@@ -147,7 +138,7 @@ def update_cv_status(
         raise not_found_404("CV entry")
     entry.application_status = body.status
     db.commit()
-    return _enrich_cv(entry, _profile_map([entry], db))
+    return _enrich_cv(entry, batch_load_profiles([entry], db))
 
 
 # --- Cover letter history ---
@@ -190,7 +181,7 @@ def list_cover_letter_history(
         q = q.order_by(GeneratedCoverLetter.created_at.desc())
     total = q.count()
     items = q.offset(offset).limit(limit).all()
-    pm = _profile_map(items, db)
+    pm = batch_load_profiles(items, db)
     return GeneratedCoverLetterListResponse(
         items=[_enrich_cl(e, pm) for e in items], total=total
     )
@@ -203,7 +194,7 @@ def get_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_db))
     entry = db.query(GeneratedCoverLetter).filter_by(id=entry_id).first()
     if not entry:
         raise not_found_404("Cover letter")
-    return _enrich_cl(entry, _profile_map([entry], db))
+    return _enrich_cl(entry, batch_load_profiles([entry], db))
 
 
 @router.delete("/history/cover-letter/{entry_id}", status_code=204)
@@ -249,7 +240,7 @@ def update_cover_letter_status(
             entry.application_id = app.id
     # Note: clearing to "—" does not unlink the Application — manage it from Tracker
     db.commit()
-    return _enrich_cl(entry, _profile_map([entry], db))
+    return _enrich_cl(entry, batch_load_profiles([entry], db))
 
 
 @router.delete("/history/cover-letter")

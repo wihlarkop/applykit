@@ -17,6 +17,7 @@ dependencies = [
     "uvicorn[standard]>=0.41.0",
     "weasyprint>=60.0",
     "jinja2>=3.0.0",
+    "pydantic-settings>=2.13.1",
 ]
 
 [dependency-groups]

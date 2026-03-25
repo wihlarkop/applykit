@@ -1,5 +1,7 @@
 import json
 
+from sqlalchemy.orm import Session
+
 from app.models import Profile
 from app.schemas import ProfileData
 
@@ -77,3 +79,14 @@ def format_profile_for_llm(p: ProfileData) -> str:
         for c in p.certifications:
             lines.append(f"  {c.name} — {c.issuer} ({c.date})")
     return "\n".join(lines)
+
+
+def batch_load_profiles(entries: list, db: Session) -> dict[int, Profile]:
+    """Batch-load Profile objects for a list of ORM entries that have profile_id.
+    Returns a dict keyed by profile id for O(1) lookup.
+    """
+    ids = {e.profile_id for e in entries if e.profile_id}
+    if not ids:
+        return {}
+    return {p.id: p for p in db.query(Profile).filter(Profile.id.in_(ids)).all()}
+

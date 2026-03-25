@@ -1,9 +1,10 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies import get_profile_or_404
 from app.models import Profile
 from app.schemas import (
     CreateProfileRequest,
@@ -47,13 +48,7 @@ def _profile_list_item(p: Profile) -> ProfileListItem:
 
 
 def _get_or_404(db: Session, profile_id: int) -> Profile:
-    profile = db.query(Profile).filter_by(id=profile_id).first()
-    if not profile:
-        raise HTTPException(
-            status_code=404,
-            detail={"detail": "Profile not found", "code": "NOT_FOUND"},
-        )
-    return profile
+    return get_profile_or_404(profile_id, db)
 
 
 @router.get("/profiles", response_model=ProfileListResponse)

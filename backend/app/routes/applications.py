@@ -4,22 +4,20 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Application, GeneratedCoverLetter, GeneratedCV, Profile
+from app.models import Application, GeneratedCoverLetter, GeneratedCV
 from app.schemas import (
     ApplicationEntry,
     ApplicationListResponse,
-    ApplicationStatus,
     CreateApplicationRequest,
     UpdateApplicationRequest,
 )
+from app.utils import batch_load_profiles
 
 router = APIRouter()
 
 
 def _enrich_app(app: Application, profiles: dict) -> dict:
-    """Build ApplicationEntry dict from ORM object + profile map.
-    match_score, linked_cover_letter_id, linked_cv_id are filled in
-    by the caller after running _resolve_docs()."""
+    """Build ApplicationEntry dict from ORM object + profile map."""
     p = profiles.get(app.profile_id) if app.profile_id else None
     return {
         "id": app.id,
@@ -34,20 +32,13 @@ def _enrich_app(app: Application, profiles: dict) -> dict:
         "profile_label": p.label if p else None,
         "profile_color": p.color if p else None,
         "profile_icon": p.icon if p else None,
-        "match_score": None,  # filled in by _resolve_scores()
-        "linked_cover_letter_id": None,  # filled in by _resolve_docs()
-        "linked_cv_id": None,  # filled in by _resolve_docs()
+        "match_score": None,
+        "linked_cover_letter_id": None,
+        "linked_cv_id": None,
         "location": app.location,
         "salary": app.salary,
         "job_description": app.job_description,
     }
-
-
-def _profile_map(apps: list[Application], db: Session) -> dict:
-    ids = {a.profile_id for a in apps if a.profile_id}
-    if not ids:
-        return {}
-    return {p.id: p for p in db.query(Profile).filter(Profile.id.in_(ids)).all()}
 
 
 def _resolve_docs(app_ids: list[int], db: Session) -> tuple[dict, dict, dict]:
@@ -92,6 +83,17 @@ def _resolve_docs(app_ids: list[int], db: Session) -> tuple[dict, dict, dict]:
     return cl_id, cv_id, match_scores
 
 
+def _build_app_entry(app: Application, db: Session) -> ApplicationEntry:
+    """Fully enrich a single Application into an ApplicationEntry."""
+    pm = batch_load_profiles([app], db)
+    entry = _enrich_app(app, pm)
+    cl_id, cv_id, scores = _resolve_docs([app.id], db)
+    entry["linked_cover_letter_id"] = cl_id.get(app.id)
+    entry["linked_cv_id"] = cv_id.get(app.id)
+    entry["match_score"] = scores.get(app.id)
+    return ApplicationEntry(**entry)
+
+
 # --- Endpoints ---
 
 
@@ -112,13 +114,7 @@ def create_application(body: CreateApplicationRequest, db: Session = Depends(get
     db.add(app)
     db.commit()
     db.refresh(app)
-    pm = _profile_map([app], db)
-    entry = _enrich_app(app, pm)
-    cl_id, cv_id, scores = _resolve_docs([app.id], db)
-    entry["linked_cover_letter_id"] = cl_id.get(app.id)
-    entry["linked_cv_id"] = cv_id.get(app.id)
-    entry["match_score"] = scores.get(app.id)
-    return ApplicationEntry(**entry)
+    return _build_app_entry(app, db)
 
 
 @router.get("/applications", response_model=ApplicationListResponse)
@@ -157,7 +153,7 @@ def list_applications(
         )
 
     apps = q.all()
-    pm = _profile_map(apps, db)
+    pm = batch_load_profiles(apps, db)
     app_ids = [a.id for a in apps]
     cl_id, cv_id, scores = _resolve_docs(app_ids, db)
 
@@ -187,13 +183,7 @@ def get_application(app_id: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
         )
-    pm = _profile_map([app], db)
-    entry = _enrich_app(app, pm)
-    cl_id, cv_id, scores = _resolve_docs([app.id], db)
-    entry["linked_cover_letter_id"] = cl_id.get(app.id)
-    entry["linked_cv_id"] = cv_id.get(app.id)
-    entry["match_score"] = scores.get(app.id)
-    return ApplicationEntry(**entry)
+    return _build_app_entry(app, db)
 
 
 @router.patch("/applications/{app_id}", response_model=ApplicationEntry)
@@ -212,13 +202,7 @@ def update_application(
     app.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(app)
-    pm = _profile_map([app], db)
-    entry = _enrich_app(app, pm)
-    cl_id, cv_id, scores = _resolve_docs([app.id], db)
-    entry["linked_cover_letter_id"] = cl_id.get(app.id)
-    entry["linked_cv_id"] = cv_id.get(app.id)
-    entry["match_score"] = scores.get(app.id)
-    return ApplicationEntry(**entry)
+    return _build_app_entry(app, db)
 
 
 @router.delete("/applications/{app_id}")

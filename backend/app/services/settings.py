@@ -39,7 +39,7 @@ KNOWN_MODELS: dict[str, list[str]] = {
 }
 
 
-def _provider_from_model(model: str) -> str | None:
+def provider_from_model(model: str) -> str | None:
     """Extract provider id from a LiteLLM model string like 'gemini/gemini-2.5-flash'."""
     if not model:
         return None
@@ -84,7 +84,7 @@ def get_llm_config(db: Session) -> tuple[str, str]:
     model = get_setting(db, "llm_provider") or ""
     if not model:
         return "", ""
-    provider = _provider_from_model(model)
+    provider = provider_from_model(model)
     if provider:
         api_key = get_provider_api_key(db, provider) or ""
         # Legacy fallback: old single-key setup
@@ -93,3 +93,13 @@ def get_llm_config(db: Session) -> tuple[str, str]:
     else:
         api_key = get_setting(db, "llm_api_key") or ""
     return model, api_key
+
+
+def migrate_legacy_api_key(db: Session) -> None:
+    """Migrate the old global llm_api_key to per-provider storage if needed."""
+    current_model = get_setting(db, "llm_provider") or ""
+    current_provider = provider_from_model(current_model)
+    if current_provider and not get_provider_api_key(db, current_provider):
+        legacy_key = get_setting(db, "llm_api_key") or ""
+        if legacy_key:
+            set_provider_api_key(db, current_provider, legacy_key)

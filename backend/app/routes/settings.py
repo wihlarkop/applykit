@@ -15,10 +15,11 @@ from app.schemas import (
 )
 from app.services.settings import (
     KNOWN_MODELS,
-    _provider_from_model,
     get_llm_config,
     get_provider_api_key,
     get_setting,
+    migrate_legacy_api_key,
+    provider_from_model,
     set_active_model,
     set_provider_api_key,
     set_setting,
@@ -58,7 +59,7 @@ def get_settings(db: Session = Depends(get_db)):
 @router.get("/settings/integrations", response_model=IntegrationsResponse)
 def get_integrations(db: Session = Depends(get_db)):
     active_model = get_setting(db, "llm_provider") or ""
-    active_provider = _provider_from_model(active_model)
+    active_provider = provider_from_model(active_model)
 
     integrations = []
     for provider_id, models in KNOWN_MODELS.items():
@@ -90,16 +91,10 @@ def get_integrations(db: Session = Depends(get_db)):
 
 @router.put("/settings", response_model=SettingsResponse)
 def update_settings(req: UpdateSettingsRequest, db: Session = Depends(get_db)):
-    # Migrate legacy global key to per-provider storage on first new-style save
-    current_model = get_setting(db, "llm_provider") or ""
-    current_provider = _provider_from_model(current_model)
-    if current_provider and not get_provider_api_key(db, current_provider):
-        legacy_key = get_setting(db, "llm_api_key") or ""
-        if legacy_key:
-            set_provider_api_key(db, current_provider, legacy_key)
+    migrate_legacy_api_key(db)
 
     # Store key per provider instead of globally
-    provider = _provider_from_model(req.model)
+    provider = provider_from_model(req.model)
     if provider:
         set_provider_api_key(db, provider, req.api_key)
         set_setting(db, f"selected_model_{provider}", req.model)
@@ -118,14 +113,7 @@ def update_settings(req: UpdateSettingsRequest, db: Session = Depends(get_db)):
 @router.put("/settings/activate")
 def activate_provider(req: ActivateProviderRequest, db: Session = Depends(get_db)):
     """Switch active provider without changing any stored API key."""
-    # Migrate legacy global api key to per-provider storage before switching away.
-    # Old system stored one key in "llm_api_key"; new system uses "api_key_{provider}".
-    current_model = get_setting(db, "llm_provider") or ""
-    current_provider = _provider_from_model(current_model)
-    if current_provider and not get_provider_api_key(db, current_provider):
-        legacy_key = get_setting(db, "llm_api_key") or ""
-        if legacy_key:
-            set_provider_api_key(db, current_provider, legacy_key)
+    migrate_legacy_api_key(db)
 
     provider_id = req.provider_id
     # Use the last selected model for this provider, or the first available

@@ -44,20 +44,25 @@ def _detect_ats(url: str) -> str:
     return "generic"
 
 
-def _scrape_greenhouse(url: str) -> ScrapedJob:
+def _strip_html(text: str) -> str:
+    """Remove HTML tags and collapse whitespace."""
+    text = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+async def _scrape_greenhouse(url: str, client: httpx.AsyncClient) -> ScrapedJob:
     """Extract job ID and company token from Greenhouse URL, hit public API."""
-    # Handles: boards.greenhouse.io/company/jobs/12345
-    #          boards-api.greenhouse.io/v1/boards/company/jobs/12345
     match = re.search(r"greenhouse\.io/(?:v\d/boards/)?([^/]+)/jobs/(\d+)", url)
     if not match:
         raise ValueError("Could not parse Greenhouse URL")
     company, job_id = match.group(1), match.group(2)
     api_url = f"https://boards-api.greenhouse.io/v1/boards/{company}/jobs/{job_id}"
-    r = httpx.get(api_url, timeout=10)
+
+    r = await client.get(api_url, timeout=10)
     r.raise_for_status()
     data = r.json()
-    content = re.sub(r"<[^>]+>", " ", data.get("content", ""))
-    content = re.sub(r"\s+", " ", content).strip()
+
+    content = _strip_html(data.get("content", ""))
     title = data.get("title", "")
     dept = (
         data.get("departments", [{}])[0].get("name", "")
@@ -80,20 +85,21 @@ def _scrape_greenhouse(url: str) -> ScrapedJob:
     )
 
 
-def _scrape_lever(url: str) -> ScrapedJob:
+async def _scrape_lever(url: str, client: httpx.AsyncClient) -> ScrapedJob:
     """Extract posting ID from Lever URL, hit public API."""
-    # Handles: jobs.lever.co/company/uuid
     match = re.search(r"lever\.co/([^/]+)/([a-f0-9-]+)", url)
     if not match:
         raise ValueError("Could not parse Lever URL")
     company, posting_id = match.group(1), match.group(2)
     api_url = f"https://api.lever.co/v0/postings/{company}/{posting_id}"
-    r = httpx.get(api_url, timeout=10)
+
+    r = await client.get(api_url, timeout=10)
     r.raise_for_status()
     data = r.json()
+
     lists = data.get("lists", [])
     description = data.get("descriptionPlain", "") or data.get("description", "")
-    description = re.sub(r"<[^>]+>", " ", description)
+    description = _strip_html(description)
     details = "\n".join(
         f"{lst['text']}:\n" + "\n".join(f"- {item}" for item in lst.get("content", []))
         for lst in lists
@@ -109,26 +115,22 @@ def _scrape_lever(url: str) -> ScrapedJob:
     )
 
 
-def _scrape_ashby(url: str) -> ScrapedJob:
+async def _scrape_ashby(url: str, client: httpx.AsyncClient) -> ScrapedJob:
     """Extract job info from Ashby URL using their public API."""
-    # Handles: ashbyhq.com/jobs/{jobId}
-    #          ashbyhq.com/{company}/jobs/{jobId}
-    # Ashby API: https://api.ashbyhq.com/v2/{companyName}/jobs/{jobId}
     match = re.search(r"ashbyhq\.com/(?:careers/)?([^/]+)/jobs/([a-f0-9-]+)", url)
     if not match:
         raise ValueError("Could not parse Ashby URL")
     company, job_id = match.group(1), match.group(2)
-    # If company is "jobs" or "careers", we can't determine company name from URL
     if company in ("jobs", "careers"):
         raise ValueError("Could not determine Ashby company name from URL")
     api_url = f"https://api.ashbyhq.com/v2/{company}/jobs/{job_id}"
-    r = httpx.get(api_url, timeout=10)
+
+    r = await client.get(api_url, timeout=10)
     r.raise_for_status()
     data = r.json()
+
     job_data = data.get("job", {})
-    content = job_data.get("description", "") or job_data.get("body", "")
-    content = re.sub(r"<[^>]+>", " ", content)
-    content = re.sub(r"\s+", " ", content).strip()
+    content = _strip_html(job_data.get("description", "") or job_data.get("body", ""))
     title = job_data.get("title", "")
     location = job_data.get("location", "")
     jd = f"{title}\n\n{content}".strip()
@@ -142,18 +144,17 @@ def _scrape_ashby(url: str) -> ScrapedJob:
     )
 
 
-async def _scrape_jina(url: str) -> str | None:
+async def _scrape_jina(url: str, client: httpx.AsyncClient) -> str | None:
     """Try Jina Reader; return markdown or None on challenge/failure."""
     jina_url = f"https://r.jina.ai/{url}"
-    async with httpx.AsyncClient(timeout=15) as client:
-        try:
-            r = await client.get(jina_url)
-            text = r.text
-            if _is_challenge_page(text):
-                return None
-            return text
-        except Exception:
+    try:
+        r = await client.get(jina_url, timeout=15)
+        text = r.text
+        if _is_challenge_page(text):
             return None
+        return text
+    except Exception:
+        return None
 
 
 async def _scrape_crawl4ai(url: str) -> str | None:
@@ -170,27 +171,29 @@ async def _scrape_crawl4ai(url: str) -> str | None:
         return None
 
 
-async def scrape_job_url(url: str, provider: str = "auto") -> ScrapedJob:
+async def scrape_job_url(
+    url: str, client: httpx.AsyncClient, provider: str = "auto"
+) -> ScrapedJob:
     """
     Tiered scraper:
-    1. Greenhouse/Lever/Ashby JSON API (httpx, no browser)
-    2. Jina Reader (free managed)
-    3. Crawl4AI (local Playwright stealth)
+    1. Greenhouse/Lever/Ashby JSON API (shared async httpx client)
+    2. Jina Reader (shared client)
+    3. Crawl4AI (local Playwright stealth — uses its own browser)
     4. Raise ValueError if all fail
     """
     ats = _detect_ats(url)
 
     if ats == "greenhouse":
-        return _scrape_greenhouse(url)
+        return await _scrape_greenhouse(url, client)
 
     if ats == "lever":
-        return _scrape_lever(url)
+        return await _scrape_lever(url, client)
 
     if ats == "ashby":
-        return _scrape_ashby(url)
+        return await _scrape_ashby(url, client)
 
     # Tier 2: Jina
-    jina_result = await _scrape_jina(url)
+    jina_result = await _scrape_jina(url, client)
     if jina_result:
         return ScrapedJob(
             job_description=jina_result,
@@ -201,7 +204,7 @@ async def scrape_job_url(url: str, provider: str = "auto") -> ScrapedJob:
             source="jina",
         )
 
-    # Tier 3: Crawl4AI
+    # Tier 3: Crawl4AI (uses its own Playwright browser, not httpx)
     crawl_result = await _scrape_crawl4ai(url)
     if crawl_result:
         return ScrapedJob(

@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.config import get_settings
 from app.exceptions import (
     BaseCustomException,
     error_response,
@@ -23,10 +24,18 @@ from app.routes import (
     usage,
 )
 
+_settings = get_settings()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: create shared HTTP client
+    from app.http_client import init_http_client, close_http_client
+
+    app.state.http_client = init_http_client()
     yield
+    # Shutdown: close shared HTTP client
+    await close_http_client()
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
@@ -95,14 +104,14 @@ exception_handlers = {
 
 
 app = FastAPI(
-    title="ApplyKit API",
+    title=_settings.app_title,
     lifespan=lifespan,
     exception_handlers=exception_handlers,
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

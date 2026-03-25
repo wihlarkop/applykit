@@ -5,12 +5,11 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.dependencies import require_llm_config
 from app.schemas import ProfileData
-from app.exceptions import RateLimitError
-from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError
-from app.services.llm import call_llm
+from app.services.llm import call_llm, clean_llm_json
 from app.services.parser import extract_text, validate_extracted_text
-from app.services.settings import get_llm_config
+from app.services.prompts import CV_IMPORT_SYSTEM_PROMPT
 
 router = APIRouter()
 
@@ -21,37 +20,6 @@ ALLOWED_MIME_TYPES = {
 ALLOWED_EXTENSIONS = {"pdf", "docx"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
-EXTRACT_SYSTEM_PROMPT = """\
-You are a precise CV data extraction engine. Your task is to read raw CV/resume text and extract every piece of information into a structured JSON object.
-
-EXTRACTION RULES:
-1. Extract ALL information present — do not skip sections or summarize. If the CV mentions it, capture it.
-2. For work_experience bullets: extract each accomplishment as a separate bullet string. Keep the candidate's original wording. If they wrote paragraphs instead of bullets, break them into individual achievement statements.
-3. For dates: use the format as written (e.g., "Jan 2022", "2022", "March 2020"). If end_date is missing or says "Present"/"Current", set it to null.
-4. For skills: extract individual skills as separate strings, not comma-separated groups. "Python, JavaScript, React" becomes ["Python", "JavaScript", "React"].
-5. If a field is genuinely not present in the CV, use null (for optional strings) or [] (for arrays). Never fabricate or invent data for any field.
-6. For projects: if tech_stack is mentioned alongside a project, extract it. If a link/URL is associated, capture it.
-7. Phone numbers: preserve the original format including country codes.
-8. LinkedIn/GitHub/portfolio: extract full URLs if present, or usernames/paths if that's all that's given.
-9. Certifications: extract ONLY if explicitly mentioned in the CV (e.g., "AWS Solutions Architect", "CPA", "Google UX Certification"). Do NOT infer or invent certifications. If the CV does not mention any certifications, return an empty array: []
-
-OUTPUT FORMAT — return ONLY this JSON structure, no markdown, no explanation:
-{
-  "name": "string",
-  "email": "string",
-  "phone": "string or null",
-  "location": "string or null",
-  "linkedin": "string or null",
-  "github": "string or null",
-  "portfolio": "string or null",
-  "summary": "string or null",
-  "work_experience": [{"company": "string", "role": "string", "start_date": "string", "end_date": "string or null", "bullets": ["string"]}],
-  "education": [{"institution": "string", "degree": "string", "field": "string", "start_date": "string", "end_date": "string or null"}],
-  "skills": ["string"],
-  "projects": [{"name": "string", "description": "string", "tech_stack": ["string"], "link": "string or null"}],
-  "certifications": [{"name": "string", "issuer": "string", "date": "string"}]
-}"""
-
 
 @router.post("/import/cv", response_model=ProfileData)
 async def import_cv(
@@ -59,15 +27,7 @@ async def import_cv(
     text: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ):
-    provider, api_key = get_llm_config(db)
-    if not provider or not api_key:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "detail": "LLM not configured. Set provider and API key in Settings.",
-                "code": "API_KEY_NOT_CONFIGURED",
-            },
-        )
+    provider, api_key = require_llm_config(db)
 
     raw_text: str
     if file is not None:
@@ -116,39 +76,16 @@ async def import_cv(
             detail={"detail": str(e), "code": "FILE_PARSE_FAILED"},
         ) from e
 
-    try:
-        llm_output = call_llm(
-            raw_text,
-            system=EXTRACT_SYSTEM_PROMPT,
-            provider=provider,
-            api_key=api_key,
-        )
-    except APIKeyNotConfiguredError as e:
-        raise HTTPException(
-            status_code=400,
-            detail={"detail": str(e), "code": "API_KEY_NOT_CONFIGURED"},
-        ) from e
-    except RateLimitError as e:
-        raise HTTPException(
-            status_code=429,
-            detail={
-                "detail": str(e),
-                "code": "RATE_LIMIT_EXCEEDED",
-                "retry_after": e.details.get("retry_after"),
-            },
-        ) from e
-    except LLMCallError as e:
-        raise HTTPException(
-            status_code=502, detail={"detail": str(e), "code": "LLM_CALL_FAILED"}
-        ) from e
-
-    cleaned = (
-        llm_output.strip()
-        .removeprefix("```json")
-        .removeprefix("```")
-        .removesuffix("```")
-        .strip()
+    # LLM exceptions (APIKeyNotConfiguredError, LLMCallError, RateLimitError)
+    # are now BaseCustomExceptions — handled automatically by global handler.
+    llm_output = call_llm(
+        raw_text,
+        system=CV_IMPORT_SYSTEM_PROMPT,
+        provider=provider,
+        api_key=api_key,
     )
+
+    cleaned = clean_llm_json(llm_output)
     try:
         parsed = json.loads(cleaned)
         if parsed.get("certifications"):

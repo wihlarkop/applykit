@@ -1,19 +1,8 @@
 import json
 
 from app.schemas import FitAnalysisResponse
-from app.services.llm import call_llm, OPERATION_FIT_ANALYSIS
-
-FIT_SYSTEM_PROMPT = """\
-You are a career coach analyzing a candidate's fit for a job.
-Return ONLY valid JSON with exactly these keys:
-match_score (integer 0-100),
-pros (array of strings — profile strengths matching the role),
-cons (array of strings — gaps or weaknesses),
-missing_keywords (array of strings — keywords in JD not present in profile),
-red_flags (array of strings — hard blockers like years required; empty array if none),
-suggested_emphasis (string — one paragraph advising what to emphasize in the cover letter),
-interview_questions (array of 3 strings — likely questions based on gaps).
-No markdown, no explanation — just the raw JSON object."""
+from app.services.llm import call_llm, clean_llm_json, OPERATION_FIT_ANALYSIS
+from app.services.prompts import FIT_SYSTEM_PROMPT
 
 
 def analyze_fit(
@@ -37,12 +26,6 @@ def analyze_fit(
         operation=OPERATION_FIT_ANALYSIS,
         profile_id=profile_id,
     )
-    cleaned = (
-        raw.strip()
-        .removeprefix("```json")
-        .removeprefix("```")
-        .removesuffix("```")
-        .strip()
-    )
+    cleaned = clean_llm_json(raw)
     data = json.loads(cleaned)
     return FitAnalysisResponse(**data)

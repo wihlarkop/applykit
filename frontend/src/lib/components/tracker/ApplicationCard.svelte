@@ -66,6 +66,8 @@
 	{/if}
 
 	{#if !app.linked_cover_letter_id && !app.linked_cv_id}
-		<p class="text-[10px] text-muted-foreground/50 pl-4 mt-1 italic">no docs linked</p>
+		<span class="inline-flex items-center gap-1 text-[10px] font-medium text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 px-1.5 py-0.5 rounded mt-1">
+			⚠ No docs linked
+		</span>
 	{/if}
 </button>

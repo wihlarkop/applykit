@@ -14,6 +14,7 @@
   let integrations: IntegrationInfo[] = $state([]);
   let loading = $state(true);
   let activating = $state('');
+  let confirmingActivate = $state('');
 
   const PROVIDER_COLORS: Record<string, string> = {
     gemini: '#8b5cf6',
@@ -60,6 +61,7 @@
       toastState.error('Failed to switch provider.');
     } finally {
       activating = '';
+      confirmingActivate = '';
     }
   }
 
@@ -153,19 +155,30 @@
           <!-- Actions -->
           <div class="flex items-center gap-2 shrink-0">
             {#if (integration.api_key_configured || integration.id === 'ollama') && !integration.is_active}
-              <button
-                onclick={() => handleActivate(integration.id)}
-                disabled={activating === integration.id}
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors disabled:opacity-50"
-                style="border-color:{color}50; color:{color}; background:{color}0a"
-              >
-                {#if activating === integration.id}
-                  <span class="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin"></span>
-                {:else}
+              {#if confirmingActivate === integration.id}
+                <div class="flex items-center gap-1.5">
+                  <span class="text-xs text-muted-foreground">Switch to {integration.label}?</span>
+                  <button
+                    onclick={() => { handleActivate(integration.id); confirmingActivate = ''; }}
+                    disabled={activating === integration.id}
+                    class="px-2.5 py-1 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                  >Yes</button>
+                  <button
+                    onclick={() => confirmingActivate = ''}
+                    class="px-2.5 py-1 rounded-md text-xs border border-border hover:bg-accent transition-colors"
+                  >No</button>
+                </div>
+              {:else}
+                <button
+                  onclick={() => confirmingActivate = integration.id}
+                  disabled={activating === integration.id}
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors disabled:opacity-50"
+                  style="border-color:{color}50; color:{color}; background:{color}0a"
+                >
                   <Zap class="w-3 h-3" />
-                {/if}
-                Set Active
-              </button>
+                  Set Active
+                </button>
+              {/if}
             {/if}
             <button
               onclick={() => openEdit(integration)}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -15,6 +15,7 @@ from app.schemas import (
 )
 from app.services.settings import (
     KNOWN_MODELS,
+    clear_provider_api_key,
     get_llm_config,
     get_provider_api_key,
     get_setting,
@@ -148,6 +149,23 @@ def test_connection(req: UpdateSettingsRequest):
         return TestConnectionResponse(ok=False, message="LLM returned empty response.")
     except Exception as e:
         return TestConnectionResponse(ok=False, message=str(e))
+
+
+@router.delete("/settings/integrations/{provider_id}", response_model=IntegrationsResponse)
+def disconnect_provider(provider_id: str, db: Session = Depends(get_db)):
+    """Remove the stored API key for a provider. If it was active, clear the active model."""
+    if provider_id not in KNOWN_MODELS:
+        raise HTTPException(status_code=404, detail="Unknown provider")
+
+    clear_provider_api_key(db, provider_id)
+
+    # If the disconnected provider was active, clear the active model
+    active_model = get_setting(db, "llm_provider") or ""
+    active_provider = provider_from_model(active_model)
+    if active_provider == provider_id:
+        set_setting(db, "llm_provider", "")
+
+    return get_integrations(db)
 
 
 @router.get("/settings/models", response_model=ModelsResponse)

@@ -13,12 +13,13 @@
 	import { toastState } from '$lib/toast.svelte';
 	import type { ApplicationEntry, ApplicationStatus, CreateApplicationRequest } from '$lib/types';
 	import { errorMessage } from '$lib/utils';
-	import { Briefcase } from '@lucide/svelte';
+	import { Briefcase, CircleAlert } from '@lucide/svelte';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 
 	let apps = $state<ApplicationEntry[]>([]);
 	let loading = $state(true);
+	let loadError = $state('');
 	let selectedApp = $state<ApplicationEntry | null>(null);
 
 	let search = $state('');
@@ -48,6 +49,7 @@
   // --- Data loading ---
   async function load() {
     loading = true;
+    loadError = '';
     try {
       const filters: ApplicationFilters = { sort: 'date_desc' };
       if (search) filters.search = search;
@@ -76,7 +78,8 @@
         if (target) selectedApp = target;
       }
     } catch (e: unknown) {
-      toastState.error(errorMessage(e));
+      loadError = errorMessage(e);
+      toastState.error(loadError);
     } finally {
       loading = false;
     }
@@ -205,6 +208,13 @@
       {#each COLUMNS as _}
         <div class="bg-card border border-border rounded-xl p-3 h-64 animate-pulse"></div>
       {/each}
+    </div>
+  {:else if loadError}
+    <div class="flex flex-col items-center justify-center py-20 text-center gap-3">
+      <CircleAlert class="w-8 h-8 text-destructive" />
+      <p class="text-sm font-medium text-destructive">Failed to load applications</p>
+      <p class="text-xs text-muted-foreground">{loadError}</p>
+      <button onclick={load} class="text-xs text-primary hover:underline mt-1">Try again</button>
     </div>
   {:else}
     <!-- Kanban board -->

@@ -40,6 +40,7 @@
   let scrapeResult = $state<ScrapeJobResponse | null>(null);
   let fitResult = $state<FitAnalysisResponse | null>(null);
   let analysisError = $state('');
+  let fitLoading = $state(false);
 
   // ---------------------------------------------------------------------------
   // Section 3 — Job details (editable)
@@ -113,17 +114,28 @@
       };
 
       // Run fit analysis — non-fatal if it fails
-      try {
-        fitResult = await analyzeFit(ap.id, analyzed.job_description);
-      } catch (e: unknown) {
-        analysisError = errorMessage(e) ?? 'Fit analysis failed.';
-        toastState.error(`Fit analysis failed: ${errorMessage(e)}`);
-      }
+      await runFitAnalysis();
     } catch (e: unknown) {
       analysisError = errorMessage(e) ?? 'Analysis failed.';
       toastState.error(`Analysis failed: ${errorMessage(e)}. Try pasting the job description instead.`);
     } finally {
       analysisLoading = false;
+    }
+  }
+
+  async function runFitAnalysis() {
+    const ap = activeProfile.current;
+    if (!ap || !scrapeResult) return;
+    analysisError = '';
+    fitResult = null;
+    fitLoading = true;
+    try {
+      fitResult = await analyzeFit(ap.id, scrapeResult.job_description);
+    } catch (e: unknown) {
+      analysisError = errorMessage(e) ?? 'Fit analysis failed.';
+      toastState.error(`Fit analysis failed: ${errorMessage(e)}`);
+    } finally {
+      fitLoading = false;
     }
   }
 
@@ -335,9 +347,18 @@
     {#if fitResult}
       <FitAnalysisDisplay {fitResult} compact />
     {:else if analysisError}
-      <div class="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-4 py-3 border border-amber-200 dark:border-amber-800">
-        <AlertTriangle class="w-4 h-4 shrink-0" />
-        Fit analysis unavailable — you can still generate documents.
+      <div class="flex items-center justify-between gap-2 text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-xl px-4 py-3 border border-amber-200 dark:border-amber-800">
+        <div class="flex items-center gap-2">
+          <AlertTriangle class="w-4 h-4 shrink-0" />
+          Fit analysis failed — you can still generate documents.
+        </div>
+        <button
+          onclick={runFitAnalysis}
+          disabled={fitLoading}
+          class="text-xs font-semibold underline shrink-0 disabled:opacity-50"
+        >
+          {fitLoading ? 'Retrying\u2026' : 'Retry'}
+        </button>
       </div>
     {/if}
 

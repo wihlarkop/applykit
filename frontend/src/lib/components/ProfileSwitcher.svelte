@@ -63,7 +63,9 @@
           <span>{p.icon}</span>
           <span class="truncate flex-1">{p.label}</span>
           {#if !p.has_content}
-            <span class="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" title="Profile is empty"></span>
+            <span class="inline-flex items-center gap-1 text-[10px] font-medium text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded shrink-0">
+              Empty
+            </span>
           {/if}
           {#if p.id === ap?.id}
             <span class="text-xs text-muted-foreground">active</span>

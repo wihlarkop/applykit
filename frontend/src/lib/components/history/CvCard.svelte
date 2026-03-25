@@ -21,10 +21,12 @@
   <div class="flex items-center justify-between gap-2">
     <span class="text-[13px] font-semibold text-foreground/90">{formatDate(entry.created_at)}</span>
     <div class="flex items-center gap-1.5 shrink-0">
-      {#if entry.profile_color && entry.profile_icon}
-        <span class="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/30 px-1.5 py-0.5 rounded-sm">
-          <span class="w-2 h-2 rounded-full" style="background:{entry.profile_color}"></span>
-          {entry.profile_icon}
+      {#if entry.profile_label}
+        <span
+          class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+          style="background: {entry.profile_color ?? '#6366f1'}20; color: {entry.profile_color ?? '#6366f1'}"
+        >
+          {entry.profile_icon ?? '💼'} {entry.profile_label}
         </span>
       {/if}
       {#if entry.enhanced}

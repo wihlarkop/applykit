@@ -174,15 +174,15 @@
 		</div>
 
 		<div class="overflow-x-auto">
-			<table class="w-full text-sm">
+			<table class="w-full min-w-[600px] text-sm">
 				<thead class="bg-muted/50 border-b border-border">
 					<tr>
 						<th class="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
 						<th class="text-left px-4 py-3 font-medium text-muted-foreground">Operation</th>
 						<th class="text-left px-4 py-3 font-medium text-muted-foreground">Model</th>
 						<th class="text-right px-4 py-3 font-medium text-muted-foreground">Tokens</th>
-						<th class="text-right px-4 py-3 font-medium text-muted-foreground">Cost</th>
-						<th class="text-right px-4 py-3 font-medium text-muted-foreground">Latency</th>
+						<th class="hidden sm:table-cell text-right px-4 py-3 font-medium text-muted-foreground">Cost</th>
+						<th class="hidden sm:table-cell text-right px-4 py-3 font-medium text-muted-foreground">Latency</th>
 						<th class="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
 					</tr>
 				</thead>
@@ -193,8 +193,8 @@
 							<td class="px-4 py-3">{operationLabel(entry.operation)}</td>
 							<td class="px-4 py-3 font-mono text-xs">{entry.model.split('/').pop()}</td>
 							<td class="px-4 py-3 text-right font-mono">{formatTokens(entry.total_tokens)}</td>
-							<td class="px-4 py-3 text-right font-mono">{formatCost(entry.cost)}</td>
-							<td class="px-4 py-3 text-right font-mono">{formatLatency(entry.latency_ms)}</td>
+							<td class="hidden sm:table-cell px-4 py-3 text-right font-mono">{formatCost(entry.cost)}</td>
+							<td class="hidden sm:table-cell px-4 py-3 text-right font-mono">{formatLatency(entry.latency_ms)}</td>
 							<td class="px-4 py-3 text-center">
 								{#if entry.success}
 									<span class="text-xs text-green-600 dark:text-green-400">✓</span>

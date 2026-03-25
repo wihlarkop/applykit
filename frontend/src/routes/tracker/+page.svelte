@@ -13,12 +13,13 @@
 	import { toastState } from '$lib/toast.svelte';
 	import type { ApplicationEntry, ApplicationStatus, CreateApplicationRequest } from '$lib/types';
 	import { errorMessage } from '$lib/utils';
-	import { Briefcase } from '@lucide/svelte';
+	import { Briefcase, CircleAlert } from '@lucide/svelte';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 
 	let apps = $state<ApplicationEntry[]>([]);
 	let loading = $state(true);
+	let loadError = $state('');
 	let selectedApp = $state<ApplicationEntry | null>(null);
 
 	let search = $state('');
@@ -39,6 +40,7 @@
 	];
 
   // --- Derived ---
+  const filtersActive = $derived(search !== '' || dateRange !== 'all' || matchFilter !== 'all');
   const colItems = $derived(
     Object.fromEntries(
       COLUMNS.map((c) => [c.status, apps.filter((a) => a.status === c.status)])
@@ -48,6 +50,7 @@
   // --- Data loading ---
   async function load() {
     loading = true;
+    loadError = '';
     try {
       const filters: ApplicationFilters = { sort: 'date_desc' };
       if (search) filters.search = search;
@@ -76,7 +79,8 @@
         if (target) selectedApp = target;
       }
     } catch (e: unknown) {
-      toastState.error(errorMessage(e));
+      loadError = errorMessage(e);
+      toastState.error(loadError);
     } finally {
       loading = false;
     }
@@ -152,7 +156,7 @@
   }
 </script>
 
-<div class="space-y-4 transition-[padding-right] duration-200 {selectedApp ? 'pr-94' : ''}"
+<div class="space-y-4 transition-[padding-right] duration-200 {selectedApp ? 'md:pr-94' : ''}"
 >
   <div class="flex items-center justify-between mt-2">
     <div>
@@ -190,7 +194,7 @@
       <option value="low">Low (&lt;40%)</option>
     </select>
 
-    {#if search || dateRange !== 'all' || matchFilter !== 'all'}
+    {#if filtersActive}
       <button 
         onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; load(); }}
         class="text-xs text-primary font-bold px-2 py-1 hover:bg-primary/5 rounded-md transition-colors"
@@ -205,6 +209,21 @@
       {#each COLUMNS as _}
         <div class="bg-card border border-border rounded-xl p-3 h-64 animate-pulse"></div>
       {/each}
+    </div>
+  {:else if loadError}
+    <div class="flex flex-col items-center justify-center py-20 text-center gap-3">
+      <CircleAlert class="w-8 h-8 text-destructive" />
+      <p class="text-sm font-medium text-destructive">Failed to load applications</p>
+      <p class="text-xs text-muted-foreground">{loadError}</p>
+      <button onclick={load} class="text-xs text-primary hover:underline mt-1">Try again</button>
+    </div>
+  {:else if filtersActive && apps.length === 0}
+    <div class="flex flex-col items-center justify-center py-20 text-center gap-3">
+      <p class="text-sm font-medium text-muted-foreground">No applications match your filters</p>
+      <button
+        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; load(); }}
+        class="text-xs text-primary hover:underline"
+      >Clear filters</button>
     </div>
   {:else}
     <!-- Kanban board -->

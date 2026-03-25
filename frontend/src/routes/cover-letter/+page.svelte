@@ -139,6 +139,9 @@
     profileLoading = true;
     // Only clear the generated letter when the user switches to a different profile
     if (newId !== lastProfileId) {
+      if (coverLetterText) {
+        toastState.error('Profile switched — your in-progress letter was cleared.');
+      }
       coverLetterText = '';
       lastProfileId = newId;
     }

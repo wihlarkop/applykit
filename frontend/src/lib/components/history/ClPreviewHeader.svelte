@@ -1,11 +1,13 @@
 <script lang="ts">
   import { Button } from '$lib/components/ui/button';
   import ScoreRing from '$lib/components/ScoreRing.svelte';
-  import { Download, Sparkles } from '@lucide/svelte';
+  import { Download, X } from '@lucide/svelte';
   import { formatDate } from '$lib/utils';
   import { goto } from '$app/navigation';
   import type { GeneratedCoverLetterEntry } from '$lib/types';
   import { STATUS_CONFIG } from '$lib/constants';
+
+  let confirmingDelete = $state(false);
 
   interface Props {
     selectedCl: GeneratedCoverLetterEntry;
@@ -44,13 +46,7 @@
   }
 </script>
 
-<div class="relative shrink-0 border-b border-border/50 bg-linear-to-br from-card to-background/50">
-  <button
-    onclick={onClose}
-    class="hidden md:flex absolute top-3 right-3 w-7 h-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors text-sm"
-    title="Close preview"
-    aria-label="Close preview"
-  >✕</button>
+<div class="shrink-0 border-b border-border/50 bg-linear-to-br from-card to-background/50">
   <div class="md:hidden px-3 pt-2">
     <Button variant="ghost" size="sm" onclick={onClose}>← Back</Button>
   </div>
@@ -91,13 +87,27 @@
     </div>
 
     <!-- Actions -->
-    <div class="flex gap-2 shrink-0 sm:mt-0 mt-4 self-start">
+    <div class="flex gap-2 shrink-0 sm:mt-0 mt-4 self-start items-center">
       <Button variant="outline" size="sm" class="h-8 text-xs font-bold" onclick={onDownload} disabled={downloading}>
         <Download class="w-3.5 h-3.5 mr-1.5" />
         {downloading ? 'PDF...' : 'PDF'}
       </Button>
       <Button variant="outline" size="sm" class="h-8 text-xs font-bold" onclick={onCopy}>Copy</Button>
-      <Button variant="destructive" size="sm" class="h-8 text-xs font-bold" onclick={onDelete}>Delete</Button>
+      {#if confirmingDelete}
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs text-muted-foreground">Delete?</span>
+          <Button variant="destructive" size="sm" class="h-8 text-xs font-bold" onclick={() => { confirmingDelete = false; onDelete(); }}>Yes</Button>
+          <Button variant="outline" size="sm" class="h-8 text-xs" onclick={() => confirmingDelete = false}>Cancel</Button>
+        </div>
+      {:else}
+        <Button variant="destructive" size="sm" class="h-8 text-xs font-bold" onclick={() => confirmingDelete = true}>Delete</Button>
+      {/if}
+      <button
+        onclick={onClose}
+        class="hidden md:flex w-8 h-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+        title="Close preview"
+        aria-label="Close preview"
+      ><X class="w-4 h-4" /></button>
     </div>
   </div>
 </div>

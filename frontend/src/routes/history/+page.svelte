@@ -54,6 +54,8 @@
 	let selectedClIds = $state<Set<number>>(new Set());
 	let selectedCvIds = $state<Set<number>>(new Set());
 	let confirmBulkDelete = $state(false);
+	let confirmDeleteClId = $state<number | null>(null);
+	let confirmDeleteCvId = $state<number | null>(null);
 
 	const STATUS_PIPELINE = Object.entries(STATUS_CONFIG).map(([value, config]) => ({
 		value,
@@ -342,7 +344,7 @@
             <div class="border rounded-lg overflow-hidden bg-white dark:bg-zinc-950/40 print:bg-white shadow-sm transition-colors">
               <div class="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
                 <span class="text-sm text-muted-foreground">{formatDate(selectedCv.created_at)}</span>
-                <div class="flex gap-2">
+                <div class="flex items-center gap-2">
                   <Button variant="outline" size="sm" onclick={handleDownloadCv} disabled={downloading}>
                     <Download class="w-4 h-4 mr-1" />
                     {downloading ? 'Downloading…' : 'Download'}
@@ -350,13 +352,21 @@
                   <Button variant="outline" size="sm" onclick={() => selectedCv && handleRegenerate(selectedCv)}>
                     <Sparkles class="w-4 h-4 mr-1" /> Regenerate
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onclick={() => selectedCv && handleDeleteCv(selectedCv.id)}
-                  >
-                    Delete
-                  </Button>
+                  {#if confirmDeleteCvId === selectedCv.id}
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-xs text-muted-foreground">Delete?</span>
+                      <Button variant="destructive" size="sm" onclick={() => { handleDeleteCv(confirmDeleteCvId!); confirmDeleteCvId = null; }}>Yes</Button>
+                      <Button variant="outline" size="sm" onclick={() => confirmDeleteCvId = null}>Cancel</Button>
+                    </div>
+                  {:else}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onclick={() => selectedCv && (confirmDeleteCvId = selectedCv.id)}
+                    >
+                      Delete
+                    </Button>
+                  {/if}
                 </div>
               </div>
               <div class="overflow-auto max-h-[70vh]">
@@ -472,7 +482,7 @@
                 onDownload={handleDownloadCl}
                 {downloading}
                 onCopy={handleCopyCl}
-                onDelete={() => selectedCl && handleDeleteCl(selectedCl.id)}
+                onDelete={() => selectedCl && (confirmDeleteClId = selectedCl.id)}
               />
 
               <!-- Tab bar (only when fit_analysis available) -->
@@ -513,6 +523,7 @@
     {/if}
 
   {/if}
+
 </div>
 
 <style>

@@ -19,6 +19,7 @@
   let saving = $state(false);
   let errorMsg = $state('');
   let successMsg = $state('');
+  let confirmingSave = $state(false);
 
   function handleFileInput(e: Event) {
     const input = e.target as HTMLInputElement;
@@ -47,6 +48,7 @@
   }
 
   async function handleSave() {
+    confirmingSave = false;
     if (!preview) return;
     const ap = activeProfile.current;
     if (!ap) { errorMsg = 'No active profile. Please refresh the page.'; return; }
@@ -165,10 +167,22 @@
             </CardTitle>
             <CardDescription class="mt-1">Review the extracted data below before saving it to your profile.</CardDescription>
           </div>
-          <Button onclick={handleSave} disabled={saving} size="sm" class="bg-green-600 hover:bg-green-700 text-white shadow-sm">
-            <Save class="w-4 h-4 mr-2" />
-            {saving ? 'Saving…' : 'Save to Profile'}
-          </Button>
+          {#if confirmingSave}
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-muted-foreground">This will overwrite existing profile data.</span>
+              <Button onclick={() => { confirmingSave = false; handleSave(); }} disabled={saving} size="sm" class="bg-green-600 hover:bg-green-700 text-white shadow-sm">
+                {saving ? 'Saving…' : 'Yes, overwrite'}
+              </Button>
+              <Button onclick={() => confirmingSave = false} disabled={saving} size="sm" variant="outline">
+                Cancel
+              </Button>
+            </div>
+          {:else}
+            <Button onclick={() => confirmingSave = true} disabled={saving} size="sm" class="bg-green-600 hover:bg-green-700 text-white shadow-sm">
+              <Save class="w-4 h-4 mr-2" />
+              Save to Profile
+            </Button>
+          {/if}
         </CardHeader>
 
         <CardContent>

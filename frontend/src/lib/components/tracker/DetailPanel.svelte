@@ -50,10 +50,18 @@
   }
 </script>
 
+<!-- Backdrop (mobile only) -->
+<div
+  class="fixed inset-0 z-40 bg-black/50 md:hidden"
+  onclick={onclose}
+  role="presentation"
+  aria-hidden="true"
+></div>
+
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
   role="complementary"
-  class="fixed top-14 bottom-0 right-0 w-90 bg-card border-l border-t border-border shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200"
+  class="fixed inset-0 z-50 md:inset-auto md:top-14 md:bottom-0 md:right-0 md:w-90 bg-card border-l border-t border-border shadow-xl flex flex-col animate-in slide-in-from-right duration-200"
   onkeydown={(e) => e.key === 'Escape' && onclose()}
 >
   <!-- Header -->

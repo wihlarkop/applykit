@@ -344,7 +344,7 @@
             <div class="border rounded-lg overflow-hidden bg-white dark:bg-zinc-950/40 print:bg-white shadow-sm transition-colors">
               <div class="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
                 <span class="text-sm text-muted-foreground">{formatDate(selectedCv.created_at)}</span>
-                <div class="flex gap-2">
+                <div class="flex items-center gap-2">
                   <Button variant="outline" size="sm" onclick={handleDownloadCv} disabled={downloading}>
                     <Download class="w-4 h-4 mr-1" />
                     {downloading ? 'Downloading…' : 'Download'}
@@ -352,13 +352,21 @@
                   <Button variant="outline" size="sm" onclick={() => selectedCv && handleRegenerate(selectedCv)}>
                     <Sparkles class="w-4 h-4 mr-1" /> Regenerate
                   </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onclick={() => selectedCv && (confirmDeleteCvId = selectedCv.id)}
-                  >
-                    Delete
-                  </Button>
+                  {#if confirmDeleteCvId === selectedCv.id}
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-xs text-muted-foreground">Delete?</span>
+                      <Button variant="destructive" size="sm" onclick={() => { handleDeleteCv(confirmDeleteCvId!); confirmDeleteCvId = null; }}>Yes</Button>
+                      <Button variant="outline" size="sm" onclick={() => confirmDeleteCvId = null}>Cancel</Button>
+                    </div>
+                  {:else}
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onclick={() => selectedCv && (confirmDeleteCvId = selectedCv.id)}
+                    >
+                      Delete
+                    </Button>
+                  {/if}
                 </div>
               </div>
               <div class="overflow-auto max-h-[70vh]">
@@ -516,33 +524,6 @@
 
   {/if}
 
-{#if confirmDeleteCvId !== null}
-  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
-    <span class="text-sm">Delete this CV?</span>
-    <button
-      onclick={() => { handleDeleteCv(confirmDeleteCvId!); confirmDeleteCvId = null; }}
-      class="text-xs font-semibold text-destructive hover:underline"
-    >Delete</button>
-    <button
-      onclick={() => confirmDeleteCvId = null}
-      class="text-xs text-muted-foreground hover:underline"
-    >Cancel</button>
-  </div>
-{/if}
-
-{#if confirmDeleteClId !== null}
-  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
-    <span class="text-sm">Delete this cover letter?</span>
-    <button
-      onclick={() => { handleDeleteCl(confirmDeleteClId!); confirmDeleteClId = null; }}
-      class="text-xs font-semibold text-destructive hover:underline"
-    >Delete</button>
-    <button
-      onclick={() => confirmDeleteClId = null}
-      class="text-xs text-muted-foreground hover:underline"
-    >Cancel</button>
-  </div>
-{/if}
 </div>
 
 <style>

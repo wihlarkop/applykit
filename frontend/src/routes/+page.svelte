@@ -4,7 +4,7 @@
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { profiles } from '$lib/profiles.svelte';
-	import { ArrowRight, Briefcase, FileText, Lock, Mail, Sparkles, User } from '@lucide/svelte';
+	import { ArrowRight, BarChart3, Briefcase, FileText, Lock, Mail, Sparkles, User } from '@lucide/svelte';
 
 	let { data } = $props();
 	const isOnboarded = $derived(data.isOnboarded);
@@ -86,6 +86,16 @@
       step: 6,
       color: 'text-rose-500',
       bg: 'bg-rose-500/10'
+    },
+    {
+      href: '/usage',
+      title: 'LLM Usage',
+      description: 'View AI usage statistics and logs.',
+      action: 'View Stats',
+      icon: BarChart3,
+      step: 7,
+      color: 'text-orange-500',
+      bg: 'bg-orange-500/10'
     },
   ];
     const displayedCards = $derived(

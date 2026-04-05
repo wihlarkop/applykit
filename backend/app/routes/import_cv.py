@@ -76,6 +76,11 @@ async def import_cv(
             detail={"detail": str(e), "code": "FILE_PARSE_FAILED"},
         ) from e
 
+    # Truncate to avoid exceeding LLM context windows (CVs rarely need more than this)
+    MAX_TEXT_CHARS = 15_000
+    if len(raw_text) > MAX_TEXT_CHARS:
+        raw_text = raw_text[:MAX_TEXT_CHARS]
+
     # LLM exceptions (APIKeyNotConfiguredError, LLMCallError, RateLimitError)
     # are now BaseCustomExceptions — handled automatically by global handler.
     llm_output = call_llm(
@@ -83,6 +88,7 @@ async def import_cv(
         system=CV_IMPORT_SYSTEM_PROMPT,
         provider=provider,
         api_key=api_key,
+        timeout=60,
     )
 
     cleaned = clean_llm_json(llm_output)

@@ -30,9 +30,9 @@
         <div class="p-2 bg-primary/10 rounded-lg">
           <Award class="w-5 h-5 text-primary" />
         </div>
-        Certifications
+        Certifications & Training
       </h2>
-      <p class="text-sm text-muted-foreground leading-relaxed">Official validations of your expertise.</p>
+      <p class="text-sm text-muted-foreground leading-relaxed">Certifications, bootcamps, and training programs.</p>
     </div>
     
     <div class="hidden lg:block pt-4">

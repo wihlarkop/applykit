@@ -122,7 +122,7 @@
     { id: 'experience', label: 'Experience', icon: Building2 },
     { id: 'education', label: 'Education', icon: GraduationCap },
     { id: 'projects', label: 'Projects', icon: FolderGit2 },
-    { id: 'certifications', label: 'Certifications', icon: Award },
+    { id: 'certifications', label: 'Certifications & Training', icon: Award },
   ];
 
   const profileHealth = $derived.by(() => {

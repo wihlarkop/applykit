@@ -99,7 +99,9 @@ async def import_cv(
                 c for c in parsed["certifications"] if c and (c.get("name") or "").strip()
             ]
         return ProfileData(**parsed)
-    except (json.JSONDecodeError, ValidationError):
+    except (json.JSONDecodeError, ValidationError) as e:
+        import logging
+        logging.getLogger(__name__).error("CV import parse failed: %s\nRaw LLM output: %s", e, llm_output[:500])
         raise HTTPException(
             status_code=422,
             detail={

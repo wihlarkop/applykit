@@ -8,30 +8,30 @@ from pydantic import BaseModel
 class WorkExperience(BaseModel):
     company: str
     role: str
-    start_date: str
+    start_date: str | None = None
     end_date: str | None = None
     bullets: list[str] = []
 
 
 class Education(BaseModel):
     institution: str
-    degree: str
-    field: str
-    start_date: str
+    degree: str | None = None
+    field: str | None = None
+    start_date: str | None = None
     end_date: str | None = None
 
 
 class Project(BaseModel):
     name: str
-    description: str
+    description: str | None = None
     tech_stack: list[str] = []
     link: str | None = None
 
 
 class Certification(BaseModel):
-    name: str
-    issuer: str
-    date: str
+    name: str | None = None
+    issuer: str | None = None
+    date: str | None = None
 
 
 class ProfileData(BaseModel):

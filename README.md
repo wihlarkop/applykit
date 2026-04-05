@@ -1,5 +1,7 @@
 # ApplyKit
 
+![ApplyKit Banner](assets/banner.png)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12-blue)](https://python.org)
 [![SvelteKit](https://img.shields.io/badge/SvelteKit-2-orange)](https://kit.svelte.dev)

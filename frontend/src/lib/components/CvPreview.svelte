@@ -93,7 +93,7 @@
 
   {#if profile.certifications.length}
     <section class="mb-4">
-      <h2 class="text-xs font-bold uppercase tracking-widest border-b border-border dark:border-zinc-700 print:border-black pb-0.5 mb-2 text-foreground dark:text-zinc-200">Certifications</h2>
+      <h2 class="text-xs font-bold uppercase tracking-widest border-b border-border dark:border-zinc-700 print:border-black pb-0.5 mb-2 text-foreground dark:text-zinc-200">Certifications & Training</h2>
       {#each profile.certifications as c}
         <div class="flex justify-between text-sm mb-1">
           <span class="text-foreground dark:text-zinc-200">{c.name} — <span class="text-muted-foreground dark:text-zinc-400 print:text-gray-600">{c.issuer}</span></span>

@@ -6,6 +6,7 @@
 	    updateApplication
 	} from '$lib/api';
 	import type { ApplicationFilters } from '$lib/types';
+	import { profiles } from '$lib/profiles.svelte';
 	import ApplicationCard from '$lib/components/tracker/ApplicationCard.svelte';
 	import DetailPanel from '$lib/components/tracker/DetailPanel.svelte';
 	import { STATUS_CONFIG } from '$lib/constants';
@@ -25,7 +26,10 @@
 	let search = $state('');
 	let dateRange = $state('all');
 	let matchFilter = $state('all');
+	let filterProfileId = $state<number | undefined>(undefined);
 	let searchTimer: ReturnType<typeof setTimeout>;
+
+	const allProfiles = $derived(profiles.all);
 
 	let addingInColumn = $state<ApplicationStatus | null>(null);
 	let newCompany = $state('');
@@ -40,7 +44,7 @@
 	];
 
   // --- Derived ---
-  const filtersActive = $derived(search !== '' || dateRange !== 'all' || matchFilter !== 'all');
+  const filtersActive = $derived(search !== '' || dateRange !== 'all' || matchFilter !== 'all' || filterProfileId !== undefined);
   const colItems = $derived(
     Object.fromEntries(
       COLUMNS.map((c) => [c.status, apps.filter((a) => a.status === c.status)])
@@ -53,6 +57,7 @@
     loadError = '';
     try {
       const filters: ApplicationFilters = { sort: 'date_desc' };
+      if (filterProfileId !== undefined) filters.profile_id = filterProfileId;
       if (search) filters.search = search;
       if (matchFilter === 'high') { filters.match_min = 70; }
       else if (matchFilter === 'medium') { filters.match_min = 40; filters.match_max = 69; }
@@ -165,6 +170,29 @@
     </div>
   </div>
 
+  <!-- Profile filter pills -->
+  {#if allProfiles.length > 1}
+    <div class="flex items-center gap-2 flex-wrap">
+      <span class="text-xs text-muted-foreground uppercase tracking-wider">Profile:</span>
+      <button
+        onclick={() => { filterProfileId = undefined; load(); }}
+        class="px-3 py-1 rounded-full text-xs font-medium border transition-colors
+          {filterProfileId === undefined ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:text-foreground hover:bg-accent'}"
+      >All</button>
+      {#each allProfiles as p}
+        <button
+          onclick={() => { filterProfileId = p.id; load(); }}
+          class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-colors
+            {filterProfileId === p.id ? 'text-white border-transparent' : 'border-border text-muted-foreground hover:text-foreground hover:bg-accent'}"
+          style={filterProfileId === p.id ? `background:${p.color}; border-color:${p.color}` : ''}
+        >
+          <span class="w-1.5 h-1.5 rounded-full" style="background:{filterProfileId === p.id ? 'white' : p.color}"></span>
+          {p.icon} {p.label}
+        </button>
+      {/each}
+    </div>
+  {/if}
+
   <!-- Filter bar -->
   <div class="flex items-center gap-3 flex-wrap">
     <input
@@ -196,7 +224,7 @@
 
     {#if filtersActive}
       <button 
-        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; load(); }}
+        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; filterProfileId = undefined; load(); }}
         class="text-xs text-primary font-bold px-2 py-1 hover:bg-primary/5 rounded-md transition-colors"
       >
         ✕ Clear filters
@@ -221,7 +249,7 @@
     <div class="flex flex-col items-center justify-center py-20 text-center gap-3">
       <p class="text-sm font-medium text-muted-foreground">No applications match your filters</p>
       <button
-        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; load(); }}
+        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; filterProfileId = undefined; load(); }}
         class="text-xs text-primary hover:underline"
       >Clear filters</button>
     </div>

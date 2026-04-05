@@ -63,30 +63,31 @@
             </Button>
           </div>
           
-          <div class="grid gap-8">
+          <div class="grid gap-6">
             <div class="space-y-2 text-left">
               <Label class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Educational Institution</Label>
               <Input bind:value={edu.institution} placeholder="e.g. Massachusetts Institute of Technology" class="bg-background h-11 text-base border-muted-foreground/20 focus:border-primary transition-all" />
             </div>
 
-            <div class="grid gap-6 sm:grid-cols-3">
-              <div class="space-y-2 text-left">
-                <Label class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Degree / Level</Label>
-                <Input bind:value={edu.degree} placeholder="e.g. Bachelor's" class="bg-background h-10 border-muted-foreground/20 focus:border-primary transition-all" />
-              </div>
+            <div class="space-y-2 text-left">
+              <Label class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Degree / Level</Label>
+              <Input bind:value={edu.degree} placeholder="e.g. Bachelor of Public Health, Master's in Computer Science" class="bg-background h-10 border-muted-foreground/20 focus:border-primary transition-all" />
+            </div>
+
+            <div class="space-y-2 text-left">
+              <Label class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Field of Study</Label>
+              <Input bind:value={edu.field} placeholder="e.g. Occupational Health and Safety" class="bg-background h-10 border-muted-foreground/20 focus:border-primary transition-all" />
+            </div>
+
+            <div class="grid gap-4 sm:grid-cols-2">
               <div class="space-y-2 text-left">
                 <Label class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Start Date</Label>
                 <Input bind:value={edu.start_date} placeholder="e.g. Sep 2018" class="bg-background h-10 border-muted-foreground/20 focus:border-primary transition-all" />
               </div>
               <div class="space-y-2 text-left">
                 <Label class="text-xs font-bold uppercase tracking-wider text-muted-foreground">End Date</Label>
-                <Input bind:value={edu.end_date} placeholder="e.g. Jun 2022" class="bg-background h-10 border-muted-foreground/20 focus:border-primary transition-all" />
+                <Input bind:value={edu.end_date} placeholder="e.g. Jun 2022 or Present" class="bg-background h-10 border-muted-foreground/20 focus:border-primary transition-all" />
               </div>
-            </div>
-
-            <div class="space-y-2 text-left">
-              <Label class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Field of Study</Label>
-              <Input bind:value={edu.field} placeholder="e.g. Computer Science & Engineering" class="bg-background h-11 text-base border-muted-foreground/20 focus:border-primary transition-all" />
             </div>
           </div>
         </div>

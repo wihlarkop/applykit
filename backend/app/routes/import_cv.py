@@ -96,7 +96,7 @@ async def import_cv(
         parsed = json.loads(cleaned)
         if parsed.get("certifications"):
             parsed["certifications"] = [
-                c for c in parsed["certifications"] if c.get("name", "").strip()
+                c for c in parsed["certifications"] if c and c.get("name", "").strip()
             ]
         return ProfileData(**parsed)
     except (json.JSONDecodeError, ValidationError):

@@ -41,6 +41,8 @@ def _extract_docx(content: bytes) -> str:
 def validate_extracted_text(text: str) -> None:
     if len(text) < MIN_TEXT_LENGTH:
         raise ValueError(
-            f"Extracted text too short ({len(text)} chars). "
-            "File may be empty, scanned, or unreadable."
+            "This PDF appears to be image-based or flattened (e.g. exported from Canva) "
+            "and contains no selectable text. "
+            "To fix this: open your CV in Word/Google Docs and export as PDF, "
+            "or copy-paste the text directly into the text field below."
         )

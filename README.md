@@ -93,9 +93,21 @@ Browser (localhost:5173)
 
 ## Quick Start
 
+### Option A — Docker (recommended)
+
+```bash
+git clone https://github.com/wihlarkop/applykit.git
+cd applykit
+docker compose up --build
+```
+
+Open **http://localhost:3000** — your data is stored in a Docker volume and persists across restarts.
+
+### Option B — Manual
+
 ```bash
 # 1. Clone
-git clone https://github.com/your-username/applykit.git
+git clone https://github.com/wihlarkop/applykit.git
 cd applykit
 
 # 2. Configure
@@ -113,6 +125,58 @@ make frontend   # http://localhost:5173
 ```
 
 Open **http://localhost:5173** — you'll be guided through setup on first launch.
+
+---
+
+## Docker
+
+### Default setup
+
+```bash
+docker compose up --build
+```
+
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8000`
+- SQLite data: persisted in a named Docker volume (`applykit_applykit-data`)
+
+### Deploying to a remote server
+
+If you're running on a server instead of localhost, set `VITE_API_BASE_URL` to your domain before building:
+
+```bash
+VITE_API_BASE_URL=https://api.yourdomain.com/api docker compose up --build
+```
+
+Or edit the `args` block in `docker-compose.yml`:
+
+```yaml
+args:
+  VITE_API_BASE_URL: https://api.yourdomain.com/api
+```
+
+> `VITE_API_BASE_URL` is baked into the frontend at build time — the browser uses it to reach the backend. It must be publicly reachable from the user's machine.
+
+### Backing up your data
+
+SQLite is stored in a Docker volume. To export it:
+
+```bash
+docker run --rm \
+  -v applykit_applykit-data:/data \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/applykit-backup.tar.gz /data
+```
+
+### Useful Docker commands
+
+```bash
+docker compose up --build        # Build and start
+docker compose up -d             # Start in background
+docker compose down              # Stop
+docker compose logs -f backend   # Follow backend logs
+docker compose exec backend uv run alembic upgrade head  # Run migrations manually
+```
 
 ---
 
@@ -300,7 +364,10 @@ Items marked ✅ are shipped. Items marked 📋 are planned.
 | ✅ | Generation history with search and filters |
 | ✅ | PDF export (WeasyPrint server-side + browser print) |
 | ✅ | LLM usage log with token/cost tracking |
-| 📋 | Docker Compose setup for one-command install |
+| ✅ | Docker Compose — one-command install |
+| 📋 | Docker: nginx reverse proxy so frontend + backend share port 80 |
+| 📋 | Docker: multi-arch builds (arm64 for Apple Silicon / Raspberry Pi) |
+| 📋 | Docker: pre-built images on GitHub Container Registry (ghcr.io) |
 | 📋 | PostgreSQL support |
 | 📋 | Real-time CV split-screen preview |
 | 📋 | One-click portfolio site generator |

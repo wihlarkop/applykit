@@ -1,0 +1,30 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - applykit-data:/data
+    environment:
+      DATABASE_URL: sqlite:////data/applykit.db
+      CORS_ORIGINS: '["http://localhost:3000"]'
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # This URL is used by the browser — it must be reachable from the user's machine.
+        # For local Docker: http://localhost:8000/api (default)
+        # For a remote server: change to your domain, e.g. https://applykit.example.com/api
+        VITE_API_BASE_URL: http://localhost:8000/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  applykit-data:
+    # SQLite database is stored here and persists across container restarts and rebuilds.
+    # To back up your data: docker run --rm -v applykit_applykit-data:/data -v $(pwd):/backup alpine tar czf /backup/applykit-backup.tar.gz /data

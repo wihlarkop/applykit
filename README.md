@@ -83,7 +83,7 @@ Browser (localhost:5173)
 - [uv](https://docs.astral.sh/uv/) — Python package manager
 - [Bun](https://bun.sh/) — JavaScript runtime
 - **WeasyPrint system dependencies** (for PDF generation):
-  - Ubuntu/Debian: `apt-get install libcairo2 libpango-1.0-0 libgdk-pixbuf2.0-0 libffi7 shared-mime-info`
+  - Ubuntu/Debian: `apt-get install libcairo2 libpango-1.0-0 libgdk-pixbuf-2.0-0 libffi-dev shared-mime-info`
   - macOS: `brew install cairo pango gdk-pixbuf`
   - Windows: Included in the WeasyPrint pip package
 - An LLM API key (optional — required for AI features):

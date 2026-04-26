@@ -143,6 +143,13 @@ export const generateCv = (data: GenerateCvRequest) =>
 export const generateCvPdf = (data: CvPdfRequest) =>
     requestBlob('/generate/cv/pdf', { method: 'POST', body: JSON.stringify(data) });
 
+export const generateCvStream = (data: GenerateCvRequest): Promise<Response> =>
+    fetch(`${BASE_URL}/generate/cv/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+
 // ---------------------------------------------------------------------------
 // Generate Cover Letter
 // ---------------------------------------------------------------------------

@@ -76,3 +76,49 @@ export async function consumeStream(response: Response, options: StreamOptions =
     reader.releaseLock();
   }
 }
+
+export interface StructuredStreamOptions {
+  onEvent: (event: string, data: unknown) => void;
+  onError?: (msg: string) => void;
+}
+
+export async function consumeStructuredStream(
+  response: Response,
+  options: StructuredStreamOptions
+): Promise<void> {
+  if (!response.body) return;
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let currentEvent = 'message';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          currentEvent = line.slice(7).trim();
+        } else if (line.startsWith('data: ')) {
+          const raw = line.slice(6);
+          try {
+            const parsed = JSON.parse(raw);
+            const data = typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
+            options.onEvent(currentEvent, data);
+          } catch {
+            options.onError?.(raw);
+          }
+          currentEvent = 'message';
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}

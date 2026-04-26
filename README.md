@@ -371,7 +371,7 @@ Items marked ✅ are shipped. Items marked 📋 are planned.
 | 📋 | Docker: multi-arch builds (arm64 for Apple Silicon / Raspberry Pi) |
 | 📋 | Docker: pre-built images on GitHub Container Registry (ghcr.io) |
 | 📋 | PostgreSQL support |
-| 📋 | Real-time CV split-screen preview |
+| ✅ | Real-time CV split-screen preview |
 | 📋 | One-click portfolio site generator |
 
 ### AI Providers
@@ -422,9 +422,15 @@ Contributions are welcome! Here's how to get started:
 
 1. **Fork** the repository and create a branch: `git checkout -b feat/your-feature`
 2. **Set up** locally following the Quick Start guide above
-3. **Make your changes** — keep PRs focused on a single feature or fix
-4. **Test** your changes manually (run both backend and frontend)
-5. **Submit a PR** with a clear description of what changed and why
+3. **Install pre-commit hooks** (one-time setup):
+   ```bash
+   bun install
+   bun x lefthook install
+   ```
+   This wires up automatic linting and formatting on every `git commit`. Requires [uv](https://docs.astral.sh/uv/) to be installed.
+4. **Make your changes** — keep PRs focused on a single feature or fix
+5. **Test** your changes manually (run both backend and frontend)
+6. **Submit a PR** with a clear description of what changed and why
 
 ### Good first issues
 

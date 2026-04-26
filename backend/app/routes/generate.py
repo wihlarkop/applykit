@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from collections.abc import AsyncIterable
@@ -180,6 +181,65 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
     db.commit()
 
     return GenerateCvResponse(enhanced=enhanced, profile=result_profile)
+
+
+@router.post("/generate/cv/stream", response_class=EventSourceResponse)
+async def generate_cv_stream(req: GenerateCvRequest, db: Session = Depends(get_db)):
+    """SSE endpoint: emits 'profile' (original) then 'done' (enhanced + saved id)."""
+    profile = get_profile_or_404(req.profile_id, db)
+    profile_data = profile_to_schema(profile)
+
+    yield ServerSentEvent(data=profile_data.model_dump_json(), event="profile")
+
+    enhanced = False
+    result_profile = profile_data
+    provider, api_key = _get_llm_config_raw(db)
+
+    if req.enhance and provider and api_key:
+        try:
+            user_prompt = format_profile_for_llm(profile_data)
+            if req.job_description:
+                user_prompt += f"\n\n---\nTARGET JOB DESCRIPTION:\n{req.job_description}"
+            if req.extra_context and req.extra_context.strip():
+                user_prompt += f"\n\nADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
+            user_prompt += f"\n\n---\nORIGINAL DATA (use this schema for your JSON output):\n{profile_data.model_dump_json()}"
+
+            llm_output = await asyncio.to_thread(
+                call_llm,
+                user_prompt,
+                system=ATS_SYSTEM_PROMPT,
+                provider=provider,
+                api_key=api_key,
+                operation=OPERATION_CV_GENERATION,
+                profile_id=req.profile_id,
+            )
+            cleaned = clean_llm_json(llm_output)
+            ats = ATSEnhancement(**json.loads(cleaned))
+            result_profile = profile_data.model_copy(
+                update={"summary": ats.summary, "work_experience": ats.work_experience}
+            )
+            enhanced = True
+        except RateLimitError as e:
+            yield ServerSentEvent(data=str(e), event="rate_limit")
+            return
+        except Exception as exc:
+            logger.warning("ATS enhancement failed, falling back to original profile: %s", exc)
+
+    entry = GeneratedCV(
+        enhanced=int(enhanced),
+        profile_snapshot=result_profile.model_dump_json(),
+        profile_id=req.profile_id,
+        application_id=req.application_id,
+    )
+    db.add(entry)
+    db.commit()
+
+    done_payload = json.dumps({
+        "enhanced": enhanced,
+        "profile": result_profile.model_dump(mode="json"),
+        "id": entry.id,
+    })
+    yield ServerSentEvent(data=done_payload, event="done")
 
 
 @router.post("/generate/cv/pdf")

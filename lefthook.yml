@@ -1,0 +1,11 @@
+pre-commit:
+  parallel: true
+  commands:
+    ruff-lint:
+      glob: "backend/**/*.py"
+      run: uvx ruff check --fix {staged_files}
+      stage_fixed: true
+    ruff-format:
+      glob: "backend/**/*.py"
+      run: uvx ruff format {staged_files}
+      stage_fixed: true

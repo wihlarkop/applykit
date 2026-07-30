@@ -35,7 +35,9 @@ jobs:
         run: uv sync --dev
 
       - name: Lint
-        run: uvx ruff check .
+        # Keep the CI contract explicit so future Ruff default changes do not
+        # introduce unrelated failures across the existing codebase.
+        run: uvx ruff check --select E4,E7,E9,F .
 
       - name: Run tests
         run: uv run --frozen pytest

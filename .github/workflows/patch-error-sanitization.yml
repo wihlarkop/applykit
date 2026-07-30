@@ -1,0 +1,220 @@
+name: Patch error sanitization
+
+on:
+  push:
+    branches:
+      - work/fix-error-sanitization
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: work/fix-error-sanitization
+          fetch-depth: 0
+
+      - name: Sanitize public errors and retain server logs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          main_path = Path('backend/main.py')
+          main = main_path.read_text()
+          main = main.replace(
+              'from contextlib import asynccontextmanager\n',
+              'from contextlib import asynccontextmanager\nimport logging\n',
+              1,
+          )
+          anchor = 'from app.http_client import start_http_client, stop_http_client\n'
+          main = main.replace(
+              anchor,
+              anchor + 'from app.public_errors import UNEXPECTED_ERROR_MESSAGE\n',
+              1,
+          )
+          main = main.replace(
+              '_settings = get_settings()\n',
+              '_settings = get_settings()\nlogger = logging.getLogger(__name__)\n',
+              1,
+          )
+          old = '''async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+              message = getattr(exc, "message", None) or getattr(exc, "msg", None) or str(exc)
+              return JSONResponse(
+                  status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                  content=error_response(
+                      message=message or "An unexpected error occurred",
+                      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                      error_code="INTERNAL_SERVER_ERROR",
+                  ),
+              )
+          '''
+          new = '''async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+              path = getattr(getattr(request, "url", None), "path", "unknown")
+              logger.error(
+                  "Unhandled exception for request path %s",
+                  path,
+                  exc_info=(type(exc), exc, exc.__traceback__),
+              )
+              return JSONResponse(
+                  status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                  content=error_response(
+                      message=UNEXPECTED_ERROR_MESSAGE,
+                      status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                      error_code="INTERNAL_SERVER_ERROR",
+                  ),
+              )
+          '''
+          if main.count(old) != 1:
+              raise SystemExit('generic exception handler anchor not found')
+          main_path.write_text(main.replace(old, new, 1))
+
+          settings_path = Path('backend/app/routes/settings.py')
+          settings = settings_path.read_text()
+          settings = 'import logging\n\n' + settings
+          schema_anchor = 'from app.database import get_db\n'
+          settings = settings.replace(
+              schema_anchor,
+              schema_anchor + 'from app.public_errors import PROVIDER_CONNECTION_ERROR_MESSAGE\n',
+              1,
+          )
+          settings = settings.replace(
+              'router = APIRouter()\n',
+              'router = APIRouter()\nlogger = logging.getLogger(__name__)\n',
+              1,
+          )
+          old = '''    except Exception as e:
+                  return TestConnectionResponse(ok=False, message=str(e))
+          '''
+          new = '''    except Exception as exc:
+                  logger.warning(
+                      "LLM connection test failed for model %s",
+                      req.model,
+                      exc_info=(type(exc), exc, exc.__traceback__),
+                  )
+                  return TestConnectionResponse(
+                      ok=False,
+                      message=PROVIDER_CONNECTION_ERROR_MESSAGE,
+                  )
+          '''
+          if settings.count(old) != 1:
+              raise SystemExit('settings exception anchor not found')
+          settings_path.write_text(settings.replace(old, new, 1))
+
+          llm_path = Path('backend/app/services/llm.py')
+          llm = llm_path.read_text()
+          llm = llm.replace('import re\n', 'import logging\nimport re\n', 1)
+          import_anchor = 'from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError\n'
+          llm = llm.replace(
+              import_anchor,
+              import_anchor + 'from app.public_errors import LLM_PROVIDER_ERROR_MESSAGE\n',
+              1,
+          )
+          llm = llm.replace(
+              'from app.services.usage_logging import log_usage_background\n',
+              'from app.services.usage_logging import log_usage_background\n\nlogger = logging.getLogger(__name__)\n',
+              1,
+          )
+          old_sync = '''    except Exception as e:
+                  error_str = str(e)
+                  if operation:
+                      log_usage_background(
+                          operation=operation,
+                          model_identifier=provider,
+                          latency_ms=int((time.time() - start_time) * 1000),
+                          profile_id=profile_id,
+                          success=False,
+                          error_message=error_str,
+                      )
+                  _handle_rate_limit(error_str, e)
+                  raise LLMCallError(error_str) from e
+          '''
+          new_sync = '''    except Exception as exc:
+                  error_str = str(exc)
+                  logger.warning(
+                      "LLM request failed for model %s",
+                      provider,
+                      exc_info=(type(exc), exc, exc.__traceback__),
+                  )
+                  try:
+                      _handle_rate_limit(error_str, exc)
+                  except RateLimitError as rate_error:
+                      if operation:
+                          log_usage_background(
+                              operation=operation,
+                              model_identifier=provider,
+                              latency_ms=int((time.time() - start_time) * 1000),
+                              profile_id=profile_id,
+                              success=False,
+                              error_message=rate_error.message,
+                          )
+                      raise
+
+                  if operation:
+                      log_usage_background(
+                          operation=operation,
+                          model_identifier=provider,
+                          latency_ms=int((time.time() - start_time) * 1000),
+                          profile_id=profile_id,
+                          success=False,
+                          error_message=LLM_PROVIDER_ERROR_MESSAGE,
+                      )
+                  raise LLMCallError(LLM_PROVIDER_ERROR_MESSAGE) from exc
+          '''
+          if llm.count(old_sync) != 1:
+              raise SystemExit('sync LLM exception anchor not found')
+          llm = llm.replace(old_sync, new_sync, 1)
+
+          old_stream = '''    except Exception as e:
+                  error_str = str(e)
+                  _handle_rate_limit(error_str, e)
+                  raise LLMCallError(error_str) from e
+          '''
+          new_stream = '''    except Exception as exc:
+                  error_str = str(exc)
+                  logger.warning(
+                      "Streaming LLM request failed for model %s",
+                      provider,
+                      exc_info=(type(exc), exc, exc.__traceback__),
+                  )
+                  try:
+                      _handle_rate_limit(error_str, exc)
+                  except RateLimitError as rate_error:
+                      if operation:
+                          log_usage_background(
+                              operation=operation,
+                              model_identifier=provider,
+                              latency_ms=int((time.time() - start_time) * 1000),
+                              profile_id=profile_id,
+                              success=False,
+                              error_message=rate_error.message,
+                          )
+                      raise
+
+                  if operation:
+                      log_usage_background(
+                          operation=operation,
+                          model_identifier=provider,
+                          latency_ms=int((time.time() - start_time) * 1000),
+                          profile_id=profile_id,
+                          success=False,
+                          error_message=LLM_PROVIDER_ERROR_MESSAGE,
+                      )
+                  raise LLMCallError(LLM_PROVIDER_ERROR_MESSAGE) from exc
+          '''
+          if llm.count(old_stream) != 1:
+              raise SystemExit('stream LLM exception anchor not found')
+          llm_path.write_text(llm.replace(old_stream, new_stream, 1))
+          PY
+
+      - name: Remove temporary helper and commit
+        run: |
+          rm .github/workflows/patch-error-sanitization.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/main.py backend/app/routes/settings.py backend/app/services/llm.py .github/workflows/patch-error-sanitization.yml
+          git commit -m "fix: sanitize public error messages"
+          git push origin HEAD:work/fix-error-sanitization

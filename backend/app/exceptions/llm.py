@@ -27,3 +27,19 @@ class LLMCallError(BaseCustomException):
             status_code=status.HTTP_502_BAD_GATEWAY,
             error_code="LLM_CALL_FAILED",
         )
+
+
+class LLMOutputError(BaseCustomException):
+    """Raised when an LLM response is not valid for the requested schema."""
+
+    def __init__(
+        self,
+        message: str = (
+            "The AI provider returned an invalid structured response. Please try again."
+        ),
+    ):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            error_code="LLM_OUTPUT_INVALID",
+        )

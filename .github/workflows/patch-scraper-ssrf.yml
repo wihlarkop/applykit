@@ -1,0 +1,93 @@
+name: Patch scraper SSRF guard
+
+on:
+  push:
+    branches:
+      - work/fix-scraper-ssrf
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: work/fix-scraper-ssrf
+          fetch-depth: 0
+
+      - name: Integrate URL guard into scraper
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/app/services/scraper.py')
+          text = path.read_text()
+
+          import_anchor = 'import httpx\n'
+          security_import = (
+              'import httpx\n\n'
+              'from app.services.url_security import (\n'
+              '    build_public_network_route_handler,\n'
+              '    validate_public_http_url,\n'
+              ')\n'
+          )
+          if text.count(import_anchor) != 1:
+              raise SystemExit('unexpected httpx import count')
+          text = text.replace(import_anchor, security_import, 1)
+
+          start = text.index('async def _scrape_crawl4ai(url: str) -> str | None:')
+          end = text.index('async def scrape_job_url(', start)
+          replacement = '''async def _scrape_crawl4ai(url: str) -> str | None:
+              """Try Crawl4AI while blocking requests to non-public networks."""
+              try:
+                  from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
+
+                  route_handler = build_public_network_route_handler()
+
+                  async def install_network_guard(page, context, **kwargs):
+                      await context.route("**", route_handler)
+                      return page
+
+                  crawler = AsyncWebCrawler(
+                      config=BrowserConfig(enable_stealth=True)
+                  )
+                  crawler.crawler_strategy.set_hook(
+                      "on_page_context_created", install_network_guard
+                  )
+
+                  async with crawler:
+                      result = await crawler.arun(
+                          url=url,
+                          config=CrawlerRunConfig(magic=True),
+                      )
+                  return result.markdown or None
+              except Exception:
+                  return None
+
+
+          '''
+          text = text[:start] + replacement + text[end:]
+
+          validation_anchor = '    ats = _detect_ats(url)\n'
+          if text.count(validation_anchor) != 1:
+              raise SystemExit('unexpected ATS detection count')
+          text = text.replace(
+              validation_anchor,
+              '    await validate_public_http_url(url)\n    ats = _detect_ats(url)\n',
+              1,
+          )
+
+          path.write_text(text)
+          PY
+
+      - name: Remove temporary helper and commit
+        run: |
+          rm .github/workflows/patch-scraper-ssrf.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/services/scraper.py .github/workflows/patch-scraper-ssrf.yml
+          git commit -m "fix: enforce SSRF guard in scraper"
+          git push origin HEAD:work/fix-scraper-ssrf

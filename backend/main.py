@@ -12,6 +12,7 @@ from app.exceptions import (
     error_response,
 )
 from app.http_client import start_http_client, stop_http_client
+from app.services.usage_logging import stop_usage_logger
 from app.routes import (
     analyze,
     applications,
@@ -34,6 +35,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        stop_usage_logger()
         await stop_http_client()
 
 

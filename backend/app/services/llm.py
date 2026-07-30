@@ -1,16 +1,14 @@
 """LLM service: synchronous and streaming calls with usage logging."""
 
 import re
-import threading
 import time
 from collections.abc import AsyncGenerator
 
 import litellm
 
-from app.database import get_db_context
 from app.exceptions import RateLimitError
 from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError
-from app.models import LlmUsageLog
+from app.services.usage_logging import log_usage_background
 
 # Operation types for LLM usage tracking
 OPERATION_CV_GENERATION = "cv_generation"
@@ -84,79 +82,6 @@ def clean_llm_json(raw: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Usage logging (background)
-# ---------------------------------------------------------------------------
-
-
-def _log_usage_thread(
-    operation: str,
-    provider: str,
-    model: str,
-    prompt_tokens: int | None,
-    completion_tokens: int | None,
-    total_tokens: int | None,
-    cost: float | None,
-    latency_ms: int,
-    profile_id: int | None,
-    success: bool,
-    error_message: str | None,
-) -> None:
-    db_gen = get_db_context()
-    db = next(db_gen)
-    try:
-        log = LlmUsageLog(
-            operation=operation,
-            provider=provider,
-            model=model,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            total_tokens=total_tokens,
-            cost=cost,
-            latency_ms=latency_ms,
-            profile_id=profile_id,
-            success=success,
-            error_message=error_message,
-        )
-        db.add(log)
-        db.commit()
-    except Exception:
-        db.rollback()
-    finally:
-        db.close()
-
-
-def _log_usage_background(
-    operation: str,
-    provider: str,
-    prompt_tokens: int | None = None,
-    completion_tokens: int | None = None,
-    total_tokens: int | None = None,
-    cost: float | None = None,
-    latency_ms: int = 0,
-    profile_id: int | None = None,
-    success: bool = True,
-    error_message: str | None = None,
-) -> None:
-    """Fire-and-forget usage logging in a background thread."""
-    threading.Thread(
-        target=_log_usage_thread,
-        args=(
-            operation,
-            provider,
-            provider,
-            prompt_tokens,
-            completion_tokens,
-            total_tokens,
-            cost,
-            latency_ms,
-            profile_id,
-            success,
-            error_message,
-        ),
-    ).start()
-
-
-# ---------------------------------------------------------------------------
 # Synchronous LLM call
 # ---------------------------------------------------------------------------
 
@@ -197,9 +122,9 @@ def call_llm(
         latency_ms = getattr(response, "_response_ms", None)
 
         if operation:
-            _log_usage_background(
+            log_usage_background(
                 operation=operation,
-                provider=provider,
+                model_identifier=provider,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
@@ -215,9 +140,9 @@ def call_llm(
     except Exception as e:
         error_str = str(e)
         if operation:
-            _log_usage_background(
+            log_usage_background(
                 operation=operation,
-                provider=provider,
+                model_identifier=provider,
                 latency_ms=int((time.time() - start_time) * 1000),
                 profile_id=profile_id,
                 success=False,
@@ -274,9 +199,9 @@ async def stream_llm(
         if operation and final_usage:
             cost = _compute_cost(chunk, provider)
             latency_ms = int((time.time() - start_time) * 1000)
-            _log_usage_background(
+            log_usage_background(
                 operation=operation,
-                provider=provider,
+                model_identifier=provider,
                 prompt_tokens=getattr(final_usage, "prompt_tokens", None),
                 completion_tokens=getattr(final_usage, "completion_tokens", None),
                 total_tokens=getattr(final_usage, "total_tokens", None),
@@ -287,9 +212,9 @@ async def stream_llm(
         elif operation:
             # No usage info returned, but still log the call
             latency_ms = int((time.time() - start_time) * 1000)
-            _log_usage_background(
+            log_usage_background(
                 operation=operation,
-                provider=provider,
+                model_identifier=provider,
                 latency_ms=latency_ms,
                 profile_id=profile_id,
             )

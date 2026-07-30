@@ -1,7 +1,9 @@
-import json
-
 from app.schemas import ParseJobDescriptionResponse
-from app.services.llm import OPERATION_JOB_PARSING, call_llm, clean_llm_json
+from app.services.llm import (
+    OPERATION_JOB_PARSING,
+    call_llm,
+    parse_structured_output,
+)
 from app.services.prompts import PARSE_JD_SYSTEM_PROMPT, PARSE_JD_USER_TEMPLATE
 
 
@@ -18,6 +20,4 @@ def parse_job_description(
         operation=OPERATION_JOB_PARSING,
         profile_id=None,
     )
-    cleaned = clean_llm_json(raw)
-    data = json.loads(cleaned)
-    return ParseJobDescriptionResponse(**data)
+    return parse_structured_output(raw, ParseJobDescriptionResponse)

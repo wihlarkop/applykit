@@ -9,7 +9,7 @@ from app.exceptions.base import (
     error_response,
     not_found_404,
 )
-from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError
+from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError, LLMOutputError
 
 __all__ = [
     "BaseCustomException",
@@ -21,6 +21,7 @@ __all__ = [
     "StorageError",
     "APIKeyNotConfiguredError",
     "LLMCallError",
+    "LLMOutputError",
     "error_response",
     "not_found_404",
 ]

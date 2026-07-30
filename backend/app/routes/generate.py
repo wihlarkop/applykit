@@ -41,7 +41,10 @@ from app.services.prompts import (
     TONE_PROMPTS,
     format_untrusted_input,
 )
-from app.services.settings import get_llm_config as _get_llm_config_raw
+from app.services.settings import (
+    get_llm_config as _get_llm_config_raw,
+    is_llm_configured,
+)
 from app.utils import format_profile_for_llm, profile_to_schema
 from integration.pdf import PDFRenderError, html_to_pdf
 from integration.template import render_cover_letter_template, render_cv_template
@@ -167,7 +170,7 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
     result_profile = profile_data
     provider, api_key = _get_llm_config_raw(db)
 
-    if req.enhance and provider and api_key:
+    if req.enhance and is_llm_configured(provider, api_key):
         try:
             user_prompt = _build_cv_enhancement_prompt(profile_data, req)
             llm_output = call_llm(
@@ -217,7 +220,7 @@ async def generate_cv_stream(req: GenerateCvRequest, db: Session = Depends(get_d
     result_profile = profile_data
     provider, api_key = _get_llm_config_raw(db)
 
-    if req.enhance and provider and api_key:
+    if req.enhance and is_llm_configured(provider, api_key):
         try:
             user_prompt = _build_cv_enhancement_prompt(profile_data, req)
             llm_output = await asyncio.to_thread(

@@ -15,6 +15,7 @@ def _make_session():
 
 
 def test_cover_letter_is_persisted_before_done_event(monkeypatch):
+    """The done event must mean history is already durable."""
     db = _make_session()
     profile = Profile(name="Jane Doe", email="jane@example.com")
     db.add(profile)

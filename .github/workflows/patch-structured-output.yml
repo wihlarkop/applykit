@@ -1,0 +1,52 @@
+name: Patch structured output call sites
+
+on:
+  push:
+    branches:
+      - work/harden-structured-output
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: work/harden-structured-output
+          fetch-depth: 0
+
+      - name: Migrate CV generation to typed parser
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/app/routes/generate.py')
+          text = path.read_text()
+          text = text.replace(
+              '    clean_llm_json,\n',
+              '    parse_structured_output,\n',
+              1,
+          )
+
+          old = '''            cleaned = clean_llm_json(llm_output)
+                      ats = ATSEnhancement(**json.loads(cleaned))
+          '''
+          new = '''            ats = parse_structured_output(llm_output, ATSEnhancement)
+          '''
+          if text.count(old) != 2:
+              raise SystemExit(f'expected two ATS parse blocks, found {text.count(old)}')
+          text = text.replace(old, new)
+          path.write_text(text)
+          PY
+
+      - name: Remove temporary helper and commit
+        run: |
+          rm .github/workflows/patch-structured-output.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/routes/generate.py .github/workflows/patch-structured-output.yml
+          git commit -m "refactor: validate CV enhancement output centrally"
+          git push origin HEAD:work/harden-structured-output

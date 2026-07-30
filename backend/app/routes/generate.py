@@ -29,7 +29,7 @@ from app.services.llm import (
     OPERATION_CV_GENERATION,
     OPERATION_SUMMARY_GENERATION,
     call_llm,
-    clean_llm_json,
+    parse_structured_output,
     stream_llm,
 )
 from app.services.prompts import (
@@ -155,8 +155,7 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
                 operation=OPERATION_CV_GENERATION,
                 profile_id=req.profile_id,
             )
-            cleaned = clean_llm_json(llm_output)
-            ats = ATSEnhancement(**json.loads(cleaned))
+            ats = parse_structured_output(llm_output, ATSEnhancement)
             result_profile = profile_data.model_copy(
                 update={
                     "summary": ats.summary,
@@ -213,8 +212,7 @@ async def generate_cv_stream(req: GenerateCvRequest, db: Session = Depends(get_d
                 operation=OPERATION_CV_GENERATION,
                 profile_id=req.profile_id,
             )
-            cleaned = clean_llm_json(llm_output)
-            ats = ATSEnhancement(**json.loads(cleaned))
+            ats = parse_structured_output(llm_output, ATSEnhancement)
             result_profile = profile_data.model_copy(
                 update={"summary": ats.summary, "work_experience": ats.work_experience}
             )

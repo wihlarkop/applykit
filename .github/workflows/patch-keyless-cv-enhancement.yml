@@ -1,0 +1,55 @@
+name: Patch keyless CV enhancement
+
+on:
+  push:
+    branches:
+      - work/fix-keyless-cv-enhancement
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: work/fix-keyless-cv-enhancement
+          fetch-depth: 0
+
+      - name: Use provider readiness for CV enhancement
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/app/routes/generate.py')
+          text = path.read_text()
+          anchor = 'from app.services.settings import get_llm_config as _get_llm_config_raw\n'
+          replacement = '''from app.services.settings import (
+              get_llm_config as _get_llm_config_raw,
+              is_llm_configured,
+          )
+          '''
+          if text.count(anchor) != 1:
+              raise SystemExit('settings import anchor not found')
+          text = text.replace(anchor, replacement, 1)
+
+          guard = '    if req.enhance and provider and api_key:\n'
+          if text.count(guard) != 2:
+              raise SystemExit(f'expected two CV enhancement guards, found {text.count(guard)}')
+          text = text.replace(
+              guard,
+              '    if req.enhance and is_llm_configured(provider, api_key):\n',
+          )
+          path.write_text(text)
+          PY
+
+      - name: Remove helper and commit
+        run: |
+          rm .github/workflows/patch-keyless-cv-enhancement.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/routes/generate.py .github/workflows/patch-keyless-cv-enhancement.yml
+          git commit -m "fix: use provider readiness for CV enhancement"
+          git push origin HEAD:work/fix-keyless-cv-enhancement

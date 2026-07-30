@@ -1,18 +1,22 @@
 """LLM service: synchronous and streaming calls with usage logging."""
 
+import json
 import logging
 import re
 import time
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
+from typing import Any, TypeVar
 
 import litellm
+from pydantic import BaseModel, ValidationError
 
 from app.exceptions import RateLimitError
-from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError
+from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError, LLMOutputError
 from app.public_errors import LLM_PROVIDER_ERROR_MESSAGE
 from app.services.usage_logging import log_usage_background
 
 logger = logging.getLogger(__name__)
+StructuredModel = TypeVar("StructuredModel", bound=BaseModel)
 
 # Operation types for LLM usage tracking
 OPERATION_CV_GENERATION = "cv_generation"
@@ -75,14 +79,36 @@ def _compute_cost(response, provider: str) -> float | None:
 
 
 def clean_llm_json(raw: str) -> str:
-    """Strip common markdown fencing from raw LLM JSON output."""
-    return (
-        raw.strip()
-        .removeprefix("```json")
-        .removeprefix("```")
-        .removesuffix("```")
-        .strip()
-    )
+    """Strip one optional markdown fence from raw LLM JSON output."""
+    cleaned = raw.strip()
+    if cleaned.startswith("```json") and cleaned.endswith("```"):
+        return cleaned[len("```json") : -len("```")].strip()
+    if cleaned.startswith("```") and cleaned.endswith("```"):
+        return cleaned[len("```") : -len("```")].strip()
+    return cleaned
+
+
+def parse_structured_output(
+    raw: str,
+    schema: type[StructuredModel],
+    *,
+    preprocess: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+) -> StructuredModel:
+    """Parse one JSON object and validate it against a Pydantic schema."""
+    try:
+        data = json.loads(clean_llm_json(raw))
+        if not isinstance(data, dict):
+            raise TypeError("Structured output must be a JSON object")
+        if preprocess is not None:
+            data = preprocess(data)
+        return schema.model_validate(data)
+    except (json.JSONDecodeError, ValidationError, TypeError, ValueError):
+        logger.warning(
+            "Invalid structured LLM output schema=%s output_length=%d",
+            schema.__name__,
+            len(raw),
+        )
+        raise LLMOutputError() from None
 
 
 # ---------------------------------------------------------------------------

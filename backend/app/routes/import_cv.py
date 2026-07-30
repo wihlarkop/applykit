@@ -1,17 +1,19 @@
-import json
+import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import require_llm_config
+from app.exceptions.llm import LLMOutputError
 from app.schemas import ProfileData
-from app.services.llm import call_llm, clean_llm_json
+from app.services.llm import call_llm, parse_structured_output
 from app.services.parser import extract_text, validate_extracted_text
 from app.services.prompts import CV_IMPORT_SYSTEM_PROMPT
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 ALLOWED_MIME_TYPES = {
     "application/pdf",
@@ -19,6 +21,17 @@ ALLOWED_MIME_TYPES = {
 }
 ALLOWED_EXTENSIONS = {"pdf", "docx"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+def _clean_cv_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    certifications = payload.get("certifications")
+    if isinstance(certifications, list):
+        payload["certifications"] = [
+            item
+            for item in certifications
+            if isinstance(item, dict) and (item.get("name") or "").strip()
+        ]
+    return payload
 
 
 @router.post("/import/cv", response_model=ProfileData)
@@ -52,14 +65,14 @@ async def import_cv(
             )
         try:
             raw_text = extract_text(file_content=content, filename=file.filename)
-        except Exception as e:
+        except Exception as exc:
             raise HTTPException(
                 status_code=422,
                 detail={
                     "detail": "Could not extract text from file.",
                     "code": "FILE_PARSE_FAILED",
                 },
-            ) from e
+            ) from exc
     elif text:
         raw_text = text.strip()
     else:
@@ -70,19 +83,17 @@ async def import_cv(
 
     try:
         validate_extracted_text(raw_text)
-    except ValueError as e:
+    except ValueError as exc:
         raise HTTPException(
             status_code=422,
-            detail={"detail": str(e), "code": "FILE_PARSE_FAILED"},
-        ) from e
+            detail={"detail": str(exc), "code": "FILE_PARSE_FAILED"},
+        ) from exc
 
     # Truncate to avoid exceeding LLM context windows (CVs rarely need more than this)
-    MAX_TEXT_CHARS = 15_000
-    if len(raw_text) > MAX_TEXT_CHARS:
-        raw_text = raw_text[:MAX_TEXT_CHARS]
+    max_text_chars = 15_000
+    if len(raw_text) > max_text_chars:
+        raw_text = raw_text[:max_text_chars]
 
-    # LLM exceptions (APIKeyNotConfiguredError, LLMCallError, RateLimitError)
-    # are now BaseCustomExceptions — handled automatically by global handler.
     llm_output = call_llm(
         raw_text,
         system=CV_IMPORT_SYSTEM_PROMPT,
@@ -91,17 +102,14 @@ async def import_cv(
         timeout=60,
     )
 
-    cleaned = clean_llm_json(llm_output)
     try:
-        parsed = json.loads(cleaned)
-        if parsed.get("certifications"):
-            parsed["certifications"] = [
-                c for c in parsed["certifications"] if c and (c.get("name") or "").strip()
-            ]
-        return ProfileData(**parsed)
-    except (json.JSONDecodeError, ValidationError) as e:
-        import logging
-        logging.getLogger(__name__).error("CV import parse failed: %s\nRaw LLM output: %s", e, llm_output[:500])
+        return parse_structured_output(
+            llm_output,
+            ProfileData,
+            preprocess=_clean_cv_payload,
+        )
+    except LLMOutputError:
+        logger.warning("CV import returned invalid structured output")
         raise HTTPException(
             status_code=422,
             detail={

@@ -10,7 +10,7 @@ from app.exceptions.llm import LLMOutputError
 from app.schemas import ProfileData
 from app.services.llm import call_llm, parse_structured_output
 from app.services.parser import extract_text, validate_extracted_text
-from app.services.prompts import CV_IMPORT_SYSTEM_PROMPT
+from app.services.prompts import CV_IMPORT_SYSTEM_PROMPT, format_untrusted_input
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -95,7 +95,7 @@ async def import_cv(
         raw_text = raw_text[:max_text_chars]
 
     llm_output = call_llm(
-        raw_text,
+        format_untrusted_input("cv_text", raw_text),
         system=CV_IMPORT_SYSTEM_PROMPT,
         provider=provider,
         api_key=api_key,

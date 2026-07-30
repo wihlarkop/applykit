@@ -4,13 +4,19 @@ from app.services.llm import (
     call_llm,
     parse_structured_output,
 )
-from app.services.prompts import PARSE_JD_SYSTEM_PROMPT, PARSE_JD_USER_TEMPLATE
+from app.services.prompts import (
+    PARSE_JD_SYSTEM_PROMPT,
+    PARSE_JD_USER_TEMPLATE,
+    format_untrusted_input,
+)
 
 
 def parse_job_description(
     text: str, provider: str, api_key: str
 ) -> ParseJobDescriptionResponse:
-    user_prompt = PARSE_JD_USER_TEMPLATE.format(text=text[:4000])
+    user_prompt = PARSE_JD_USER_TEMPLATE.format(
+        job_description=format_untrusted_input("job_description", text[:4000])
+    )
     raw = call_llm(
         user_prompt,
         system=PARSE_JD_SYSTEM_PROMPT,

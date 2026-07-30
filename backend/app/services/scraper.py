@@ -4,6 +4,11 @@ from typing import Literal
 
 import httpx
 
+from app.services.url_security import (
+    build_public_network_route_handler,
+    validate_public_http_url,
+)
+
 CHALLENGE_SIGNALS = [
     "access denied",
     "just a moment",
@@ -158,15 +163,29 @@ async def _scrape_jina(url: str, client: httpx.AsyncClient) -> str | None:
 
 
 async def _scrape_crawl4ai(url: str) -> str | None:
-    """Try Crawl4AI with stealth mode; return markdown or None on failure."""
+    """Try Crawl4AI while blocking requests to non-public networks."""
     try:
         from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig
 
-        async with AsyncWebCrawler(
+        route_handler = build_public_network_route_handler()
+
+        async def install_network_guard(page, context, **kwargs):
+            await context.route("**", route_handler)
+            return page
+
+        crawler = AsyncWebCrawler(
             config=BrowserConfig(enable_stealth=True)
-        ) as crawler:
-            result = await crawler.arun(url=url, config=CrawlerRunConfig(magic=True))
-            return result.markdown or None
+        )
+        crawler.crawler_strategy.set_hook(
+            "on_page_context_created", install_network_guard
+        )
+
+        async with crawler:
+            result = await crawler.arun(
+                url=url,
+                config=CrawlerRunConfig(magic=True),
+            )
+        return result.markdown or None
     except Exception:
         return None
 
@@ -181,6 +200,7 @@ async def scrape_job_url(
     3. Crawl4AI (local Playwright stealth — uses its own browser)
     4. Raise ValueError if all fail
     """
+    await validate_public_http_url(url)
     ats = _detect_ats(url)
 
     if ats == "greenhouse":

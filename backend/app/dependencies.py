@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import Profile
-from app.services.settings import get_llm_config
+from app.services.settings import get_llm_config, is_llm_configured
 
 
 def get_profile_or_404(profile_id: int, db: Session = Depends(get_db)) -> Profile:
@@ -21,13 +21,13 @@ def get_profile_or_404(profile_id: int, db: Session = Depends(get_db)) -> Profil
 
 def require_llm_config(db: Session = Depends(get_db)) -> tuple[str, str]:
     """Return (model_string, api_key) or raise 400 if LLM is not configured."""
-    provider, api_key = get_llm_config(db)
-    if not provider or not api_key:
+    model, api_key = get_llm_config(db)
+    if not is_llm_configured(model, api_key):
         raise HTTPException(
             status_code=400,
             detail={
-                "detail": "LLM not configured. Set provider and API key in Settings.",
+                "detail": "LLM not configured. Select a model and add an API key when required.",
                 "code": "API_KEY_NOT_CONFIGURED",
             },
         )
-    return provider, api_key
+    return model, api_key

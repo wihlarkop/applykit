@@ -7,11 +7,11 @@
   import { errorMessage } from '$lib/utils';
   import { CheckCircle, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
 
-  let { open = $bindable(false), initialProviderId = '', initialModel = '', initialApiKey = '' }: {
+  let { open = $bindable(false), initialProviderId = '', initialModel = '', initialApiKeyConfigured = false }: {
     open: boolean;
     initialProviderId?: string;
     initialModel?: string;
-    initialApiKey?: string;
+    initialApiKeyConfigured?: boolean;
   } = $props();
 
   let providers: ProviderInfo[] = $state([]);
@@ -26,6 +26,9 @@
   let source = $state<'database' | 'env' | 'none'>('none');
 
   const selectedProvider = $derived(providers.find((p) => p.id === selectedProviderId));
+  const canReuseStoredKey = $derived(
+    Boolean(initialProviderId && initialApiKeyConfigured && selectedProvider?.requires_api_key)
+  );
 
   $effect(() => {
     if (!open) return;
@@ -36,12 +39,14 @@
     loading = true;
     testResult = null;
     saveError = '';
+    apiKey = '';
+    showApiKey = false;
     try {
       const [modelsRes, settingsRes] = await Promise.all([getModels(), getSettings()]);
       providers = modelsRes.providers;
       source = settingsRes.source;
 
-      // If opened for a specific provider, pre-select it
+      // If opened for a specific provider, pre-select it without loading its secret.
       if (initialProviderId) {
         selectedProviderId = initialProviderId;
         selectedModel = initialModel || (providers.find((p) => p.id === initialProviderId)?.models[0]?.value ?? '');
@@ -57,10 +62,6 @@
       } else if (providers.length > 0) {
         selectedProviderId = providers[0].id;
         selectedModel = providers[0].models[0]?.value ?? '';
-      }
-      // Pre-fill API key if provided (from edit button)
-      if (initialApiKey) {
-        apiKey = initialApiKey;
       }
     } catch {
       saveError = 'Failed to load settings.';
@@ -101,8 +102,8 @@
       saveError = 'Select a model.';
       return;
     }
-    const keyToSave = selectedProvider?.requires_api_key ? apiKey : 'ollama';
-    if (selectedProvider?.requires_api_key && !keyToSave) {
+    const keyToSave = selectedProvider?.requires_api_key ? apiKey.trim() : 'ollama';
+    if (selectedProvider?.requires_api_key && !keyToSave && !canReuseStoredKey) {
       saveError = 'API key is required.';
       return;
     }
@@ -110,7 +111,13 @@
     saveError = '';
     try {
       await updateSettings({ model: selectedModel, api_key: keyToSave, activate });
-      toastState.success(activate ? 'Saved and set as active model.' : 'API key saved.');
+      toastState.success(
+        activate
+          ? 'Saved and set as active model.'
+          : keyToSave
+            ? 'API key saved.'
+            : 'Model saved. Existing API key was kept.'
+      );
       open = false;
       await invalidateAll();
       if (!page.data.isOnboarded) {
@@ -212,9 +219,9 @@
                 id="api-key-input"
                 type={showApiKey ? 'text' : 'password'}
                 bind:value={apiKey}
-                placeholder="Enter your API key…"
+                placeholder={canReuseStoredKey ? 'Leave blank to keep the current key' : 'Enter your API key…'}
                 class="w-full border border-border rounded-md px-3 py-2 pr-10 text-sm bg-background"
-                autocomplete="off"
+                autocomplete="new-password"
               />
               <button
                 type="button"
@@ -229,6 +236,9 @@
                 {/if}
               </button>
             </div>
+            {#if canReuseStoredKey}
+              <p class="text-xs text-muted-foreground">A key is already configured. Enter a new value only to replace it.</p>
+            {/if}
           </div>
         {:else}
           <p class="text-sm text-muted-foreground">
@@ -279,16 +289,16 @@
           {#if initialProviderId && selectedProvider?.requires_api_key}
             <button
               onclick={() => handleSave(false)}
-              disabled={saving !== null || !selectedModel || !apiKey}
+              disabled={saving !== null || !selectedModel || (!apiKey && !canReuseStoredKey)}
               class="px-4 py-2 rounded-md text-sm border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {#if saving === 'key'}<Loader2 class="w-4 h-4 animate-spin" />{/if}
-              Save Key
+              {apiKey ? 'Save Key' : 'Save Model'}
             </button>
           {/if}
           <button
             onclick={() => handleSave(true)}
-            disabled={saving !== null || !selectedModel || (selectedProvider?.requires_api_key && !apiKey)}
+            disabled={saving !== null || !selectedModel || (selectedProvider?.requires_api_key && !apiKey && !canReuseStoredKey)}
             class="px-4 py-2 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {#if saving === 'activate'}<Loader2 class="w-4 h-4 animate-spin" />{/if}

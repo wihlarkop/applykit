@@ -11,6 +11,7 @@ from app.exceptions import (
     BaseCustomException,
     error_response,
 )
+from app.http_client import start_http_client, stop_http_client
 from app.routes import (
     analyze,
     applications,
@@ -29,7 +30,11 @@ _settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    yield
+    await start_http_client()
+    try:
+        yield
+    finally:
+        await stop_http_client()
 
 
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:

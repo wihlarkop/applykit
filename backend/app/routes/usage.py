@@ -1,6 +1,7 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
+from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -18,8 +19,8 @@ def get_llm_usage(
     date_from: date | None = None,
     date_to: date | None = None,
     success: bool | None = None,
-    limit: int = 100,
-    offset: int = 0,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    offset: Annotated[int, Query(ge=0)] = 0,
     db: Session = Depends(get_db),
 ):
     """Get LLM usage logs with optional filters."""
@@ -30,22 +31,20 @@ def get_llm_usage(
     if profile_id:
         query = query.filter(LlmUsageLog.profile_id == profile_id)
     if date_from:
-        query = query.filter(LlmUsageLog.created_at >= date_from)
+        query = query.filter(
+            LlmUsageLog.created_at >= datetime.combine(date_from, time.min)
+        )
     if date_to:
-        query = query.filter(LlmUsageLog.created_at <= date_to)
+        next_day = datetime.combine(date_to + timedelta(days=1), time.min)
+        query = query.filter(LlmUsageLog.created_at < next_day)
     if success is not None:
         query = query.filter(LlmUsageLog.success == success)
 
     total = query.count()
-
-    totals = (
-        db.query(
-            func.sum(LlmUsageLog.total_tokens).label("total_tokens"),
-            func.sum(LlmUsageLog.cost).label("total_cost"),
-        )
-        .filter(LlmUsageLog.id.in_(query.limit(10000).with_entities(LlmUsageLog.id)))
-        .first()
-    )
+    totals = query.with_entities(
+        func.sum(LlmUsageLog.total_tokens).label("total_tokens"),
+        func.sum(LlmUsageLog.cost).label("total_cost"),
+    ).first()
 
     items = (
         query.order_by(LlmUsageLog.created_at.desc()).offset(offset).limit(limit).all()

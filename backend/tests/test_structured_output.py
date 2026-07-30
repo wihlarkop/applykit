@@ -11,6 +11,7 @@ class ExampleOutput(BaseModel):
 
 
 def test_parses_raw_json_into_requested_schema():
+    """Structured output returns the requested Pydantic model."""
     result = parse_structured_output(
         '{"answer":"ok","score":95}',
         ExampleOutput,

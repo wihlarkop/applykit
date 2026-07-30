@@ -6,7 +6,7 @@ import pytest
 
 import main
 from app.exceptions.llm import LLMCallError
-from app.routes.settings import test_connection
+from app.routes.settings import test_connection as check_connection
 from app.schemas import UpdateSettingsRequest
 from app.services import llm as llm_service
 
@@ -29,7 +29,7 @@ def test_connection_failure_returns_safe_message(monkeypatch):
 
     monkeypatch.setattr(litellm, "completion", fail_completion)
 
-    response = test_connection(
+    response = check_connection(
         UpdateSettingsRequest(
             model="openai/gpt-4.1-mini",
             api_key="sk-secret-value",
@@ -37,7 +37,9 @@ def test_connection_failure_returns_safe_message(monkeypatch):
     )
 
     assert response.ok is False
-    assert response.message == "Connection failed. Verify the provider, model, API key, and network settings."
+    assert response.message == (
+        "Connection failed. Verify the provider, model, API key, and network settings."
+    )
     assert "sk-secret-value" not in response.message
 
 
@@ -61,6 +63,8 @@ def test_llm_failure_raises_and_persists_only_safe_message(monkeypatch):
             operation="cv_generation",
         )
 
-    assert exc_info.value.message == "The AI provider request failed. Check your settings and try again."
+    assert exc_info.value.message == (
+        "The AI provider request failed. Check your settings and try again."
+    )
     assert captured["error_message"] == exc_info.value.message
     assert "sk-secret-value" not in captured["error_message"]

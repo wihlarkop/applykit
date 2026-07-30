@@ -1,7 +1,9 @@
-import json
-
 from app.schemas import FitAnalysisResponse
-from app.services.llm import OPERATION_FIT_ANALYSIS, call_llm, clean_llm_json
+from app.services.llm import (
+    OPERATION_FIT_ANALYSIS,
+    call_llm,
+    parse_structured_output,
+)
 from app.services.prompts import FIT_SYSTEM_PROMPT
 
 
@@ -26,6 +28,4 @@ def analyze_fit(
         operation=OPERATION_FIT_ANALYSIS,
         profile_id=profile_id,
     )
-    cleaned = clean_llm_json(raw)
-    data = json.loads(cleaned)
-    return FitAnalysisResponse(**data)
+    return parse_structured_output(raw, FitAnalysisResponse)

@@ -54,6 +54,7 @@ def test_sync_cv_enhancement_runs_for_keyless_provider(monkeypatch):
 
 
 def test_streaming_cv_enhancement_runs_for_keyless_provider(monkeypatch):
+    """The SSE path follows the same provider-readiness rule."""
     db = _make_session()
     try:
         profile = _add_profile(db)

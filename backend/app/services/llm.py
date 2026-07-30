@@ -1,5 +1,6 @@
 """LLM service: synchronous and streaming calls with usage logging."""
 
+import logging
 import re
 import time
 from collections.abc import AsyncGenerator
@@ -8,7 +9,10 @@ import litellm
 
 from app.exceptions import RateLimitError
 from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError
+from app.public_errors import LLM_PROVIDER_ERROR_MESSAGE
 from app.services.usage_logging import log_usage_background
+
+logger = logging.getLogger(__name__)
 
 # Operation types for LLM usage tracking
 OPERATION_CV_GENERATION = "cv_generation"
@@ -137,8 +141,27 @@ def call_llm(
 
     except (APIKeyNotConfiguredError, LLMCallError, RateLimitError):
         raise
-    except Exception as e:
-        error_str = str(e)
+    except Exception as exc:
+        error_str = str(exc)
+        logger.warning(
+            "LLM request failed for model %s",
+            provider,
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+        try:
+            _handle_rate_limit(error_str, exc)
+        except RateLimitError as rate_error:
+            if operation:
+                log_usage_background(
+                    operation=operation,
+                    model_identifier=provider,
+                    latency_ms=int((time.time() - start_time) * 1000),
+                    profile_id=profile_id,
+                    success=False,
+                    error_message=rate_error.message,
+                )
+            raise
+
         if operation:
             log_usage_background(
                 operation=operation,
@@ -146,10 +169,9 @@ def call_llm(
                 latency_ms=int((time.time() - start_time) * 1000),
                 profile_id=profile_id,
                 success=False,
-                error_message=error_str,
+                error_message=LLM_PROVIDER_ERROR_MESSAGE,
             )
-        _handle_rate_limit(error_str, e)
-        raise LLMCallError(error_str) from e
+        raise LLMCallError(LLM_PROVIDER_ERROR_MESSAGE) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -221,7 +243,34 @@ async def stream_llm(
 
     except (APIKeyNotConfiguredError, LLMCallError, RateLimitError):
         raise
-    except Exception as e:
-        error_str = str(e)
-        _handle_rate_limit(error_str, e)
-        raise LLMCallError(error_str) from e
+    except Exception as exc:
+        error_str = str(exc)
+        logger.warning(
+            "Streaming LLM request failed for model %s",
+            provider,
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+        try:
+            _handle_rate_limit(error_str, exc)
+        except RateLimitError as rate_error:
+            if operation:
+                log_usage_background(
+                    operation=operation,
+                    model_identifier=provider,
+                    latency_ms=int((time.time() - start_time) * 1000),
+                    profile_id=profile_id,
+                    success=False,
+                    error_message=rate_error.message,
+                )
+            raise
+
+        if operation:
+            log_usage_background(
+                operation=operation,
+                model_identifier=provider,
+                latency_ms=int((time.time() - start_time) * 1000),
+                profile_id=profile_id,
+                success=False,
+                error_message=LLM_PROVIDER_ERROR_MESSAGE,
+            )
+        raise LLMCallError(LLM_PROVIDER_ERROR_MESSAGE) from exc

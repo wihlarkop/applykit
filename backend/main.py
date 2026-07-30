@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request, status
@@ -12,6 +13,7 @@ from app.exceptions import (
     error_response,
 )
 from app.http_client import start_http_client, stop_http_client
+from app.public_errors import UNEXPECTED_ERROR_MESSAGE
 from app.services.usage_logging import stop_usage_logger
 from app.routes import (
     analyze,
@@ -27,6 +29,7 @@ from app.routes import (
 )
 
 _settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -85,11 +88,16 @@ async def validation_exception_handler(
 
 
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    message = getattr(exc, "message", None) or getattr(exc, "msg", None) or str(exc)
+    path = getattr(getattr(request, "url", None), "path", "unknown")
+    logger.error(
+        "Unhandled exception for request path %s",
+        path,
+        exc_info=(type(exc), exc, exc.__traceback__),
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=error_response(
-            message=message or "An unexpected error occurred",
+            message=UNEXPECTED_ERROR_MESSAGE,
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             error_code="INTERNAL_SERVER_ERROR",
         ),

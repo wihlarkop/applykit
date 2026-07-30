@@ -1,7 +1,10 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.public_errors import PROVIDER_CONNECTION_ERROR_MESSAGE
 from app.schemas import (
     ActivateProviderRequest,
     IntegrationInfo,
@@ -27,6 +30,7 @@ from app.services.settings import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 PROVIDER_LABELS = {
     "gemini": "Google Gemini",
@@ -149,8 +153,16 @@ def test_connection(req: UpdateSettingsRequest):
         if content:
             return TestConnectionResponse(ok=True, message="Connection successful.")
         return TestConnectionResponse(ok=False, message="LLM returned empty response.")
-    except Exception as e:
-        return TestConnectionResponse(ok=False, message=str(e))
+    except Exception as exc:
+        logger.warning(
+            "LLM connection test failed for model %s",
+            req.model,
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+        return TestConnectionResponse(
+            ok=False,
+            message=PROVIDER_CONNECTION_ERROR_MESSAGE,
+        )
 
 
 @router.delete("/settings/integrations/{provider_id}", response_model=IntegrationsResponse)

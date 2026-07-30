@@ -13,6 +13,7 @@ from pydantic import BaseModel, ValidationError
 from app.exceptions import RateLimitError
 from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError, LLMOutputError
 from app.public_errors import LLM_PROVIDER_ERROR_MESSAGE
+from app.services.settings import is_llm_configured
 from app.services.usage_logging import log_usage_background
 
 logger = logging.getLogger(__name__)
@@ -125,7 +126,7 @@ def call_llm(
     operation: str | None = None,
     profile_id: int | None = None,
 ) -> str:
-    if not provider or not api_key:
+    if not is_llm_configured(provider, api_key):
         raise APIKeyNotConfiguredError(
             "LLM not configured. Set provider and API key in Settings."
         )
@@ -134,12 +135,14 @@ def call_llm(
 
     try:
         start_time = time.time()
-        response = litellm.completion(
-            model=provider,
-            messages=messages,
-            api_key=api_key,
-            timeout=timeout,
-        )
+        request_kwargs = {
+            "model": provider,
+            "messages": messages,
+            "timeout": timeout,
+        }
+        if api_key:
+            request_kwargs["api_key"] = api_key
+        response = litellm.completion(**request_kwargs)
         content = response.choices[0].message.content if response.choices else None
         if not content:
             raise LLMCallError("LLM returned an empty response.")
@@ -213,7 +216,7 @@ async def stream_llm(
     operation: str | None = None,
     profile_id: int | None = None,
 ) -> AsyncGenerator[str, None]:
-    if not provider or not api_key:
+    if not is_llm_configured(provider, api_key):
         raise APIKeyNotConfiguredError(
             "LLM not configured. Set provider and API key in Settings."
         )
@@ -222,14 +225,16 @@ async def stream_llm(
 
     try:
         start_time = time.time()
-        response = await litellm.acompletion(
-            model=provider,
-            messages=messages,
-            api_key=api_key,
-            stream=True,
-            stream_options={"include_usage": True},
-            timeout=60,
-        )
+        request_kwargs = {
+            "model": provider,
+            "messages": messages,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+            "timeout": 60,
+        }
+        if api_key:
+            request_kwargs["api_key"] = api_key
+        response = await litellm.acompletion(**request_kwargs)
 
         # Track final usage from the last chunk
         final_usage = None

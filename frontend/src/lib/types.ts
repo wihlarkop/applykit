@@ -217,7 +217,7 @@ export interface SettingsResponse {
 
 export interface UpdateSettingsRequest {
   model: string;
-  api_key: string;
+  api_key: string | null;
   activate?: boolean;
 }
 
@@ -248,7 +248,6 @@ export interface IntegrationInfo {
   is_active: boolean;
   api_key_configured: boolean;
   masked_api_key: string | null;
-  api_key: string | null;
   current_model: string | null;
 }
 

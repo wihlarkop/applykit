@@ -81,7 +81,9 @@
     }
   }
 
-  const anyConfigured = $derived(integrations.some((i) => i.api_key_configured));
+  const anyConfigured = $derived(
+    integrations.some((i) => i.api_key_configured || (i.id === 'ollama' && Boolean(i.current_model)))
+  );
 </script>
 
 <div class="max-w-2xl space-y-6">

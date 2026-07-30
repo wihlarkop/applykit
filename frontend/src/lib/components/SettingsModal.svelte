@@ -74,14 +74,13 @@
     selectedProviderId = id;
     const prov = providers.find((p) => p.id === id);
     selectedModel = prov?.models[0]?.value ?? '';
-    // Ollama needs no key; set a placeholder so the backend validation passes
-    apiKey = id === 'ollama' ? 'ollama' : '';
+    apiKey = '';
     testResult = null;
   }
 
   async function handleTest() {
     if (!selectedModel) return;
-    const keyToTest = selectedProvider?.requires_api_key ? apiKey : 'ollama';
+    const keyToTest = apiKey.trim() || null;
     if (selectedProvider?.requires_api_key && !keyToTest) return;
     testing = true;
     testResult = null;
@@ -102,7 +101,7 @@
       saveError = 'Select a model.';
       return;
     }
-    const keyToSave = selectedProvider?.requires_api_key ? apiKey.trim() : 'ollama';
+    const keyToSave = apiKey.trim() || null;
     if (selectedProvider?.requires_api_key && !keyToSave && !canReuseStoredKey) {
       saveError = 'API key is required.';
       return;

@@ -27,6 +27,7 @@ def _make_session():
 
 
 def test_ollama_is_configured_without_an_api_key():
+    """Keyless providers are usable without manufacturing a secret."""
     assert provider_requires_api_key("ollama") is False
     assert is_llm_configured("ollama/llama3.2", "") is True
     assert provider_requires_api_key("openai") is True

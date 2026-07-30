@@ -83,7 +83,6 @@ def get_integrations(db: Session = Depends(get_db)):
                 is_active=is_active,
                 api_key_configured=bool(api_key),
                 masked_api_key=_mask_api_key(api_key) if api_key else None,
-                api_key=api_key if api_key else None,
                 current_model=current_model,
             )
         )
@@ -94,19 +93,22 @@ def get_integrations(db: Session = Depends(get_db)):
 def update_settings(req: UpdateSettingsRequest, db: Session = Depends(get_db)):
     migrate_legacy_api_key(db)
 
-    # Store key per provider instead of globally
+    # Store key per provider instead of globally. An omitted or blank key means
+    # "keep the existing secret"; disconnecting is handled by the DELETE endpoint.
     provider = provider_from_model(req.model)
+    api_key = req.api_key.strip() if req.api_key else ""
     if provider:
-        set_provider_api_key(db, provider, req.api_key)
+        if api_key:
+            set_provider_api_key(db, provider, api_key)
         set_setting(db, f"selected_model_{provider}", req.model)
-    else:
-        set_setting(db, "llm_api_key", req.api_key)
+    elif api_key:
+        set_setting(db, "llm_api_key", api_key)
     if req.activate:
         set_active_model(db, req.model)
-    model, api_key = get_llm_config(db)
+    model, configured_api_key = get_llm_config(db)
     return SettingsResponse(
         model=model or None,
-        api_key_configured=bool(api_key),
+        api_key_configured=bool(configured_api_key),
         source="database",
     )
 

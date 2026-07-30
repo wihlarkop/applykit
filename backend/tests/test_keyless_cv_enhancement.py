@@ -35,6 +35,7 @@ def _configure_keyless_llm(monkeypatch):
 
 
 def test_sync_cv_enhancement_runs_for_keyless_provider(monkeypatch):
+    """Optional enhancement uses provider readiness rather than secret presence."""
     db = _make_session()
     try:
         profile = _add_profile(db)

@@ -1,0 +1,56 @@
+name: Patch cover letter stream ordering
+
+on:
+  push:
+    branches:
+      - work/fix-cover-letter-stream-persistence
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: work/fix-cover-letter-stream-persistence
+          fetch-depth: 0
+
+      - name: Move done event after persistence
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/app/routes/generate.py')
+          text = path.read_text()
+          start = text.index('@router.post("/generate/cover-letter", response_class=EventSourceResponse)')
+          end = text.index('@router.post("/generate/summary", response_class=EventSourceResponse)', start)
+          block = text[start:end]
+
+          done = '    yield ServerSentEvent(data="[DONE]", event="done")\n\n'
+          if block.count(done) != 1:
+              raise SystemExit('expected exactly one cover-letter done event')
+          block = block.replace(done, '', 1)
+
+          commit = '    db.add(entry)\n    db.commit()\n'
+          if block.count(commit) != 1:
+              raise SystemExit('expected exactly one cover-letter persistence block')
+          block = block.replace(
+              commit,
+              commit + '\n    yield ServerSentEvent(data="[DONE]", event="done")\n',
+              1,
+          )
+
+          path.write_text(text[:start] + block + text[end:])
+          PY
+
+      - name: Remove temporary helper and commit
+        run: |
+          rm .github/workflows/patch-cover-letter-stream.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/routes/generate.py .github/workflows/patch-cover-letter-stream.yml
+          git commit -m "fix: persist cover letter before done event"
+          git push origin HEAD:work/fix-cover-letter-stream-persistence

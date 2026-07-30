@@ -275,8 +275,6 @@ async def generate_cover_letter(
         yield _handle_stream_error(e)
         return
 
-    yield ServerSentEvent(data="[DONE]", event="done")
-
     full_text = "".join(accumulated)
     entry = GeneratedCoverLetter(
         company_name=req.company_name,
@@ -295,6 +293,8 @@ async def generate_cover_letter(
     )
     db.add(entry)
     db.commit()
+
+    yield ServerSentEvent(data="[DONE]", event="done")
 
 
 @router.post("/generate/summary", response_class=EventSourceResponse)

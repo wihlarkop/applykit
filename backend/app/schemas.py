@@ -225,7 +225,7 @@ class SettingsResponse(BaseModel):
 
 class UpdateSettingsRequest(BaseModel):
     model: str  # Full LiteLLM model string
-    api_key: str
+    api_key: str | None = None
     activate: bool = True  # if False, saves the key but doesn't change the active model
 
 
@@ -256,7 +256,6 @@ class IntegrationInfo(BaseModel):
     is_active: bool
     api_key_configured: bool
     masked_api_key: str | None
-    api_key: str | None
     current_model: str | None
 
 

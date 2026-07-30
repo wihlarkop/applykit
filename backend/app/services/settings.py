@@ -38,15 +38,32 @@ KNOWN_MODELS: dict[str, list[str]] = {
     ],
 }
 
+KEYLESS_PROVIDERS = frozenset({"ollama"})
+
 
 def provider_from_model(model: str) -> str | None:
     """Extract provider id from a LiteLLM model string like 'gemini/gemini-2.5-flash'."""
     if not model:
         return None
-    for pid in KNOWN_MODELS:
-        if model.startswith(pid + "/") or model == pid:
-            return pid
+    for provider_id in KNOWN_MODELS:
+        if model.startswith(provider_id + "/") or model == provider_id:
+            return provider_id
     return None
+
+
+def provider_requires_api_key(provider_id: str | None) -> bool:
+    """Return whether a provider requires a stored secret to be usable."""
+    return provider_id not in KEYLESS_PROVIDERS
+
+
+def is_llm_configured(model: str, api_key: str | None) -> bool:
+    """Return whether the selected model has everything needed to make a call."""
+    if not model:
+        return False
+    provider_id = provider_from_model(model)
+    if not provider_requires_api_key(provider_id):
+        return True
+    return bool(api_key)
 
 
 def get_setting(db: Session, key: str) -> str | None:
@@ -79,8 +96,7 @@ def clear_provider_api_key(db: Session, provider_id: str) -> None:
 
 
 def set_active_model(db: Session, model: str) -> None:
-    """Set the single active model. Only one model can be active at a time —
-    this overwrites any previously active model via a single DB key upsert."""
+    """Set the single active model. Only one model can be active at a time."""
     set_setting(db, "llm_provider", model)
 
 
@@ -89,9 +105,13 @@ def get_llm_config(db: Session) -> tuple[str, str]:
     model = get_setting(db, "llm_provider") or ""
     if not model:
         return "", ""
-    provider = provider_from_model(model)
-    if provider:
-        api_key = get_provider_api_key(db, provider) or ""
+
+    provider_id = provider_from_model(model)
+    if not provider_requires_api_key(provider_id):
+        return model, ""
+
+    if provider_id:
+        api_key = get_provider_api_key(db, provider_id) or ""
         # Legacy fallback: old single-key setup
         if not api_key:
             api_key = get_setting(db, "llm_api_key") or ""
@@ -104,7 +124,9 @@ def migrate_legacy_api_key(db: Session) -> None:
     """Migrate the old global llm_api_key to per-provider storage if needed."""
     current_model = get_setting(db, "llm_provider") or ""
     current_provider = provider_from_model(current_model)
-    if current_provider and not get_provider_api_key(db, current_provider):
+    if not current_provider or not provider_requires_api_key(current_provider):
+        return
+    if not get_provider_api_key(db, current_provider):
         legacy_key = get_setting(db, "llm_api_key") or ""
         if legacy_key:
             set_provider_api_key(db, current_provider, legacy_key)

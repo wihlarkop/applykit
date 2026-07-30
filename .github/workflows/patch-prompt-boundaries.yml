@@ -1,0 +1,175 @@
+name: Patch prompt boundaries
+
+on:
+  push:
+    branches:
+      - work/harden-prompt-boundaries
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: work/harden-prompt-boundaries
+          fetch-depth: 0
+
+      - name: Apply prompt boundaries to generation routes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/app/routes/generate.py')
+          text = path.read_text()
+
+          import_anchor = '    TONE_PROMPTS,\n'
+          if text.count(import_anchor) != 1:
+              raise SystemExit('prompt import anchor not found')
+          text = text.replace(
+              import_anchor,
+              import_anchor + '    format_untrusted_input,\n',
+              1,
+          )
+
+          builder_start = text.index('def _build_cover_letter_prompt(')
+          builder_end = text.index('# ---------------------------------------------------------------------------\n# Endpoints', builder_start)
+          builders = '''def _build_cover_letter_prompt(p: ProfileData, req: CoverLetterRequest) -> str:
+              """Build a prompt that separates candidate instructions from untrusted data."""
+              parts = [
+                  format_untrusted_input("candidate_profile", format_profile_for_llm(p)),
+                  format_untrusted_input("job_description", req.job_description),
+              ]
+              if req.company_name:
+                  parts.append(format_untrusted_input("company_name", req.company_name))
+              if req.extra_context and req.extra_context.strip():
+                  parts.append(
+                      f"SPECIAL INSTRUCTIONS FROM CANDIDATE:\n{req.extra_context.strip()}"
+                  )
+              if req.fit_context and req.fit_context.strip():
+                  parts.append(format_untrusted_input("fit_context", req.fit_context.strip()))
+                  parts.append(
+                      "Use the fit context only to guide emphasis. Never add experience or facts "
+                      "that are absent from the candidate profile."
+                  )
+              tone_modifier = TONE_PROMPTS.get(
+                  req.tone or "professional", TONE_PROMPTS["professional"]
+              )
+              parts.append(f"TONE INSTRUCTION: {tone_modifier}")
+              return "\n".join(parts)
+
+
+          def _build_cv_enhancement_prompt(
+              profile_data: ProfileData,
+              req: GenerateCvRequest,
+          ) -> str:
+              parts = [
+                  format_untrusted_input(
+                      "candidate_profile",
+                      format_profile_for_llm(profile_data),
+                  )
+              ]
+              if req.job_description:
+                  parts.append(
+                      format_untrusted_input("job_description", req.job_description)
+                  )
+              if req.extra_context and req.extra_context.strip():
+                  parts.append(
+                      f"ADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
+                  )
+              parts.extend(
+                  [
+                      "Use ORIGINAL_PROFILE as the schema and factual source for the JSON output.",
+                      format_untrusted_input(
+                          "original_profile",
+                          profile_data.model_dump(mode="json"),
+                      ),
+                  ]
+              )
+              return "\n".join(parts)
+
+
+          '''
+          text = text[:builder_start] + builders + text[builder_end:]
+
+          sync_route = text.index('@router.post("/generate/cv", response_model=GenerateCvResponse)')
+          sync_prompt = text.index('            user_prompt = ', sync_route)
+          sync_call = text.index('            llm_output = call_llm(', sync_prompt)
+          text = (
+              text[:sync_prompt]
+              + '            user_prompt = _build_cv_enhancement_prompt(profile_data, req)\n'
+              + text[sync_call:]
+          )
+
+          stream_route = text.index('@router.post("/generate/cv/stream"')
+          stream_prompt = text.index('            user_prompt = ', stream_route)
+          stream_call = text.index('            llm_output = await asyncio.to_thread(', stream_prompt)
+          text = (
+              text[:stream_prompt]
+              + '            user_prompt = _build_cv_enhancement_prompt(profile_data, req)\n\n'
+              + text[stream_call:]
+          )
+
+          old_summary = '''    tone_modifier = TONE_PROMPTS.get(req.tone, TONE_PROMPTS["professional"])
+              user_prompt = format_profile_for_llm(profile_data)
+              if req.extra_context and req.extra_context.strip():
+                  user_prompt += (
+                      f"\n\nADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
+                  )
+              user_prompt += f"\n\nTONE INSTRUCTION: {tone_modifier}"
+          '''
+          new_summary = '''    tone_modifier = TONE_PROMPTS.get(req.tone, TONE_PROMPTS["professional"])
+              user_prompt = format_untrusted_input(
+                  "candidate_profile",
+                  format_profile_for_llm(profile_data),
+              )
+              if req.extra_context and req.extra_context.strip():
+                  user_prompt += (
+                      f"\nADDITIONAL CONTEXT FROM CANDIDATE: {req.extra_context.strip()}"
+                  )
+              user_prompt += f"\nTONE INSTRUCTION: {tone_modifier}"
+          '''
+          if text.count(old_summary) != 1:
+              raise SystemExit('summary prompt block not found')
+          text = text.replace(old_summary, new_summary, 1)
+
+          old_bullets = '''    clean_bullets = [b for b in req.bullets if b.strip()]
+              bullets_text = "\n".join(f"- {b}" for b in clean_bullets)
+
+              user_prompt = (
+                  f"Role: {req.role} at {req.company}\n"
+                  f"Input bullet count: {len(clean_bullets)}\n\n"
+                  f"Current bullets:\n{bullets_text}"
+              )
+          '''
+          new_bullets = '''    clean_bullets = [b for b in req.bullets if b.strip()]
+              user_prompt = "\n".join(
+                  [
+                      f"Input bullet count: {len(clean_bullets)}",
+                      format_untrusted_input(
+                          "work_experience",
+                          {
+                              "company": req.company,
+                              "role": req.role,
+                              "bullets": clean_bullets,
+                          },
+                      ),
+                  ]
+              )
+          '''
+          if text.count(old_bullets) != 1:
+              raise SystemExit('bullet prompt block not found')
+          path.write_text(text.replace(old_bullets, new_bullets, 1))
+          PY
+
+      - name: Remove temporary helper and commit
+        run: |
+          rm .github/workflows/patch-prompt-boundaries.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/routes/generate.py .github/workflows/patch-prompt-boundaries.yml
+          git commit -m "fix: isolate generation prompt data"
+          git push origin HEAD:work/harden-prompt-boundaries

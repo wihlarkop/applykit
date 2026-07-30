@@ -7,6 +7,8 @@ from app.services.url_security import UnsafeUrlError
 
 
 def test_scraper_validates_url_before_any_network_fallback(monkeypatch):
+    """Unsafe targets must be rejected before Jina or Crawl4AI can run."""
+
     async def reject_private_url(url: str):
         raise UnsafeUrlError("URL resolves to a non-public address")
 

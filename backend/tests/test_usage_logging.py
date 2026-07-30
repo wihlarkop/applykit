@@ -16,6 +16,7 @@ def test_model_identifier_is_split_into_provider_and_model():
 
 
 def test_usage_dispatcher_serializes_writes_on_one_worker():
+    """Concurrent submissions must use one database-writer thread."""
     thread_ids = []
     records = []
 

@@ -10,7 +10,7 @@
   let modalOpen = $state(false);
   let modalProviderId = $state('');
   let modalModel = $state('');
-  let modalApiKey = $state('');
+  let modalApiKeyConfigured = $state(false);
   let integrations: IntegrationInfo[] = $state([]);
   let loading = $state(true);
   let activating = $state('');
@@ -47,9 +47,8 @@
   function openEdit(integration: IntegrationInfo) {
     modalProviderId = integration.id;
     modalModel = integration.current_model ?? '';
+    modalApiKeyConfigured = integration.api_key_configured;
     modalOpen = true;
-    // Store apiKey for pre-filling in modal
-    modalApiKey = integration.api_key ?? '';
   }
 
   async function handleActivate(providerId: string) {
@@ -249,4 +248,4 @@
   </div>
 </div>
 
-<SettingsModal bind:open={modalOpen} initialProviderId={modalProviderId} initialModel={modalModel} initialApiKey={modalApiKey} />
+<SettingsModal bind:open={modalOpen} initialProviderId={modalProviderId} initialModel={modalModel} initialApiKeyConfigured={modalApiKeyConfigured} />

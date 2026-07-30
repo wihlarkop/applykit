@@ -4,7 +4,7 @@ from app.services.llm import (
     call_llm,
     parse_structured_output,
 )
-from app.services.prompts import FIT_SYSTEM_PROMPT
+from app.services.prompts import FIT_SYSTEM_PROMPT, format_untrusted_input
 
 
 def analyze_fit(
@@ -14,10 +14,12 @@ def analyze_fit(
     api_key: str,
     profile_id: int | None = None,
 ) -> FitAnalysisResponse:
-    user_prompt = (
-        f"Profile:\n{profile_json}\n\n"
-        f"Job Description:\n{job_description}\n\n"
-        "Analyze fit and return JSON."
+    user_prompt = "\n".join(
+        [
+            format_untrusted_input("candidate_profile", profile_json),
+            format_untrusted_input("job_description", job_description),
+            "Analyze the candidate's fit and return JSON.",
+        ]
     )
     raw = call_llm(
         user_prompt,

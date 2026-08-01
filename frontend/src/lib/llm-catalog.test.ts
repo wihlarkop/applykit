@@ -2,7 +2,9 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   credentialActionLabel,
+  customModelValidationError,
   filterCatalogModels,
+  isCustomModel,
   type CatalogModelFilters,
   type CatalogModelOption,
 } from '$lib/llm-catalog';
@@ -45,6 +47,36 @@ describe('credentialActionLabel', () => {
   test('uses token-specific copy only for token providers', () => {
     expect(credentialActionLabel('token')).toBe('Get access token');
     expect(credentialActionLabel('api_key')).toBe('Get API key');
+  });
+});
+
+describe('custom model helpers', () => {
+  test('accepts provider-prefixed IDs and rejects invalid input', () => {
+    expect(customModelValidationError('ollama', 'ollama/qwen3:14b')).toBeNull();
+    expect(customModelValidationError('openrouter', 'openrouter/google/gemini-2.5-flash')).toBeNull();
+    expect(customModelValidationError('openrouter', 'google/gemini')).toContain('openrouter/');
+    expect(customModelValidationError('ollama', 'ollama/model with spaces')).toContain('spaces');
+  });
+
+  test('recognizes non-catalog selections only for supported providers', () => {
+    expect(
+      isCustomModel(
+        { supports_custom_models: true, models },
+        'ollama/qwen3:14b',
+      ),
+    ).toBe(true);
+    expect(
+      isCustomModel(
+        { supports_custom_models: false, models },
+        'openai/not-in-catalog',
+      ),
+    ).toBe(false);
+    expect(
+      isCustomModel(
+        { supports_custom_models: true, models },
+        'ollama/llama3.2',
+      ),
+    ).toBe(false);
   });
 });
 

@@ -5,20 +5,18 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.exceptions import ProviderNotFoundError
+from app.llm.catalog import CATALOG, get_provider
+from app.llm.schemas import ModelOption, ModelsResponse, ProviderInfo
 from app.public_errors import PROVIDER_CONNECTION_ERROR_MESSAGE
 from app.schemas import (
     ActivateProviderRequest,
     IntegrationInfo,
     IntegrationsResponse,
-    ModelOption,
-    ModelsResponse,
-    ProviderInfo,
     SettingsResponse,
     TestConnectionResponse,
     UpdateSettingsRequest,
 )
 from app.services.settings import (
-    KNOWN_MODELS,
     clear_provider_api_key,
     get_llm_config,
     get_provider_api_key,
@@ -34,13 +32,6 @@ from app.services.settings import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-PROVIDER_LABELS = {
-    "gemini": "Google Gemini",
-    "anthropic": "Anthropic Claude",
-    "openai": "OpenAI",
-    "ollama": "Ollama (local)",
-}
 
 
 def _mask_api_key(key: str) -> str | None:
@@ -71,25 +62,25 @@ def get_integrations(db: Session = Depends(get_db)):
     active_provider = provider_from_model(active_model)
 
     integrations = []
-    for provider_id, models in KNOWN_MODELS.items():
+    for provider in CATALOG.providers:
         api_key = ""
-        if provider_requires_api_key(provider_id):
-            api_key = get_provider_api_key(db, provider_id) or ""
+        if provider_requires_api_key(provider.id):
+            api_key = get_provider_api_key(db, provider.id) or ""
             # Legacy fallback for the active provider
-            if not api_key and provider_id == active_provider:
+            if not api_key and provider.id == active_provider:
                 api_key = get_setting(db, "llm_api_key") or ""
 
-        is_active = provider_id == active_provider
+        is_active = provider.id == active_provider
         current_model = (
             active_model
             if is_active
-            else get_setting(db, f"selected_model_{provider_id}")
+            else get_setting(db, f"selected_model_{provider.id}")
         )
 
         integrations.append(
             IntegrationInfo(
-                id=provider_id,
-                label=PROVIDER_LABELS.get(provider_id, provider_id),
+                id=provider.id,
+                label=provider.label,
                 is_active=is_active,
                 api_key_configured=bool(api_key),
                 masked_api_key=_mask_api_key(api_key) if api_key else None,
@@ -133,11 +124,13 @@ def activate_provider(req: ActivateProviderRequest, db: Session = Depends(get_db
     """Switch active provider without changing any stored API key."""
     migrate_legacy_api_key(db)
 
-    provider_id = req.provider_id
-    saved_model = get_setting(db, f"selected_model_{provider_id}")
+    provider = get_provider(req.provider_id)
+    if provider is None:
+        raise ProviderNotFoundError(req.provider_id)
+
+    saved_model = get_setting(db, f"selected_model_{provider.id}")
     if not saved_model:
-        models = KNOWN_MODELS.get(provider_id, [])
-        saved_model = models[0] if models else provider_id
+        saved_model = provider.models[0].id
     set_active_model(db, saved_model)
     model, api_key = get_llm_config(db)
     return SettingsResponse(
@@ -189,7 +182,7 @@ def test_connection(req: UpdateSettingsRequest):
 @router.delete("/settings/integrations/{provider_id}", response_model=IntegrationsResponse)
 def disconnect_provider(provider_id: str, db: Session = Depends(get_db)):
     """Remove the stored API key for a provider. If it was active, clear the active model."""
-    if provider_id not in KNOWN_MODELS:
+    if get_provider(provider_id) is None:
         raise ProviderNotFoundError(provider_id)
 
     clear_provider_api_key(db, provider_id)
@@ -207,11 +200,23 @@ def get_models():
     return ModelsResponse(
         providers=[
             ProviderInfo(
-                id=provider_id,
-                label=PROVIDER_LABELS.get(provider_id, provider_id),
-                models=[ModelOption(value=model, label=model) for model in models],
-                requires_api_key=provider_requires_api_key(provider_id),
+                id=provider.id,
+                label=provider.label,
+                auth_type=provider.auth_type.value,
+                local=provider.local,
+                requires_api_key=provider_requires_api_key(provider.id),
+                models=[
+                    ModelOption(
+                        value=model.id,
+                        label=model.label,
+                        status=model.status.value,
+                        capabilities=sorted(capability.value for capability in model.capabilities),
+                        traits=sorted(trait.value for trait in model.traits),
+                        free_tier=model.free_tier,
+                    )
+                    for model in provider.models
+                ],
             )
-            for provider_id, models in KNOWN_MODELS.items()
+            for provider in CATALOG.providers
         ]
     )

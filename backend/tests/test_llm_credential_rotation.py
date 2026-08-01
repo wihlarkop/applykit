@@ -242,5 +242,5 @@ def test_all_rate_limited_credentials_surface_safe_rate_limit_error(monkeypatch)
     finally:
         db.close()
 
-    assert exc_info.value.retry_after == 12
+    assert exc_info.value.details["retry_after"] == 12
     assert "sk-primary" not in exc_info.value.message

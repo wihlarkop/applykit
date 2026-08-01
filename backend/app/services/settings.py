@@ -7,6 +7,13 @@ from app.llm.catalog import (
     provider_requires_api_key,
 )
 from app.models import AppSetting
+from app.services.provider_credential_vault import (
+    clear_provider_credentials,
+    decrypt_provider_credential,
+    get_active_provider_credential,
+    migrate_legacy_provider_credentials,
+    upsert_active_provider_credential,
+)
 
 # Backward-compatible projection for callers that still need provider -> model IDs.
 KNOWN_MODELS: dict[str, list[str]] = {
@@ -40,17 +47,25 @@ def set_setting(db: Session, key: str, value: str) -> None:
 
 
 def get_provider_api_key(db: Session, provider_id: str) -> str | None:
-    """Get the stored API key for a specific provider."""
-    return get_setting(db, f"api_key_{provider_id}")
+    """Return the decrypted manually active credential for a provider."""
+    migrate_legacy_provider_credentials(db)
+    credential = get_active_provider_credential(db, provider_id)
+    if not credential:
+        return None
+    return decrypt_provider_credential(credential)
 
 
 def set_provider_api_key(db: Session, provider_id: str, api_key: str) -> None:
-    """Store API key for a specific provider."""
-    set_setting(db, f"api_key_{provider_id}", api_key)
+    """Create or replace the manually active credential for a provider."""
+    migrate_legacy_provider_credentials(db)
+    upsert_active_provider_credential(db, provider_id, api_key)
+    # Clear any plaintext remnants left by older ApplyKit versions.
+    set_setting(db, f"api_key_{provider_id}", "")
 
 
 def clear_provider_api_key(db: Session, provider_id: str) -> None:
-    """Remove the stored API key for a provider."""
+    """Remove every stored credential for a provider."""
+    clear_provider_credentials(db, provider_id)
     set_setting(db, f"api_key_{provider_id}", "")
 
 
@@ -60,7 +75,7 @@ def set_active_model(db: Session, model: str) -> None:
 
 
 def get_llm_config(db: Session) -> tuple[str, str]:
-    """Return (model_string, api_key) for the currently active provider."""
+    """Return (model_string, active_api_key) for the active provider."""
     model = get_setting(db, "llm_provider") or ""
     if not model:
         return "", ""
@@ -69,23 +84,16 @@ def get_llm_config(db: Session) -> tuple[str, str]:
     if not provider_requires_api_key(provider_id):
         return model, ""
 
-    if provider_id:
-        api_key = get_provider_api_key(db, provider_id) or ""
-        # Legacy fallback: old single-key setup
-        if not api_key:
-            api_key = get_setting(db, "llm_api_key") or ""
-    else:
-        api_key = get_setting(db, "llm_api_key") or ""
-    return model, api_key
+    migrate_legacy_provider_credentials(db)
+    if not provider_id:
+        return model, ""
+
+    credential = get_active_provider_credential(db, provider_id)
+    if not credential:
+        return model, ""
+    return model, decrypt_provider_credential(credential)
 
 
 def migrate_legacy_api_key(db: Session) -> None:
-    """Migrate the old global llm_api_key to per-provider storage if needed."""
-    current_model = get_setting(db, "llm_provider") or ""
-    current_provider = provider_from_model(current_model)
-    if not current_provider or not provider_requires_api_key(current_provider):
-        return
-    if not get_provider_api_key(db, current_provider):
-        legacy_key = get_setting(db, "llm_api_key") or ""
-        if legacy_key:
-            set_provider_api_key(db, current_provider, legacy_key)
+    """Backward-compatible alias for the encrypted credential migration."""
+    migrate_legacy_provider_credentials(db)

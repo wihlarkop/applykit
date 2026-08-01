@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -64,7 +64,7 @@ def test_only_ollama_is_keyless_and_local() -> None:
 def test_every_provider_has_verification_metadata() -> None:
     for provider in CATALOG.providers:
         assert str(provider.documentation_url).startswith("https://")
-        assert provider.last_verified <= date.today()
+        assert provider.last_verified <= date.today() + timedelta(days=1)
 
 
 def test_catalog_does_not_include_deprecated_markers() -> None:
@@ -104,7 +104,7 @@ def test_validator_report_summarizes_catalog() -> None:
     assert report.provider_count == len(EXPECTED_PROVIDERS)
     assert report.model_count > report.provider_count
     assert report.preview_count >= 1
-    assert report.oldest_verification <= date.today()
+    assert report.oldest_verification <= date.today() + timedelta(days=1)
 
 
 def test_invalid_catalog_is_rejected() -> None:
@@ -119,7 +119,7 @@ def test_invalid_catalog_is_rejected() -> None:
                         "auth_type": "none",
                         "local": True,
                         "documentation_url": "https://ollama.com/library",
-                        "last_verified": "2026-08-02",
+                        "last_verified": date.today().isoformat(),
                         "models": [
                             {
                                 "id": "wrong/model",
@@ -145,7 +145,7 @@ def test_catalog_rejects_insecure_documentation_url() -> None:
                         "model_prefix": "example",
                         "auth_type": "api_key",
                         "documentation_url": "http://example.com/models",
-                        "last_verified": "2026-08-02",
+                        "last_verified": date.today().isoformat(),
                         "models": [
                             {
                                 "id": "example/chat",

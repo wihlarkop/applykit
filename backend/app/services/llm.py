@@ -2,17 +2,31 @@
 
 import json
 import logging
-import re
 import time
 from collections.abc import AsyncGenerator, Callable
 from typing import Any, TypeVar
 
 import litellm
 from pydantic import BaseModel, ValidationError
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 
+from app.database import SessionLocal
 from app.exceptions import RateLimitError
 from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError, LLMOutputError
+from app.llm.catalog import provider_from_model, provider_requires_api_key
+from app.models import ProviderCredential
 from app.public_errors import LLM_PROVIDER_ERROR_MESSAGE
+from app.services.credential_crypto import CredentialCipher
+from app.services.provider_credential_rotation import (
+    CredentialAttemptError,
+    CredentialFailureKind,
+    CredentialRotationPlan,
+    CredentialStrategy,
+    NoEligibleCredentialError,
+    classify_provider_exception,
+    execute_with_credential_rotation,
+)
 from app.services.settings import is_llm_configured
 from app.services.usage_logging import log_usage_background
 
@@ -42,28 +56,6 @@ def _prepare_messages(prompt: str, system: str | None = None) -> list[dict]:
     return messages
 
 
-def _extract_retry_delay(error_str: str) -> float:
-    match = re.search(
-        r"retry[_\s]delay[\":\s]+(\d+(?:\.\d+)?)", error_str, re.IGNORECASE
-    )
-    if match:
-        return float(match.group(1))
-    match = re.search(r"retry in (\d+(?:\.\d+)?)s", error_str, re.IGNORECASE)
-    if match:
-        return float(match.group(1))
-    return 60.0
-
-
-def _handle_rate_limit(error_str: str, original: Exception) -> None:
-    """Raise RateLimitError if the error looks like a 429."""
-    if "RateLimitError" in error_str or "429" in error_str:
-        retry_after = _extract_retry_delay(error_str)
-        raise RateLimitError(
-            f"Rate limit exceeded. Please retry in {retry_after:.0f}s if available.",
-            retry_after=retry_after,
-        ) from original
-
-
 def _compute_cost(response, provider: str) -> float | None:
     """Try to extract or compute cost from a LiteLLM response."""
     cost = getattr(response, "cost", None)
@@ -72,7 +64,8 @@ def _compute_cost(response, provider: str) -> float | None:
         if usage is not None:
             try:
                 cost = litellm.completion_cost(
-                    completion_response=response, model=provider
+                    completion_response=response,
+                    model=provider,
                 )
             except Exception:
                 pass
@@ -112,6 +105,155 @@ def parse_structured_output(
         raise LLMOutputError() from None
 
 
+def _open_rotation_session(
+    provider: str,
+    provided_db: Session | None,
+) -> tuple[Session | None, bool]:
+    provider_id = provider_from_model(provider)
+    if not provider_id or not provider_requires_api_key(provider_id):
+        return None, False
+
+    db = provided_db or SessionLocal()
+    owns_session = provided_db is None
+    try:
+        has_credentials = (
+            db.query(ProviderCredential)
+            .filter_by(provider_id=provider_id)
+            .first()
+            is not None
+        )
+    except OperationalError:
+        if owns_session:
+            db.close()
+        logger.warning(
+            "Credential vault table is unavailable; using the resolved active key."
+        )
+        return None, False
+
+    if not has_credentials:
+        if owns_session:
+            db.close()
+        return None, False
+    return db, owns_session
+
+
+def _completion_request(
+    provider: str,
+    messages: list[dict],
+    timeout: int,
+    api_key: str,
+):
+    request_kwargs: dict[str, Any] = {
+        "model": provider,
+        "messages": messages,
+        "timeout": timeout,
+    }
+    if api_key:
+        request_kwargs["api_key"] = api_key
+    return litellm.completion(**request_kwargs)
+
+
+def _rotation_completion_attempt(
+    provider: str,
+    messages: list[dict],
+    timeout: int,
+    api_key: str,
+):
+    try:
+        return _completion_request(provider, messages, timeout, api_key)
+    except (APIKeyNotConfiguredError, LLMCallError, RateLimitError):
+        raise
+    except Exception as exc:
+        raise classify_provider_exception(exc) from exc
+
+
+def _log_failure(
+    *,
+    operation: str | None,
+    provider: str,
+    started_at: float,
+    profile_id: int | None,
+    message: str,
+) -> None:
+    if not operation:
+        return
+    log_usage_background(
+        operation=operation,
+        model_identifier=provider,
+        latency_ms=int((time.time() - started_at) * 1000),
+        profile_id=profile_id,
+        success=False,
+        error_message=message,
+    )
+
+
+def _raise_public_rotation_error(
+    error: CredentialAttemptError,
+    *,
+    operation: str | None,
+    provider: str,
+    started_at: float,
+    profile_id: int | None,
+) -> None:
+    original = error.original or error
+    logger.warning(
+        "LLM provider attempt failed model=%s error_type=%s",
+        provider,
+        type(original).__name__,
+    )
+
+    if error.kind is CredentialFailureKind.RATE_LIMIT:
+        retry_after = max(float(error.retry_after or 60), 1.0)
+        public_error = RateLimitError(
+            f"Rate limit exceeded. Please retry in {retry_after:.0f}s if available.",
+            retry_after=retry_after,
+        )
+        _log_failure(
+            operation=operation,
+            provider=provider,
+            started_at=started_at,
+            profile_id=profile_id,
+            message=public_error.message,
+        )
+        raise public_error from original
+
+    _log_failure(
+        operation=operation,
+        provider=provider,
+        started_at=started_at,
+        profile_id=profile_id,
+        message=LLM_PROVIDER_ERROR_MESSAGE,
+    )
+    raise LLMCallError(LLM_PROVIDER_ERROR_MESSAGE) from original
+
+
+def _record_completion_usage(
+    response,
+    *,
+    operation: str | None,
+    provider: str,
+    profile_id: int | None,
+) -> None:
+    if not operation:
+        return
+    usage = getattr(response, "usage", None)
+    prompt_tokens = usage.prompt_tokens if usage else None
+    completion_tokens = usage.completion_tokens if usage else None
+    total_tokens = usage.total_tokens if usage else None
+    cost = _compute_cost(response, provider)
+    latency_ms = getattr(response, "_response_ms", None)
+    log_usage_background(
+        operation=operation,
+        model_identifier=provider,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        cost=cost,
+        latency_ms=latency_ms or 0,
+        profile_id=profile_id,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Synchronous LLM call
 # ---------------------------------------------------------------------------
@@ -125,6 +267,8 @@ def call_llm(
     api_key: str = "",
     operation: str | None = None,
     profile_id: int | None = None,
+    credential_db: Session | None = None,
+    credential_cipher: CredentialCipher | None = None,
 ) -> str:
     if not is_llm_configured(provider, api_key):
         raise APIKeyNotConfiguredError(
@@ -132,80 +276,118 @@ def call_llm(
         )
 
     messages = _prepare_messages(prompt, system)
+    started_at = time.time()
+    rotation_db, owns_rotation_db = _open_rotation_session(provider, credential_db)
+    provider_id = provider_from_model(provider)
 
     try:
-        start_time = time.time()
-        request_kwargs = {
-            "model": provider,
-            "messages": messages,
-            "timeout": timeout,
-        }
-        if api_key:
-            request_kwargs["api_key"] = api_key
-        response = litellm.completion(**request_kwargs)
+        if rotation_db is not None and provider_id:
+            response = execute_with_credential_rotation(
+                rotation_db,
+                provider_id,
+                lambda selected_key, _credential_id: _rotation_completion_attempt(
+                    provider,
+                    messages,
+                    timeout,
+                    selected_key,
+                ),
+                cipher=credential_cipher,
+            )
+        else:
+            response = _completion_request(provider, messages, timeout, api_key)
+
         content = response.choices[0].message.content if response.choices else None
         if not content:
             raise LLMCallError("LLM returned an empty response.")
 
-        usage = getattr(response, "usage", None)
-        prompt_tokens = usage.prompt_tokens if usage else None
-        completion_tokens = usage.completion_tokens if usage else None
-        total_tokens = usage.total_tokens if usage else None
-        cost = _compute_cost(response, provider)
-        latency_ms = getattr(response, "_response_ms", None)
-
-        if operation:
-            log_usage_background(
-                operation=operation,
-                model_identifier=provider,
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                total_tokens=total_tokens,
-                cost=cost,
-                latency_ms=latency_ms or 0,
-                profile_id=profile_id,
-            )
-
+        _record_completion_usage(
+            response,
+            operation=operation,
+            provider=provider,
+            profile_id=profile_id,
+        )
         return content
 
     except (APIKeyNotConfiguredError, LLMCallError, RateLimitError):
         raise
-    except Exception as exc:
-        error_str = str(exc)
-        logger.warning(
-            "LLM request failed for model %s",
-            provider,
-            exc_info=(type(exc), exc, exc.__traceback__),
+    except NoEligibleCredentialError as exc:
+        raise APIKeyNotConfiguredError(
+            "No enabled provider credential is currently available."
+        ) from exc
+    except CredentialAttemptError as exc:
+        _raise_public_rotation_error(
+            exc,
+            operation=operation,
+            provider=provider,
+            started_at=started_at,
+            profile_id=profile_id,
         )
-        try:
-            _handle_rate_limit(error_str, exc)
-        except RateLimitError as rate_error:
-            if operation:
-                log_usage_background(
-                    operation=operation,
-                    model_identifier=provider,
-                    latency_ms=int((time.time() - start_time) * 1000),
-                    profile_id=profile_id,
-                    success=False,
-                    error_message=rate_error.message,
-                )
-            raise
-
-        if operation:
-            log_usage_background(
-                operation=operation,
-                model_identifier=provider,
-                latency_ms=int((time.time() - start_time) * 1000),
-                profile_id=profile_id,
-                success=False,
-                error_message=LLM_PROVIDER_ERROR_MESSAGE,
-            )
-        raise LLMCallError(LLM_PROVIDER_ERROR_MESSAGE) from exc
+    except Exception as exc:
+        _raise_public_rotation_error(
+            classify_provider_exception(exc),
+            operation=operation,
+            provider=provider,
+            started_at=started_at,
+            profile_id=profile_id,
+        )
+    finally:
+        if owns_rotation_db and rotation_db is not None:
+            rotation_db.close()
 
 
 # ---------------------------------------------------------------------------
 # Async streaming LLM call
 # ---------------------------------------------------------------------------
+
+
+async def _stream_request(
+    provider: str,
+    messages: list[dict],
+    api_key: str,
+):
+    request_kwargs: dict[str, Any] = {
+        "model": provider,
+        "messages": messages,
+        "stream": True,
+        "stream_options": {"include_usage": True},
+        "timeout": 60,
+    }
+    if api_key:
+        request_kwargs["api_key"] = api_key
+    return await litellm.acompletion(**request_kwargs)
+
+
+def _record_stream_usage(
+    *,
+    operation: str | None,
+    provider: str,
+    profile_id: int | None,
+    started_at: float,
+    final_usage,
+    final_chunk,
+) -> None:
+    if not operation:
+        return
+    latency_ms = int((time.time() - started_at) * 1000)
+    if final_usage is not None:
+        cost = _compute_cost(final_chunk, provider) if final_chunk is not None else None
+        log_usage_background(
+            operation=operation,
+            model_identifier=provider,
+            prompt_tokens=getattr(final_usage, "prompt_tokens", None),
+            completion_tokens=getattr(final_usage, "completion_tokens", None),
+            total_tokens=getattr(final_usage, "total_tokens", None),
+            cost=cost,
+            latency_ms=latency_ms,
+            profile_id=profile_id,
+        )
+        return
+    log_usage_background(
+        operation=operation,
+        model_identifier=provider,
+        latency_ms=latency_ms,
+        profile_id=profile_id,
+    )
 
 
 async def stream_llm(
@@ -215,6 +397,8 @@ async def stream_llm(
     api_key: str = "",
     operation: str | None = None,
     profile_id: int | None = None,
+    credential_db: Session | None = None,
+    credential_cipher: CredentialCipher | None = None,
 ) -> AsyncGenerator[str, None]:
     if not is_llm_configured(provider, api_key):
         raise APIKeyNotConfiguredError(
@@ -222,86 +406,116 @@ async def stream_llm(
         )
 
     messages = _prepare_messages(prompt, system)
+    started_at = time.time()
+    rotation_db, owns_rotation_db = _open_rotation_session(provider, credential_db)
+    provider_id = provider_from_model(provider)
 
     try:
-        start_time = time.time()
-        request_kwargs = {
-            "model": provider,
-            "messages": messages,
-            "stream": True,
-            "stream_options": {"include_usage": True},
-            "timeout": 60,
-        }
-        if api_key:
-            request_kwargs["api_key"] = api_key
-        response = await litellm.acompletion(**request_kwargs)
+        if rotation_db is None or not provider_id:
+            try:
+                response = await _stream_request(provider, messages, api_key)
+                final_usage = None
+                final_chunk = None
+                async for chunk in response:
+                    final_chunk = chunk
+                    usage = getattr(chunk, "usage", None)
+                    if usage and getattr(usage, "total_tokens", None):
+                        final_usage = usage
+                    delta = chunk.choices[0].delta.content if chunk.choices else None
+                    if delta:
+                        yield delta
+                _record_stream_usage(
+                    operation=operation,
+                    provider=provider,
+                    profile_id=profile_id,
+                    started_at=started_at,
+                    final_usage=final_usage,
+                    final_chunk=final_chunk,
+                )
+                return
+            except (APIKeyNotConfiguredError, LLMCallError, RateLimitError):
+                raise
+            except Exception as exc:
+                _raise_public_rotation_error(
+                    classify_provider_exception(exc),
+                    operation=operation,
+                    provider=provider,
+                    started_at=started_at,
+                    profile_id=profile_id,
+                )
 
-        # Track final usage from the last chunk
-        final_usage = None
-        async for chunk in response:
-            # The last chunk with include_usage=True has usage data but empty choices
-            usage = getattr(chunk, "usage", None)
-            if usage and getattr(usage, "total_tokens", None):
-                final_usage = usage
+        plan = CredentialRotationPlan(
+            rotation_db,
+            provider_id,
+            cipher=credential_cipher,
+        )
+        last_error: CredentialAttemptError | None = None
 
-            delta = chunk.choices[0].delta.content if chunk.choices else None
-            if delta:
-                yield delta
+        for resolved in plan.attempts():
+            emitted_content = False
+            final_usage = None
+            final_chunk = None
+            try:
+                response = await _stream_request(
+                    provider,
+                    messages,
+                    resolved.secret,
+                )
+                async for chunk in response:
+                    final_chunk = chunk
+                    usage = getattr(chunk, "usage", None)
+                    if usage and getattr(usage, "total_tokens", None):
+                        final_usage = usage
+                    delta = chunk.choices[0].delta.content if chunk.choices else None
+                    if delta:
+                        emitted_content = True
+                        yield delta
+            except (APIKeyNotConfiguredError, LLMCallError, RateLimitError):
+                raise
+            except Exception as exc:
+                error = classify_provider_exception(exc)
+                last_error = error
+                plan.record_failure(resolved.credential_id, error)
+                can_retry = (
+                    not emitted_content
+                    and error.kind is not CredentialFailureKind.NON_RETRYABLE
+                    and plan.strategy is not CredentialStrategy.MANUAL
+                )
+                if can_retry:
+                    continue
+                _raise_public_rotation_error(
+                    error,
+                    operation=operation,
+                    provider=provider,
+                    started_at=started_at,
+                    profile_id=profile_id,
+                )
 
-        # Log usage after streaming completes
-        if operation and final_usage:
-            cost = _compute_cost(chunk, provider)
-            latency_ms = int((time.time() - start_time) * 1000)
-            log_usage_background(
+            plan.record_success(resolved.credential_id)
+            _record_stream_usage(
                 operation=operation,
-                model_identifier=provider,
-                prompt_tokens=getattr(final_usage, "prompt_tokens", None),
-                completion_tokens=getattr(final_usage, "completion_tokens", None),
-                total_tokens=getattr(final_usage, "total_tokens", None),
-                cost=cost,
-                latency_ms=latency_ms,
+                provider=provider,
+                profile_id=profile_id,
+                started_at=started_at,
+                final_usage=final_usage,
+                final_chunk=final_chunk,
+            )
+            return
+
+        if last_error is not None:
+            _raise_public_rotation_error(
+                last_error,
+                operation=operation,
+                provider=provider,
+                started_at=started_at,
                 profile_id=profile_id,
             )
-        elif operation:
-            # No usage info returned, but still log the call
-            latency_ms = int((time.time() - start_time) * 1000)
-            log_usage_background(
-                operation=operation,
-                model_identifier=provider,
-                latency_ms=latency_ms,
-                profile_id=profile_id,
-            )
-
     except (APIKeyNotConfiguredError, LLMCallError, RateLimitError):
         raise
-    except Exception as exc:
-        error_str = str(exc)
-        logger.warning(
-            "Streaming LLM request failed for model %s",
-            provider,
-            exc_info=(type(exc), exc, exc.__traceback__),
-        )
-        try:
-            _handle_rate_limit(error_str, exc)
-        except RateLimitError as rate_error:
-            if operation:
-                log_usage_background(
-                    operation=operation,
-                    model_identifier=provider,
-                    latency_ms=int((time.time() - start_time) * 1000),
-                    profile_id=profile_id,
-                    success=False,
-                    error_message=rate_error.message,
-                )
-            raise
-
-        if operation:
-            log_usage_background(
-                operation=operation,
-                model_identifier=provider,
-                latency_ms=int((time.time() - start_time) * 1000),
-                profile_id=profile_id,
-                success=False,
-                error_message=LLM_PROVIDER_ERROR_MESSAGE,
-            )
-        raise LLMCallError(LLM_PROVIDER_ERROR_MESSAGE) from exc
+    except NoEligibleCredentialError as exc:
+        raise APIKeyNotConfiguredError(
+            "No enabled provider credential is currently available."
+        ) from exc
+    finally:
+        if owns_rotation_db and rotation_db is not None:
+            rotation_db.close()

@@ -1,10 +1,10 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.exceptions import ProviderNotFoundError
+from app.exceptions import ProviderNotFoundError, ValidationAppError
 from app.llm.catalog import CATALOG, get_provider
 from app.llm.model_selection import supports_custom_models, validate_model_id
 from app.llm.provider_credentials import credential_url_for_provider
@@ -49,7 +49,7 @@ def _validate_model_or_422(model_id: str) -> str:
     try:
         return validate_model_id(model_id)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise ValidationAppError(str(exc)) from exc
 
 
 @router.get("/settings", response_model=SettingsResponse)

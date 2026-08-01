@@ -1,23 +1,17 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.exceptions.base import AppError, ErrorCode, ErrorBody, ErrorEnvelope
+from app.exceptions.base import AppError, ErrorBody, ErrorCode, ErrorEnvelope
 from app.exceptions.infrastructure import InternalApplicationError
 from app.exceptions.request import ValidationAppError
 
 logger = logging.getLogger(__name__)
-
-_LEGACY_PUBLIC_MESSAGES = {
-    ErrorCode.INTERNAL_SERVER_ERROR: "An unexpected error occurred",
-    ErrorCode.LLM_CALL_FAILED: "The AI provider request failed. Check your settings and try again.",
-    ErrorCode.PDF_RENDER_FAILED: "Could not generate the PDF. Please try again.",
-}
 
 
 def _response_for(exc: AppError) -> JSONResponse:
@@ -33,47 +27,41 @@ async def app_exception_handler(request: Request, exc: AppError) -> JSONResponse
     return _response_for(exc)
 
 
-def _legacy_code(value: Any) -> ErrorCode:
-    if not isinstance(value, str):
-        return ErrorCode.HTTP_ERROR
-    try:
-        return ErrorCode(value)
-    except ValueError:
-        return ErrorCode.HTTP_ERROR
+def _framework_error_envelope(exc: StarletteHTTPException) -> ErrorEnvelope:
+    if exc.status_code == 404:
+        return ErrorEnvelope(
+            error=ErrorBody(
+                code=ErrorCode.ROUTE_NOT_FOUND,
+                message="Route was not found.",
+            )
+        )
+    if exc.status_code == 405:
+        return ErrorEnvelope(
+            error=ErrorBody(
+                code=ErrorCode.METHOD_NOT_ALLOWED,
+                message="Method is not allowed for this route.",
+            )
+        )
+    if exc.status_code >= 500:
+        return InternalApplicationError().to_envelope()
 
-
-def _legacy_message(detail: Any, code: ErrorCode) -> str:
-    if code in _LEGACY_PUBLIC_MESSAGES:
-        return _LEGACY_PUBLIC_MESSAGES[code]
-
-    candidate: Any = detail
-    if isinstance(detail, dict):
-        candidate = detail.get("detail", detail.get("message"))
-    if isinstance(candidate, str) and candidate.strip():
-        return candidate
-    return "Request failed."
-
-
-async def http_exception_handler(
-    request: Request, exc: HTTPException
-) -> JSONResponse:
-    del request
-    raw_code = None
-    if isinstance(exc.detail, dict):
-        raw_code = exc.detail.get("code", exc.detail.get("error_code"))
-    code = _legacy_code(raw_code)
-    if exc.status_code >= 500 and code not in _LEGACY_PUBLIC_MESSAGES:
-        code = ErrorCode.INTERNAL_SERVER_ERROR
-    envelope = ErrorEnvelope(
+    message = exc.detail if isinstance(exc.detail, str) and exc.detail.strip() else None
+    return ErrorEnvelope(
         error=ErrorBody(
-            code=code,
-            message=_legacy_message(exc.detail, code),
-            details={},
+            code=ErrorCode.HTTP_ERROR,
+            message=message or "Request failed.",
         )
     )
+
+
+async def framework_http_exception_handler(
+    request: Request,
+    exc: StarletteHTTPException,
+) -> JSONResponse:
+    del request
     return JSONResponse(
         status_code=exc.status_code,
-        content=envelope.model_dump(mode="json"),
+        content=_framework_error_envelope(exc).model_dump(mode="json"),
         headers=exc.headers,
     )
 
@@ -111,7 +99,7 @@ async def generic_exception_handler(
 
 exception_handlers = {
     AppError: app_exception_handler,
-    HTTPException: http_exception_handler,
+    StarletteHTTPException: framework_http_exception_handler,
     RequestValidationError: validation_exception_handler,
     Exception: generic_exception_handler,
 }

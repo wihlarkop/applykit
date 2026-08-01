@@ -158,11 +158,11 @@ def test_framework_http_exception_handler_sanitizes_server_errors():
     assert secret not in response.body.decode()
 
 
-def test_stream_error_event_uses_public_envelope_for_rate_limits():
+def test_stream_error_event_uses_native_public_envelope_for_rate_limits():
     event = stream_error_event(RateLimitError(retry_after=3))
 
     assert event.event == "rate_limit"
-    assert json.loads(event.data) == {
+    assert event.data == {
         "error": {
             "code": "RATE_LIMIT_EXCEEDED",
             "message": "Rate limit exceeded. Please retry later.",
@@ -176,14 +176,16 @@ def test_stream_error_event_sanitizes_unexpected_exceptions():
     event = stream_error_event(RuntimeError(secret))
 
     assert event.event == "error"
-    assert json.loads(event.data) == InternalApplicationError().to_envelope().model_dump(
-        mode="json"
-    )
-    assert secret not in event.data
+    assert event.data == InternalApplicationError().to_envelope().model_dump(mode="json")
+    assert secret not in json.dumps(event.data)
 
 
-def test_routes_and_dependencies_do_not_use_http_exception():
-    candidates = [APP_ROOT / "dependencies.py", *sorted((APP_ROOT / "routes").glob("*.py"))]
+def test_application_code_does_not_use_http_exception():
+    candidates = [
+        path
+        for path in sorted(APP_ROOT.rglob("*.py"))
+        if path != APP_ROOT / "exceptions" / "handlers.py"
+    ]
     offenders: list[str] = []
 
     for path in candidates:

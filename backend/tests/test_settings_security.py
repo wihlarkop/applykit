@@ -39,7 +39,7 @@ def test_updating_model_without_api_key_preserves_stored_secret():
         set_provider_api_key(db, "openai", "sk-existing-secret")
 
         request = UpdateSettingsRequest(
-            model="openai/gpt-4.1-mini-2025-04-14",
+            model="openai/gpt-4.1-mini",
             api_key=None,
             activate=False,
         )

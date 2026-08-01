@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.credential_schemas import CreateProviderCredentialRequest
 from app.models import Base
 from app.routes.settings import (
     activate_credential,
@@ -9,7 +10,6 @@ from app.routes.settings import (
     get_integrations,
     get_provider_credentials,
 )
-from app.schemas import CreateProviderCredentialRequest
 
 
 def _make_session():

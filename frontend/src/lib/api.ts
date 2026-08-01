@@ -35,6 +35,7 @@ import type {
     UpdateApplicationRequest,
     UpdateSettingsRequest,
 } from './types';
+import { parseApiError } from './api-error';
 import { buildQs } from './utils';
 
 // ---------------------------------------------------------------------------
@@ -46,6 +47,11 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api
 // Core fetch helpers
 // ---------------------------------------------------------------------------
 
+async function throwApiError(res: Response, fallbackMessage: string): Promise<never> {
+    const payload: unknown = await res.json().catch(() => undefined);
+    throw parseApiError(payload, fallbackMessage, res.status);
+}
+
 /** JSON request/response for the vast majority of API calls. */
 async function request<T>(path: string, options: RequestInit = {}, fetchFn: typeof fetch = fetch): Promise<T> {
     const res = await fetchFn(`${BASE_URL}${path}`, {
@@ -54,8 +60,7 @@ async function request<T>(path: string, options: RequestInit = {}, fetchFn: type
     });
 
     if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Something went wrong. Please try again.' }));
-        throw new Error(err.detail ?? 'Something went wrong. Please try again.');
+        await throwApiError(res, 'Something went wrong. Please try again.');
     }
 
     if (res.status === 204 || res.headers.get('content-length') === '0') {
@@ -69,8 +74,7 @@ async function request<T>(path: string, options: RequestInit = {}, fetchFn: type
 async function requestForm<T>(path: string, body: FormData): Promise<T> {
     const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', body });
     if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Failed to import your CV. Please check the file and try again.' }));
-        throw new Error(err.detail ?? 'Failed to import your CV. Please check the file and try again.');
+        await throwApiError(res, 'Failed to import your CV. Please check the file and try again.');
     }
     return res.json() as Promise<T>;
 }
@@ -82,8 +86,7 @@ async function requestBlob(path: string, options: RequestInit): Promise<Blob> {
         ...options,
     });
     if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: 'Failed to download. Please try again.' }));
-        throw new Error(err.detail ?? 'Failed to download. Please try again.');
+        await throwApiError(res, 'Failed to download. Please try again.');
     }
     return res.blob();
 }

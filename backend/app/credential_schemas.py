@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+CredentialStrategyName = Literal["manual", "failover", "round_robin"]
+
 
 class CredentialIntegrationInfo(BaseModel):
     id: str
@@ -14,7 +16,7 @@ class CredentialIntegrationInfo(BaseModel):
     credential_count: int = 0
     active_credential_id: int | None = None
     active_credential_label: str | None = None
-    credential_strategy: Literal["manual", "failover", "round_robin"] = "manual"
+    credential_strategy: CredentialStrategyName = "manual"
 
 
 class CredentialIntegrationsResponse(BaseModel):
@@ -54,3 +56,14 @@ class CreateProviderCredentialRequest(BaseModel):
 class UpdateProviderCredentialRequest(BaseModel):
     label: str | None = Field(default=None, min_length=1, max_length=80)
     secret: str | None = Field(default=None, min_length=1, max_length=4096)
+
+
+class CredentialPolicyResponse(BaseModel):
+    provider_id: str
+    strategy: CredentialStrategyName
+    max_attempts: int
+
+
+class UpdateCredentialPolicyRequest(BaseModel):
+    strategy: CredentialStrategyName
+    max_attempts: int = Field(default=2, ge=1, le=5)

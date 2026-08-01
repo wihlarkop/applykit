@@ -3,14 +3,14 @@ import json
 import logging
 from collections.abc import AsyncIterable
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import Response
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_profile_or_404, require_llm_config
-from app.exceptions import RateLimitError
+from app.exceptions import PDFRenderFailedError, RateLimitError, stream_error_event
 from app.models import GeneratedCoverLetter, GeneratedCV
 from app.schemas import (
     ATSEnhancement,
@@ -64,10 +64,7 @@ def _render_cv_pdf(profile_data: dict) -> Response:
         html = render_cv_template(profile_data)
         pdf_bytes = html_to_pdf(html)
     except PDFRenderError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail={"detail": str(exc), "code": "PDF_RENDER_FAILED"},
-        ) from exc
+        raise PDFRenderFailedError() from exc
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
@@ -80,21 +77,12 @@ def _render_cover_letter_pdf(letter_data: dict) -> Response:
         html = render_cover_letter_template(letter_data)
         pdf_bytes = html_to_pdf(html)
     except PDFRenderError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail={"detail": str(exc), "code": "PDF_RENDER_FAILED"},
-        ) from exc
+        raise PDFRenderFailedError() from exc
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": "attachment; filename=cover-letter.pdf"},
     )
-
-
-def _handle_stream_error(exc: Exception) -> ServerSentEvent:
-    if isinstance(exc, RateLimitError):
-        return ServerSentEvent(data=str(exc), event="rate_limit")
-    return ServerSentEvent(data=str(exc), event="error")
 
 
 # ---------------------------------------------------------------------------
@@ -238,7 +226,7 @@ async def generate_cv_stream(req: GenerateCvRequest, db: Session = Depends(get_d
             )
             enhanced = True
         except RateLimitError as exc:
-            yield ServerSentEvent(data=str(exc), event="rate_limit")
+            yield stream_error_event(exc)
             return
         except Exception as exc:
             logger.warning(
@@ -294,7 +282,7 @@ async def generate_cover_letter(
             accumulated.append(chunk)
             yield ServerSentEvent(data=str(chunk), event="token")
     except Exception as exc:
-        yield _handle_stream_error(exc)
+        yield stream_error_event(exc)
         return
 
     full_text = "".join(accumulated)
@@ -351,7 +339,7 @@ async def generate_summary(
         ):
             yield ServerSentEvent(data=str(chunk), event="token")
     except Exception as exc:
-        yield _handle_stream_error(exc)
+        yield stream_error_event(exc)
         return
     yield ServerSentEvent(data="[DONE]", event="done")
 
@@ -402,7 +390,7 @@ async def generate_bullets(
         ):
             yield ServerSentEvent(data=str(chunk), event="token")
     except Exception as exc:
-        yield _handle_stream_error(exc)
+        yield stream_error_event(exc)
         return
 
     yield ServerSentEvent(data="[DONE]", event="done")

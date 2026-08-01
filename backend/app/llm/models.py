@@ -74,11 +74,8 @@ class ProviderDefinition(BaseModel):
 
     @field_validator("models")
     @classmethod
-    def models_are_sorted(cls, models: tuple[ModelDefinition, ...]):
-        labels = [model.label.casefold() for model in models]
-        if labels != sorted(labels):
-            raise ValueError("provider models must be sorted alphabetically")
-        return models
+    def sort_models(cls, models: tuple[ModelDefinition, ...]):
+        return tuple(sorted(models, key=lambda model: model.label.casefold()))
 
     @model_validator(mode="after")
     def validate_provider_semantics(self):
@@ -109,11 +106,8 @@ class CatalogDefinition(BaseModel):
 
     @field_validator("providers")
     @classmethod
-    def providers_are_sorted(cls, providers: tuple[ProviderDefinition, ...]):
-        labels = [provider.label.casefold() for provider in providers]
-        if labels != sorted(labels):
-            raise ValueError("providers must be sorted alphabetically")
-        return providers
+    def sort_providers(cls, providers: tuple[ProviderDefinition, ...]):
+        return tuple(sorted(providers, key=lambda provider: provider.label.casefold()))
 
     @model_validator(mode="after")
     def validate_uniqueness(self):

@@ -1,11 +1,17 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import require_llm_config
+from app.exceptions import (
+    CVImportOutputError,
+    FileParseError,
+    FileTooLargeError,
+    UnsupportedFileTypeError,
+)
 from app.exceptions.llm import LLMOutputError
 from app.schemas import ProfileData
 from app.services.llm import call_llm, parse_structured_output
@@ -21,6 +27,7 @@ ALLOWED_MIME_TYPES = {
 }
 ALLOWED_EXTENSIONS = {"pdf", "docx"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_FILE_SIZE_MB = 5
 
 
 def _clean_cv_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -46,48 +53,24 @@ async def import_cv(
     if file is not None:
         content = await file.read()
         if len(content) > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=413,
-                detail={
-                    "detail": "File too large. Maximum size is 5MB.",
-                    "code": "FILE_TOO_LARGE",
-                },
-            )
+            raise FileTooLargeError(max_size_mb=MAX_FILE_SIZE_MB)
         ext = (file.filename or "").lower().rsplit(".", 1)[-1]
         mime = file.content_type or ""
         if ext not in ALLOWED_EXTENSIONS or mime not in ALLOWED_MIME_TYPES:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "detail": "Unsupported file type. Use PDF, DOCX, or plain text.",
-                    "code": "FILE_TYPE_UNSUPPORTED",
-                },
-            )
+            raise UnsupportedFileTypeError()
         try:
             raw_text = extract_text(file_content=content, filename=file.filename)
         except Exception as exc:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "detail": "Could not extract text from file.",
-                    "code": "FILE_PARSE_FAILED",
-                },
-            ) from exc
+            raise FileParseError() from exc
     elif text:
         raw_text = text.strip()
     else:
-        raise HTTPException(
-            status_code=422,
-            detail={"detail": "Provide a file or text.", "code": "FILE_PARSE_FAILED"},
-        )
+        raise FileParseError("Provide a file or text.")
 
     try:
         validate_extracted_text(raw_text)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={"detail": str(exc), "code": "FILE_PARSE_FAILED"},
-        ) from exc
+        raise FileParseError(str(exc)) from exc
 
     # Truncate to avoid exceeding LLM context windows (CVs rarely need more than this)
     max_text_chars = 15_000
@@ -110,10 +93,4 @@ async def import_cv(
         )
     except LLMOutputError:
         logger.warning("CV import returned invalid structured output")
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "detail": "Could not parse CV into profile fields. Try editing manually.",
-                "code": "LLM_OUTPUT_INVALID",
-            },
-        ) from None
+        raise CVImportOutputError() from None

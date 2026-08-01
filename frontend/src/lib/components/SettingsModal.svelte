@@ -2,10 +2,11 @@
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { getModels, getSettings, testConnection, updateSettings } from '$lib/api';
+  import type { CatalogProviderInfo } from '$lib/llm-catalog';
   import { toastState } from '$lib/toast.svelte';
-  import type { ProviderInfo, TestConnectionResponse } from '$lib/types';
+  import type { TestConnectionResponse } from '$lib/types';
   import { errorMessage } from '$lib/utils';
-  import { CheckCircle, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
+  import { CheckCircle, CircleAlert, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
 
   let { open = $bindable(false), initialProviderId = '', initialModel = '', initialApiKeyConfigured = false }: {
     open: boolean;
@@ -14,7 +15,7 @@
     initialApiKeyConfigured?: boolean;
   } = $props();
 
-  let providers: ProviderInfo[] = $state([]);
+  let providers: CatalogProviderInfo[] = $state([]);
   let selectedProviderId = $state('gemini');
   let selectedModel = $state('');
   let apiKey = $state('');
@@ -26,6 +27,10 @@
   let source = $state<'database' | 'env' | 'none'>('none');
 
   const selectedProvider = $derived(providers.find((p) => p.id === selectedProviderId));
+  const selectedModelInfo = $derived(selectedProvider?.models.find((model) => model.value === selectedModel));
+  const unavailableCurrentModel = $derived(
+    Boolean(initialModel && selectedProvider && !selectedProvider.models.some((model) => model.value === initialModel))
+  );
   const canReuseStoredKey = $derived(
     Boolean(initialProviderId && initialApiKeyConfigured && selectedProvider?.requires_api_key)
   );
@@ -43,18 +48,16 @@
     showApiKey = false;
     try {
       const [modelsRes, settingsRes] = await Promise.all([getModels(), getSettings()]);
-      providers = modelsRes.providers;
+      providers = modelsRes.providers as CatalogProviderInfo[];
       source = settingsRes.source;
 
-      // If opened for a specific provider, pre-select it without loading its secret.
       if (initialProviderId) {
         selectedProviderId = initialProviderId;
         selectedModel = initialModel || (providers.find((p) => p.id === initialProviderId)?.models[0]?.value ?? '');
       } else if (settingsRes.model) {
-        // Find which provider owns this model string
-        for (const p of providers) {
-          if (p.models.some((m) => m.value === settingsRes.model)) {
-            selectedProviderId = p.id;
+        for (const provider of providers) {
+          if (provider.models.some((model) => model.value === settingsRes.model)) {
+            selectedProviderId = provider.id;
             selectedModel = settingsRes.model;
             break;
           }
@@ -72,8 +75,8 @@
 
   function onProviderChange(id: string) {
     selectedProviderId = id;
-    const prov = providers.find((p) => p.id === id);
-    selectedModel = prov?.models[0]?.value ?? '';
+    const provider = providers.find((item) => item.id === id);
+    selectedModel = provider?.models[0]?.value ?? '';
     apiKey = '';
     testResult = null;
   }
@@ -93,7 +96,6 @@
     }
   }
 
-  /** Union state — mutually exclusive, impossible to be both true at once. */
   let saving = $state<'activate' | 'key' | null>(null);
 
   async function handleSave(activate: boolean) {
@@ -122,15 +124,15 @@
       if (!page.data.isOnboarded) {
         await goto('/onboarding');
       }
-    } catch (e) {
-      saveError = errorMessage(e, 'Failed to save settings.');
+    } catch (error) {
+      saveError = errorMessage(error, 'Failed to save settings.');
     } finally {
       saving = null;
     }
   }
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') open = false;
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') open = false;
   }
 </script>
 
@@ -140,7 +142,7 @@
   <div
     class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
     onclick={() => (open = false)}
-    onkeydown={(e) => e.key === 'Escape' && (open = false)}
+    onkeydown={(event) => event.key === 'Escape' && (open = false)}
     role="dialog"
     tabindex="-1"
     aria-modal="true"
@@ -148,16 +150,12 @@
   >
     <div
       class="bg-background border border-border rounded-lg shadow-xl w-full max-w-md p-6 space-y-5"
-      onclick={(e) => e.stopPropagation()}
+      onclick={(event) => event.stopPropagation()}
       role="presentation"
     >
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold">{initialProviderId && selectedProvider ? selectedProvider.label : 'LLM Settings'}</h2>
-        <button
-          onclick={() => (open = false)}
-          class="text-muted-foreground hover:text-foreground text-lg leading-none"
-          aria-label="Close"
-        >✕</button>
+        <button onclick={() => (open = false)} class="text-muted-foreground hover:text-foreground text-lg leading-none" aria-label="Close">✕</button>
       </div>
 
       {#if loading}
@@ -172,119 +170,103 @@
           </p>
         {/if}
 
-        <!-- Provider tabs — hidden when opened for a specific provider -->
         {#if !initialProviderId}
           <div class="space-y-1.5">
             <p class="text-sm font-medium">Provider</p>
             <div class="flex flex-wrap gap-2">
-              {#each providers as p}
+              {#each providers as provider}
                 <button
-                  onclick={() => onProviderChange(p.id)}
-                  class="px-3 py-1.5 rounded-md text-sm border transition-colors {selectedProviderId === p.id
+                  onclick={() => onProviderChange(provider.id)}
+                  class="px-3 py-1.5 rounded-md text-sm border transition-colors {selectedProviderId === provider.id
                     ? 'bg-primary text-primary-foreground border-primary'
                     : 'border-border hover:bg-accent'}"
-                >
-                  {p.label}
-                </button>
+                >{provider.label}</button>
               {/each}
             </div>
           </div>
         {:else}
-          <div class="flex items-center gap-2">
-            <p class="text-sm font-medium">{selectedProvider?.label}</p>
-          </div>
+          <p class="text-sm font-medium">{selectedProvider?.label}</p>
         {/if}
 
-        <!-- Model dropdown -->
         <div class="space-y-1.5">
           <label for="model-select" class="text-sm font-medium">Model</label>
-          <select
-            id="model-select"
-            bind:value={selectedModel}
-            class="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-          >
-            {#each selectedProvider?.models ?? [] as m}
-              <option value={m.value}>{m.label}</option>
+          <select id="model-select" bind:value={selectedModel} class="w-full border border-border rounded-md px-3 py-2 text-sm bg-background">
+            {#if unavailableCurrentModel}
+              <option value={initialModel}>{initialModel} — unavailable</option>
+            {/if}
+            {#each selectedProvider?.models ?? [] as model}
+              <option value={model.value}>{model.label}</option>
             {/each}
           </select>
+
+          {#if unavailableCurrentModel && selectedModel === initialModel}
+            <div class="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-300">
+              <CircleAlert class="w-4 h-4 shrink-0" />
+              <span>This model is no longer included in this ApplyKit release. Select an active model to replace it.</span>
+            </div>
+          {:else if selectedModelInfo}
+            <div class="flex flex-wrap gap-1.5 pt-0.5">
+              {#if selectedModelInfo.status !== 'stable'}
+                <span class="rounded bg-yellow-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">{selectedModelInfo.status}</span>
+              {/if}
+              {#if selectedModelInfo.free_tier}
+                <span class="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-green-800 dark:bg-green-950 dark:text-green-300">Free tier</span>
+              {/if}
+              {#if selectedProvider?.local}
+                <span class="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-blue-800 dark:bg-blue-950 dark:text-blue-300">Local</span>
+              {/if}
+              {#each selectedModelInfo.traits as trait}
+                <span class="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">{trait.replaceAll('_', ' ')}</span>
+              {/each}
+            </div>
+          {/if}
         </div>
 
-        <!-- API key -->
         {#if selectedProvider?.requires_api_key}
           <div class="space-y-1.5">
-            <label for="api-key-input" class="text-sm font-medium">API Key</label>
+            <label for="api-key-input" class="text-sm font-medium">{selectedProvider.auth_type === 'token' ? 'Access Token' : 'API Key'}</label>
             <div class="relative">
               <input
                 id="api-key-input"
                 type={showApiKey ? 'text' : 'password'}
                 bind:value={apiKey}
-                placeholder={canReuseStoredKey ? 'Leave blank to keep the current key' : 'Enter your API key…'}
+                placeholder={canReuseStoredKey ? 'Leave blank to keep the current credential' : 'Enter your credential…'}
                 class="w-full border border-border rounded-md px-3 py-2 pr-10 text-sm bg-background"
                 autocomplete="new-password"
               />
-              <button
-                type="button"
-                onclick={() => (showApiKey = !showApiKey)}
-                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
-              >
-                {#if showApiKey}
-                  <EyeOff class="w-4 h-4" />
-                {:else}
-                  <Eye class="w-4 h-4" />
-                {/if}
+              <button type="button" onclick={() => (showApiKey = !showApiKey)} class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" aria-label={showApiKey ? 'Hide credential' : 'Show credential'}>
+                {#if showApiKey}<EyeOff class="w-4 h-4" />{:else}<Eye class="w-4 h-4" />{/if}
               </button>
             </div>
             {#if canReuseStoredKey}
-              <p class="text-xs text-muted-foreground">A key is already configured. Enter a new value only to replace it.</p>
+              <p class="text-xs text-muted-foreground">A credential is already configured. Enter a new value only to replace it.</p>
             {/if}
           </div>
         {:else}
-          <p class="text-sm text-muted-foreground">
-            Ollama runs locally — no API key required. Make sure Ollama is running on port 11434.
-          </p>
+          <p class="text-sm text-muted-foreground">This provider runs locally and does not require an API key.</p>
         {/if}
 
-        <!-- Test connection -->
         <div class="space-y-2">
           <button
             onclick={handleTest}
             disabled={testing || !selectedModel || (selectedProvider?.requires_api_key && !apiKey)}
             class="w-full px-4 py-2 rounded-md border border-border text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {#if testing}
-              <Loader2 class="w-4 h-4 animate-spin" />
-              Testing…
-            {:else}
-              Test Connection
-            {/if}
+            {#if testing}<Loader2 class="w-4 h-4 animate-spin" />Testing…{:else}Test Connection{/if}
           </button>
 
           {#if testResult}
             <div class="flex items-start gap-2 text-sm {testResult.ok ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}">
-              {#if testResult.ok}
-                <CheckCircle class="w-4 h-4 shrink-0 mt-0.5" />
-              {:else}
-                <XCircle class="w-4 h-4 shrink-0 mt-0.5" />
-              {/if}
+              {#if testResult.ok}<CheckCircle class="w-4 h-4 shrink-0 mt-0.5" />{:else}<XCircle class="w-4 h-4 shrink-0 mt-0.5" />{/if}
               <span>{testResult.message}</span>
             </div>
           {/if}
         </div>
 
-        {#if saveError}
-          <p class="text-sm text-red-600">{saveError}</p>
-        {/if}
+        {#if saveError}<p class="text-sm text-red-600">{saveError}</p>{/if}
 
-        <!-- Actions -->
         <div class="flex justify-end gap-2 pt-1 flex-wrap">
-          <button
-            onclick={() => (open = false)}
-            class="px-4 py-2 rounded-md text-sm border border-border hover:bg-accent"
-          >
-            Cancel
-          </button>
-          <!-- Save key only — shown only for API-key providers when editing a non-active one -->
+          <button onclick={() => (open = false)} class="px-4 py-2 rounded-md text-sm border border-border hover:bg-accent">Cancel</button>
           {#if initialProviderId && selectedProvider?.requires_api_key}
             <button
               onclick={() => handleSave(false)}
@@ -292,7 +274,7 @@
               class="px-4 py-2 rounded-md text-sm border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {#if saving === 'key'}<Loader2 class="w-4 h-4 animate-spin" />{/if}
-              {apiKey ? 'Save Key' : 'Save Model'}
+              {apiKey ? 'Save Credential' : 'Save Model'}
             </button>
           {/if}
           <button

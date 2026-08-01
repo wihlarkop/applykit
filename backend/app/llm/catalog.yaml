@@ -3,6 +3,8 @@ providers:
     label: Anthropic Claude
     model_prefix: anthropic
     auth_type: api_key
+    documentation_url: https://docs.anthropic.com/en/docs/about-claude/models/overview
+    last_verified: 2026-08-02
     models:
       - id: anthropic/claude-haiku-4-5-20251001
         label: Claude Haiku 4.5
@@ -21,6 +23,8 @@ providers:
     label: DeepSeek
     model_prefix: deepseek
     auth_type: api_key
+    documentation_url: https://api-docs.deepseek.com/quick_start/pricing
+    last_verified: 2026-08-02
     models:
       - id: deepseek/deepseek-v4-flash
         label: DeepSeek V4 Flash
@@ -35,6 +39,8 @@ providers:
     label: Google Gemini
     model_prefix: gemini
     auth_type: api_key
+    documentation_url: https://ai.google.dev/gemini-api/docs/models
+    last_verified: 2026-08-02
     models:
       - id: gemini/gemini-2.5-flash
         label: Gemini 2.5 Flash
@@ -57,9 +63,8 @@ providers:
         capabilities: [text, streaming, structured_output]
         traits: [fast, reasoning]
         free_tier: true
-      - id: gemini/gemini-3.1-flash-lite-preview
-        label: Gemini 3.1 Flash Lite Preview
-        status: preview
+      - id: gemini/gemini-3.1-flash-lite
+        label: Gemini 3.1 Flash Lite
         capabilities: [text, streaming, structured_output]
         traits: [fast, low_cost]
         free_tier: true
@@ -69,11 +74,18 @@ providers:
         capabilities: [text, streaming, structured_output]
         traits: [high_quality, reasoning]
         free_tier: true
+      - id: gemini/gemini-3.5-flash
+        label: Gemini 3.5 Flash
+        capabilities: [text, streaming, structured_output]
+        traits: [fast, high_quality, reasoning]
+        free_tier: true
 
   - id: groq
     label: Groq
     model_prefix: groq
     auth_type: api_key
+    documentation_url: https://console.groq.com/docs/models
+    last_verified: 2026-08-02
     models:
       - id: groq/groq/compound
         label: Compound
@@ -95,6 +107,16 @@ providers:
         capabilities: [text, streaming, structured_output]
         traits: [fast, low_cost, reasoning]
         free_tier: true
+      - id: groq/llama-3.1-8b-instant
+        label: Llama 3.1 8B Instant
+        capabilities: [text, streaming]
+        traits: [fast, low_cost]
+        free_tier: true
+      - id: groq/llama-3.3-70b-versatile
+        label: Llama 3.3 70B Versatile
+        capabilities: [text, streaming]
+        traits: [high_quality]
+        free_tier: true
       - id: groq/minimaxai/minimax-m2.7
         label: MiniMax M2.7 Preview
         status: preview
@@ -110,16 +132,23 @@ providers:
     label: Hugging Face
     model_prefix: huggingface
     auth_type: token
+    documentation_url: https://huggingface.co/docs/inference-providers/tasks/text-generation
+    last_verified: 2026-08-02
     models:
       - id: huggingface/deepseek-ai/DeepSeek-R1
         label: DeepSeek R1
         capabilities: [text, streaming]
         traits: [reasoning]
         free_tier: true
-      - id: huggingface/google/gemma-3-27b-it
-        label: Gemma 3 27B Instruct
+      - id: huggingface/google/gemma-2-2b-it
+        label: Gemma 2 2B Instruct
         capabilities: [text, streaming]
-        traits: [high_quality]
+        traits: [fast, low_cost]
+        free_tier: true
+      - id: huggingface/zai-org/GLM-4.5
+        label: GLM 4.5
+        capabilities: [text, streaming]
+        traits: [high_quality, reasoning]
         free_tier: true
       - id: huggingface/openai/gpt-oss-120b
         label: GPT-OSS 120B
@@ -131,20 +160,10 @@ providers:
         capabilities: [text, streaming, structured_output]
         traits: [fast, low_cost, reasoning]
         free_tier: true
-      - id: huggingface/zai-org/GLM-4.5
-        label: GLM 4.5
-        capabilities: [text, streaming]
-        traits: [high_quality, reasoning]
-        free_tier: true
       - id: huggingface/meta-llama/Llama-3.3-70B-Instruct
         label: Llama 3.3 70B Instruct
         capabilities: [text, streaming]
         traits: [high_quality]
-        free_tier: true
-      - id: huggingface/mistralai/Mistral-Small-3.1-24B-Instruct-2503
-        label: Mistral Small 3.1 24B Instruct
-        capabilities: [text, streaming]
-        traits: [fast, low_cost]
         free_tier: true
       - id: huggingface/Qwen/Qwen2.5-7B-Instruct-1M
         label: Qwen 2.5 7B Instruct 1M
@@ -166,16 +185,13 @@ providers:
         capabilities: [text, streaming]
         traits: [high_quality, reasoning]
         free_tier: true
-      - id: huggingface/zai-org/GLM-4.5-Air
-        label: Z.ai GLM 4.5 Air
-        capabilities: [text, streaming]
-        traits: [fast, low_cost]
-        free_tier: true
 
   - id: mistral
     label: Mistral AI
     model_prefix: mistral
     auth_type: api_key
+    documentation_url: https://docs.mistral.ai/models
+    last_verified: 2026-08-02
     models:
       - id: mistral/codestral-latest
         label: Codestral Latest
@@ -215,6 +231,8 @@ providers:
     label: Ollama
     model_prefix: ollama
     auth_type: none
+    documentation_url: https://ollama.com/library
+    last_verified: 2026-08-02
     local: true
     models:
       - id: ollama/glm-4.7-flash
@@ -254,6 +272,8 @@ providers:
     label: OpenAI
     model_prefix: openai
     auth_type: api_key
+    documentation_url: https://platform.openai.com/docs/models
+    last_verified: 2026-08-02
     models:
       - id: openai/gpt-4.1
         label: GPT-4.1
@@ -304,6 +324,8 @@ providers:
     label: OpenRouter
     model_prefix: openrouter
     auth_type: api_key
+    documentation_url: https://openrouter.ai/docs/guides/overview/models
+    last_verified: 2026-08-02
     models:
       - id: openrouter/anthropic/claude-opus-4.6
         label: Claude Opus 4.6
@@ -367,6 +389,8 @@ providers:
     label: xAI
     model_prefix: xai
     auth_type: api_key
+    documentation_url: https://docs.x.ai/developers/models
+    last_verified: 2026-08-02
     models:
       - id: xai/grok-4.3
         label: Grok 4.3

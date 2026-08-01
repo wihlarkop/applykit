@@ -1,20 +1,18 @@
 from contextlib import asynccontextmanager
-import logging
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.exceptions import RequestValidationError
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from app.config import get_settings
-from app.exceptions import (
-    BaseCustomException,
-    error_response,
+from app.exceptions.handlers import (
+    app_exception_handler,
+    exception_handlers,
+    generic_exception_handler,
+    http_exception_handler,
+    validation_exception_handler,
 )
 from app.http_client import start_http_client, stop_http_client
-from app.public_errors import UNEXPECTED_ERROR_MESSAGE
-from app.services.usage_logging import stop_usage_logger
 from app.routes import (
     analyze,
     applications,
@@ -27,9 +25,9 @@ from app.routes import (
     settings,
     usage,
 )
+from app.services.usage_logging import stop_usage_logger
 
 _settings = get_settings()
-logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -40,76 +38,6 @@ async def lifespan(app: FastAPI):
     finally:
         stop_usage_logger()
         await stop_http_client()
-
-
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
-    if isinstance(exc.detail, dict):
-        return JSONResponse(status_code=exc.status_code, content=exc.detail)
-    return JSONResponse(
-        status_code=exc.status_code, content={"detail": str(exc.detail)}
-    )
-
-
-async def base_custom_exception_handler(
-    request: Request, exc: BaseCustomException
-) -> JSONResponse:
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=error_response(
-            message=exc.message,
-            status_code=exc.status_code,
-            error_code=exc.error_code,
-            details=exc.details,
-        ),
-    )
-
-
-async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
-    errors = []
-    for error in exc.errors():
-        errors.append(
-            {
-                "field": ".".join(str(loc) for loc in error["loc"]),
-                "message": error["msg"],
-                "type": error["type"],
-            }
-        )
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=error_response(
-            message="Validation error",
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            error_code="VALIDATION_ERROR",
-            details={"errors": errors},
-        ),
-    )
-
-
-async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    path = getattr(getattr(request, "url", None), "path", "unknown")
-    logger.error(
-        "Unhandled exception for request path %s",
-        path,
-        exc_info=(type(exc), exc, exc.__traceback__),
-    )
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content=error_response(
-            message=UNEXPECTED_ERROR_MESSAGE,
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            error_code="INTERNAL_SERVER_ERROR",
-        ),
-    )
-
-
-exception_handlers = {
-    HTTPException: http_exception_handler,
-    BaseCustomException: base_custom_exception_handler,
-    RequestValidationError: validation_exception_handler,
-    Exception: generic_exception_handler,
-}
 
 
 app = FastAPI(

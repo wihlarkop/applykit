@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, HttpUrl, field_validator, model_validator
@@ -90,7 +90,9 @@ class ProviderDefinition(BaseModel):
     @field_validator("last_verified")
     @classmethod
     def verification_date_is_not_future(cls, value: date) -> date:
-        if value > date.today():
+        # Allow a one-day boundary because release authors and CI runners may be
+        # in different timezones around midnight.
+        if value > date.today() + timedelta(days=1):
             raise ValueError("last_verified cannot be in the future")
         return value
 

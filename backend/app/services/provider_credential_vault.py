@@ -272,6 +272,12 @@ def activate_provider_credential(
     return credential
 
 
+def _clear_active_model_for_provider(db: Session, provider_id: str) -> None:
+    active_model = db.query(AppSetting).filter_by(key="llm_provider").first()
+    if active_model and provider_from_model(active_model.value) == provider_id:
+        active_model.value = ""
+
+
 def delete_provider_credential(
     db: Session,
     provider_id: str,
@@ -297,6 +303,8 @@ def delete_provider_credential(
         if replacement:
             replacement.is_active = True
             replacement.updated_at = datetime.now(UTC)
+        else:
+            _clear_active_model_for_provider(db, provider_id)
     db.commit()
 
 

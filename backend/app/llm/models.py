@@ -1,6 +1,7 @@
+from datetime import date
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, HttpUrl, field_validator, model_validator
 
 
 class ModelStatus(StrEnum):
@@ -48,9 +49,14 @@ class ModelDefinition(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def requires_text_capability(self):
+    def validate_model_semantics(self):
         if Capability.TEXT not in self.capabilities:
             raise ValueError("catalog models must support text")
+
+        searchable = f"{self.id} {self.label}".casefold()
+        blocked_markers = ("deprecated", "retired", "shutdown", "shut down")
+        if any(marker in searchable for marker in blocked_markers):
+            raise ValueError("deprecated models cannot appear in the active catalog")
         return self
 
 
@@ -61,6 +67,8 @@ class ProviderDefinition(BaseModel):
     label: str
     model_prefix: str
     auth_type: AuthType
+    documentation_url: HttpUrl
+    last_verified: date
     local: bool = False
     models: tuple[ModelDefinition, ...]
 
@@ -70,6 +78,20 @@ class ProviderDefinition(BaseModel):
         value = value.strip()
         if not value:
             raise ValueError("must not be empty")
+        return value
+
+    @field_validator("documentation_url")
+    @classmethod
+    def documentation_url_uses_https(cls, value: HttpUrl) -> HttpUrl:
+        if value.scheme != "https":
+            raise ValueError("documentation URL must use HTTPS")
+        return value
+
+    @field_validator("last_verified")
+    @classmethod
+    def verification_date_is_not_future(cls, value: date) -> date:
+        if value > date.today():
+            raise ValueError("last_verified cannot be in the future")
         return value
 
     @field_validator("models")
@@ -122,4 +144,10 @@ class CatalogDefinition(BaseModel):
         ]
         if len(model_ids) != len(set(model_ids)):
             raise ValueError("model IDs must be globally unique")
+
+        curated_limits = {"openrouter": 15, "huggingface": 15}
+        for provider in self.providers:
+            limit = curated_limits.get(provider.id)
+            if limit is not None and len(provider.models) > limit:
+                raise ValueError(f"{provider.id} catalog cannot exceed {limit} models")
         return self

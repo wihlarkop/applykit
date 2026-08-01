@@ -8,8 +8,10 @@ from app.credential_schemas import (
     CreateProviderCredentialRequest,
     CredentialIntegrationInfo,
     CredentialIntegrationsResponse,
+    CredentialPolicyResponse,
     ProviderCredentialInfo,
     ProviderCredentialsResponse,
+    UpdateCredentialPolicyRequest,
     UpdateProviderCredentialRequest,
 )
 from app.database import get_db
@@ -18,7 +20,6 @@ from app.llm.catalog import CATALOG, get_provider
 from app.llm.model_selection import supports_custom_models, validate_model_id
 from app.llm.provider_credentials import credential_url_for_provider
 from app.llm.schemas import ModelOption, ModelsResponse, ProviderInfo
-from app.models import ProviderCredentialPolicy
 from app.schemas import (
     ActivateProviderRequest,
     SettingsResponse,
@@ -26,6 +27,11 @@ from app.schemas import (
     UpdateSettingsRequest,
 )
 from app.services.provider_connection import test_provider_connection
+from app.services.provider_credential_rotation import (
+    CredentialStrategy,
+    get_credential_policy,
+    update_credential_policy,
+)
 from app.services.provider_credential_vault import (
     CredentialVaultError,
     activate_provider_credential,
@@ -96,8 +102,16 @@ def _credential_list_response(
 
 
 def _credential_strategy(db: Session, provider_id: str) -> str:
-    policy = db.query(ProviderCredentialPolicy).filter_by(provider_id=provider_id).first()
-    return policy.strategy if policy else "manual"
+    return get_credential_policy(db, provider_id).strategy
+
+
+def _policy_response(provider_id: str, db: Session) -> CredentialPolicyResponse:
+    policy = get_credential_policy(db, provider_id)
+    return CredentialPolicyResponse(
+        provider_id=provider_id,
+        strategy=policy.strategy,
+        max_attempts=policy.max_attempts,
+    )
 
 
 @router.get("/settings", response_model=SettingsResponse)
@@ -161,7 +175,11 @@ def get_integrations(db: Session = Depends(get_db)):
                 active_credential_label=(
                     active_credential.label if active_credential else None
                 ),
-                credential_strategy=_credential_strategy(db, provider.id),
+                credential_strategy=(
+                    _credential_strategy(db, provider.id)
+                    if provider_requires_api_key(provider.id)
+                    else CredentialStrategy.MANUAL.value
+                ),
             )
         )
     return CredentialIntegrationsResponse(integrations=integrations)
@@ -258,6 +276,44 @@ def test_configured_integration(
         api_key or None,
         failure_message="Provider connection failed.",
     )
+
+
+@router.get(
+    "/settings/integrations/{provider_id}/credential-policy",
+    response_model=CredentialPolicyResponse,
+)
+def get_credential_policy_route(
+    provider_id: str,
+    db: Session = Depends(get_db),
+):
+    _provider_or_404(provider_id)
+    if not provider_requires_api_key(provider_id):
+        raise ValidationAppError("This provider does not use API credentials.")
+    return _policy_response(provider_id, db)
+
+
+@router.put(
+    "/settings/integrations/{provider_id}/credential-policy",
+    response_model=CredentialPolicyResponse,
+)
+def update_credential_policy_route(
+    provider_id: str,
+    req: UpdateCredentialPolicyRequest,
+    db: Session = Depends(get_db),
+):
+    _provider_or_404(provider_id)
+    if not provider_requires_api_key(provider_id):
+        raise ValidationAppError("This provider does not use API credentials.")
+    try:
+        update_credential_policy(
+            db,
+            provider_id,
+            strategy=req.strategy,
+            max_attempts=req.max_attempts,
+        )
+    except ValueError as exc:
+        raise ValidationAppError(str(exc)) from exc
+    return _policy_response(provider_id, db)
 
 
 @router.get(
@@ -377,7 +433,9 @@ def test_credential(
     )
     credential.last_tested_at = datetime.now(UTC)
     credential.health_status = "healthy" if result.ok else "unhealthy"
-    credential.consecutive_failures = 0 if result.ok else credential.consecutive_failures + 1
+    credential.consecutive_failures = (
+        0 if result.ok else credential.consecutive_failures + 1
+    )
     db.commit()
     return result
 
@@ -433,7 +491,9 @@ def get_models():
                         value=model.id,
                         label=model.label,
                         status=model.status.value,
-                        capabilities=sorted(capability.value for capability in model.capabilities),
+                        capabilities=sorted(
+                            capability.value for capability in model.capabilities
+                        ),
                         traits=sorted(trait.value for trait in model.traits),
                         free_tier=model.free_tier,
                     )

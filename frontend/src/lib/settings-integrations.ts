@@ -35,6 +35,13 @@ export function groupIntegrations(
     }
   }
 
+  connected.sort((left, right) => {
+    if (left.is_active !== right.is_active) {
+      return left.is_active ? -1 : 1;
+    }
+    return left.label.localeCompare(right.label);
+  });
+
   return { connected, available };
 }
 

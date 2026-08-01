@@ -2,11 +2,11 @@
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { getModels, getSettings, testConnection, updateSettings } from '$lib/api';
-  import type { CatalogProviderInfo } from '$lib/llm-catalog';
+  import { credentialActionLabel, type CatalogProviderInfo } from '$lib/llm-catalog';
   import { toastState } from '$lib/toast.svelte';
   import type { TestConnectionResponse } from '$lib/types';
   import { errorMessage } from '$lib/utils';
-  import { CheckCircle, CircleAlert, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
+  import { CheckCircle, CircleAlert, ExternalLink, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
   import ModelSelector from '$lib/components/ModelSelector.svelte';
 
   let { open = $bindable(false), initialProviderId = '', initialModel = '', initialApiKeyConfigured = false }: {
@@ -222,7 +222,20 @@
 
         {#if selectedProvider?.requires_api_key}
           <div class="space-y-1.5">
-            <label for="api-key-input" class="text-sm font-medium">{selectedProvider.auth_type === 'token' ? 'Access Token' : 'API Key'}</label>
+            <div class="flex items-center justify-between gap-3">
+              <label for="api-key-input" class="text-sm font-medium">{selectedProvider.auth_type === 'token' ? 'Access Token' : 'API Key'}</label>
+              {#if selectedProvider.credential_url}
+                <a
+                  href={selectedProvider.credential_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  {credentialActionLabel(selectedProvider.auth_type)}
+                  <ExternalLink class="h-3 w-3" />
+                </a>
+              {/if}
+            </div>
             <div class="relative">
               <input
                 id="api-key-input"

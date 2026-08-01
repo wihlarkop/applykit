@@ -4,7 +4,6 @@ from copy import deepcopy
 from enum import StrEnum
 from typing import Any, ClassVar
 
-from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -13,27 +12,27 @@ class ErrorCode(StrEnum):
 
     VALIDATION_ERROR = "VALIDATION_ERROR"
     HTTP_ERROR = "HTTP_ERROR"
+    ROUTE_NOT_FOUND = "ROUTE_NOT_FOUND"
+    METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED"
     INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR"
-    RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND"
-    RESOURCE_CONFLICT = "RESOURCE_CONFLICT"
-    AI_PROCESSING_ERROR = "AI_PROCESSING_ERROR"
-    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
-    STORAGE_ERROR = "STORAGE_ERROR"
-    API_KEY_NOT_CONFIGURED = "API_KEY_NOT_CONFIGURED"
-    LLM_CALL_FAILED = "LLM_CALL_FAILED"
-    LLM_OUTPUT_INVALID = "LLM_OUTPUT_INVALID"
 
-    # Legacy route codes retained during incremental migration.
     PROFILE_NOT_FOUND = "PROFILE_NOT_FOUND"
     APPLICATION_NOT_FOUND = "APPLICATION_NOT_FOUND"
-    NOT_FOUND = "NOT_FOUND"
+    HISTORY_ENTRY_NOT_FOUND = "HISTORY_ENTRY_NOT_FOUND"
+    PROVIDER_NOT_FOUND = "PROVIDER_NOT_FOUND"
+
+    INVALID_REQUEST = "INVALID_REQUEST"
     SCRAPE_VALUE_ERROR = "SCRAPE_VALUE_ERROR"
     SCRAPE_FAILED = "SCRAPE_FAILED"
-    INVALID_REQUEST = "INVALID_REQUEST"
     FILE_TOO_LARGE = "FILE_TOO_LARGE"
     FILE_TYPE_UNSUPPORTED = "FILE_TYPE_UNSUPPORTED"
     FILE_PARSE_FAILED = "FILE_PARSE_FAILED"
     PDF_RENDER_FAILED = "PDF_RENDER_FAILED"
+
+    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+    API_KEY_NOT_CONFIGURED = "API_KEY_NOT_CONFIGURED"
+    LLM_CALL_FAILED = "LLM_CALL_FAILED"
+    LLM_OUTPUT_INVALID = "LLM_OUTPUT_INVALID"
 
 
 class ErrorBody(BaseModel):
@@ -107,40 +106,3 @@ class AppError(Exception):
                 details=deepcopy(self.details),
             )
         )
-
-
-# Transitional compatibility name for existing imports. New code should use AppError.
-BaseCustomException = AppError
-
-
-def error_response(
-    message: str | list[str],
-    status_code: int,
-    error_code: str | None = None,
-    details: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Build the new envelope for callers using the legacy helper."""
-    del status_code
-    try:
-        code = ErrorCode(error_code) if error_code else ErrorCode.HTTP_ERROR
-    except ValueError:
-        code = ErrorCode.HTTP_ERROR
-    public_message = message if isinstance(message, str) else "; ".join(message)
-    return ErrorEnvelope(
-        error=ErrorBody(
-            code=code,
-            message=public_message,
-            details=deepcopy(details) if details is not None else {},
-        )
-    ).model_dump(mode="json")
-
-
-def not_found_404(resource: str = "Resource") -> HTTPException:
-    """Create a legacy 404 response that the global adapter can normalize."""
-    return HTTPException(
-        status_code=404,
-        detail={
-            "detail": f"{resource} not found",
-            "code": ErrorCode.RESOURCE_NOT_FOUND.value,
-        },
-    )

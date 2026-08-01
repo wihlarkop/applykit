@@ -4,7 +4,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.models import Base
-from app.routes.settings import test_configured_integration
+from app.routes.settings import (
+    test_configured_integration as run_configured_integration_test,
+)
 from app.services.settings import set_provider_api_key, set_setting
 
 
@@ -33,7 +35,7 @@ def test_configured_integration_uses_saved_model_and_secret(monkeypatch):
         set_setting(db, "selected_model_openai", "openai/gpt-4.1-mini")
         set_provider_api_key(db, "openai", "sk-stored-secret")
 
-        result = test_configured_integration("openai", db)
+        result = run_configured_integration_test("openai", db)
 
         assert result.ok is True
         assert result.message == "Connection successful."
@@ -53,7 +55,7 @@ def test_configured_integration_reports_missing_credential_without_calling_provi
     try:
         set_setting(db, "selected_model_openai", "openai/gpt-4.1-mini")
 
-        result = test_configured_integration("openai", db)
+        result = run_configured_integration_test("openai", db)
 
         assert result.ok is False
         assert result.message == "Credential is not configured."
@@ -73,7 +75,7 @@ def test_configured_integration_uses_catalog_model_when_none_is_saved(monkeypatc
     try:
         set_provider_api_key(db, "gemini", "stored-gemini-key")
 
-        result = test_configured_integration("gemini", db)
+        result = run_configured_integration_test("gemini", db)
 
         assert result.ok is True
         assert captured["model"].startswith("gemini/")
@@ -94,7 +96,7 @@ def test_configured_integration_returns_sanitized_failure(monkeypatch):
         set_setting(db, "selected_model_openai", "openai/gpt-4.1-mini")
         set_provider_api_key(db, "openai", secret)
 
-        result = test_configured_integration("openai", db)
+        result = run_configured_integration_test("openai", db)
 
         assert result.ok is False
         assert result.message == "Provider connection failed."

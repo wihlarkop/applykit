@@ -62,6 +62,8 @@ async def http_exception_handler(
     if isinstance(exc.detail, dict):
         raw_code = exc.detail.get("code", exc.detail.get("error_code"))
     code = _legacy_code(raw_code)
+    if exc.status_code >= 500 and code not in _LEGACY_PUBLIC_MESSAGES:
+        code = ErrorCode.INTERNAL_SERVER_ERROR
     envelope = ErrorEnvelope(
         error=ErrorBody(
             code=code,

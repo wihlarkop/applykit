@@ -81,16 +81,21 @@
   function handleSearchKeydown(event: KeyboardEvent) {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      activeIndex = Math.min(activeIndex + 1, filteredModels.length - 1);
+      if (filteredModels.length > 0) {
+        activeIndex = Math.min(activeIndex + 1, filteredModels.length - 1);
+      }
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
-      activeIndex = Math.max(activeIndex - 1, 0);
+      if (filteredModels.length > 0) {
+        activeIndex = Math.max(activeIndex - 1, 0);
+      }
     } else if (event.key === 'Enter') {
       event.preventDefault();
       const model = filteredModels[activeIndex];
       if (model) chooseModel(model);
     } else if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
       open = false;
     }
   }

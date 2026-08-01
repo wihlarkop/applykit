@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
-  import { activateProvider, disconnectProvider, getIntegrations } from '$lib/api';
+  import { activateProvider, disconnectProvider, getIntegrations, getModels } from '$lib/api';
   import SettingsModal from '$lib/components/SettingsModal.svelte';
   import { testConfiguredIntegration } from '$lib/integration-api';
   import {
@@ -9,15 +9,31 @@
     type IntegrationTestState,
     type IntegrationTestSummary,
   } from '$lib/integration-testing';
+  import {
+    credentialActionLabel,
+    type CatalogProviderInfo,
+  } from '$lib/llm-catalog';
+  import {
+    groupIntegrations,
+    integrationModelKind,
+    settingsOverview,
+    type IntegrationModelKind,
+  } from '$lib/settings-integrations';
   import { toastState } from '$lib/toast.svelte';
   import type { IntegrationInfo } from '$lib/types';
   import {
+    Activity,
+    BarChart3,
     CircleAlert,
     CircleCheck,
+    ExternalLink,
+    KeyRound,
     Loader2,
+    MoreHorizontal,
     Pencil,
     Plus,
     Settings,
+    Trash2,
     Zap,
   } from '@lucide/svelte';
 
@@ -26,6 +42,7 @@
   let modalModel = $state('');
   let modalApiKeyConfigured = $state(false);
   let integrations: IntegrationInfo[] = $state([]);
+  let providers: CatalogProviderInfo[] = $state([]);
   let loading = $state(true);
   let activating = $state('');
   let confirmingActivate = $state('');
@@ -36,29 +53,53 @@
   let testSummary = $state<IntegrationTestSummary | null>(null);
 
   const PROVIDER_COLORS: Record<string, string> = {
-    gemini: '#8b5cf6',
-    anthropic: '#f59e0b',
-    openai: '#10b981',
-    ollama: '#3b82f6',
+    anthropic: '#d97706',
+    deepseek: '#2563eb',
+    gemini: '#7c3aed',
+    groq: '#ea580c',
+    huggingface: '#ca8a04',
+    mistral: '#dc2626',
+    ollama: '#2563eb',
+    openai: '#059669',
+    openrouter: '#4f46e5',
+    xai: '#52525b',
   };
 
-  const PROVIDER_ICONS: Record<string, string> = {
-    gemini: '✦',
-    anthropic: '◆',
-    openai: '⬡',
-    ollama: '⬢',
+  const PROVIDER_MARKS: Record<string, string> = {
+    anthropic: 'A',
+    deepseek: 'D',
+    gemini: 'G',
+    groq: 'G',
+    huggingface: 'HF',
+    mistral: 'M',
+    ollama: 'O',
+    openai: 'O',
+    openrouter: 'OR',
+    xai: 'xAI',
   };
 
-  $effect(() => { loadIntegrations(); });
+  $effect(() => {
+    loadData();
+  });
 
-  async function loadIntegrations() {
+  async function loadData() {
     loading = true;
     try {
-      const res = await getIntegrations();
-      integrations = res.integrations;
+      const [integrationsResponse, modelsResponse] = await Promise.all([
+        getIntegrations(),
+        getModels(),
+      ]);
+      integrations = integrationsResponse.integrations;
+      providers = modelsResponse.providers as CatalogProviderInfo[];
+    } catch {
+      toastState.error('Failed to load AI integrations.');
     } finally {
       loading = false;
     }
+  }
+
+  function providerFor(providerId: string): CatalogProviderInfo | undefined {
+    return providers.find((provider) => provider.id === providerId);
   }
 
   function openEdit(integration: IntegrationInfo) {
@@ -73,7 +114,7 @@
     try {
       await activateProvider(providerId);
       await invalidateAll();
-      await loadIntegrations();
+      await loadData();
       toastState.success('Provider switched successfully.');
     } catch {
       toastState.error('Failed to switch provider.');
@@ -86,8 +127,8 @@
   async function handleDisconnect(providerId: string) {
     disconnecting = providerId;
     try {
-      const res = await disconnectProvider(providerId);
-      integrations = res.integrations;
+      const response = await disconnectProvider(providerId);
+      integrations = response.integrations;
       const nextStates = { ...testStates };
       delete nextStates[providerId];
       testStates = nextStates;
@@ -141,215 +182,424 @@
     }
   }
 
+  function modelKindLabel(kind: IntegrationModelKind): string {
+    if (kind === 'catalog') return 'Catalog';
+    if (kind === 'custom') return 'Custom';
+    return 'Unavailable';
+  }
+
+  function modelKindClass(kind: IntegrationModelKind): string {
+    if (kind === 'catalog') {
+      return 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300';
+    }
+    if (kind === 'custom') {
+      return 'bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300';
+    }
+    return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950/60 dark:text-yellow-300';
+  }
+
+  const grouped = $derived(groupIntegrations(integrations));
+  const overview = $derived(settingsOverview(integrations));
   const testableIntegrations = $derived(connectedIntegrations(integrations));
-  const anyConfigured = $derived(testableIntegrations.length > 0);
 </script>
 
-<div class="max-w-2xl space-y-6">
-  <div class="flex items-start justify-between gap-4">
+<div class="mx-auto max-w-5xl space-y-8">
+  <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
     <div>
-      <h1 class="text-2xl font-bold flex items-center gap-2">
-        <Settings class="w-6 h-6 text-primary" />
-        Settings
+      <h1 class="flex items-center gap-2 text-2xl font-bold tracking-tight">
+        <Settings class="h-6 w-6 text-primary" />
+        AI Settings
       </h1>
-      <p class="text-sm text-muted-foreground mt-1">Manage your AI integrations. You can connect multiple providers and switch between them.</p>
+      <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
+        Connect providers, choose the active model, and verify every integration from one place.
+      </p>
     </div>
-    <a href="/usage" class="shrink-0 text-xs text-primary hover:underline mt-1">View LLM Usage →</a>
-  </div>
+    <a
+      href="/usage"
+      class="inline-flex w-fit items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-foreground"
+    >
+      <BarChart3 class="h-4 w-4" />
+      View usage
+    </a>
+  </header>
 
-  <!-- Active model status -->
-  {#if !loading}
-    {@const active = integrations.find((i) => i.is_active)}
-    {#if active}
-      <div class="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
-        <div class="w-2 h-2 rounded-full bg-green-500 shrink-0 animate-pulse"></div>
-        <div class="flex-1 min-w-0">
-          <span class="text-xs text-muted-foreground">Active model</span>
-          <p class="text-sm font-medium font-mono truncate">{active.current_model ?? active.label}</p>
-        </div>
-        <span class="text-xs text-muted-foreground">{active.label}</span>
+  {#if loading}
+    <section class="animate-pulse overflow-hidden rounded-2xl border border-border bg-card">
+      <div class="h-40 bg-muted/50"></div>
+      <div class="grid grid-cols-3 gap-px border-t border-border bg-border">
+        {#each [1, 2, 3] as _}
+          <div class="h-20 bg-card"></div>
+        {/each}
       </div>
-    {:else}
-      <div class="flex items-center gap-3 rounded-lg border border-yellow-200 bg-yellow-50 dark:border-yellow-900 dark:bg-yellow-950/30 px-4 py-3">
-        <CircleAlert class="w-4 h-4 text-yellow-500 shrink-0" />
-        <p class="text-sm text-yellow-700 dark:text-yellow-400">No active model — configure a provider to enable AI features.</p>
-      </div>
-    {/if}
-  {/if}
-
-  <div class="space-y-3">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <h2 class="text-sm font-medium text-muted-foreground uppercase tracking-wide">AI Integrations</h2>
-      <div class="flex flex-wrap items-center justify-end gap-2">
-        {#if testSummary}
-          <span class="text-xs text-muted-foreground">
-            {testSummary.passed} passed · {testSummary.failed} failed
-          </span>
-        {/if}
-        <button
-          onclick={handleTestAll}
-          disabled={loading || testingAll || testableIntegrations.length === 0}
-          title="Sends one minimal request to each connected provider and may incur a small provider charge."
-          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {#if testingAll}
-            <Loader2 class="h-3.5 w-3.5 animate-spin" />
-            Testing all…
-          {:else}
-            Test All Connected
-          {/if}
-        </button>
-      </div>
-    </div>
-
-    {#if loading}
+    </section>
+    <div class="grid gap-4 lg:grid-cols-2">
       {#each [1, 2, 3, 4] as _}
-        <div class="border border-border rounded-lg p-4 bg-card animate-pulse h-20"></div>
+        <div class="h-60 animate-pulse rounded-xl border border-border bg-card"></div>
       {/each}
-    {:else}
-      {#each integrations as integration}
-        {@const color = PROVIDER_COLORS[integration.id] ?? '#6b7280'}
-        {@const icon = PROVIDER_ICONS[integration.id] ?? '◉'}
-        {@const testState = testStates[integration.id]}
-        {@const canTest = integration.api_key_configured || (integration.id === 'ollama' && Boolean(integration.current_model))}
-        <div class="border rounded-lg p-4 bg-card flex items-center gap-4 transition-colors {integration.is_active ? 'border-l-4 border-l-primary border-primary/20 bg-primary/5' : 'border-border'}">
-          <!-- Icon -->
-          <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-base font-bold" style="background:{color}18; color:{color}">
-            {icon}
+    </div>
+  {:else}
+    <section class="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div class="grid gap-6 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div class="flex min-w-0 items-start gap-4">
+          <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            {#if overview.active}
+              <Zap class="h-5 w-5" />
+            {:else}
+              <CircleAlert class="h-5 w-5" />
+            {/if}
           </div>
-
-          <!-- Info -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-sm font-medium">{integration.label}</span>
-              {#if integration.is_active}
-                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide" style="background:{color}20; color:{color}">
-                  <Zap class="w-2.5 h-2.5" />
+          <div class="min-w-0">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Active configuration
+            </p>
+            {#if overview.active}
+              <div class="mt-1 flex flex-wrap items-center gap-2">
+                <h2 class="text-lg font-semibold">{overview.active.label}</h2>
+                <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700 dark:bg-green-950/60 dark:text-green-300">
+                  <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span>
                   Active
                 </span>
-              {/if}
-            </div>
-            {#if integration.api_key_configured}
-              <div class="flex items-center gap-1.5 mt-0.5">
-                <CircleCheck class="w-3 h-3 text-green-500 shrink-0" />
-                <span class="text-xs text-muted-foreground">
-                  Connected
-                  {#if integration.masked_api_key}
-                    · <code class="text-xs bg-muted px-1 rounded">{integration.masked_api_key}</code>
-                  {/if}
-                </span>
               </div>
-            {:else if integration.id === 'ollama'}
-              <div class="flex items-center gap-1.5 mt-0.5">
-                <span class="text-xs text-muted-foreground">Local · no API key needed</span>
-              </div>
+              <code class="mt-1 block break-all text-sm text-muted-foreground">
+                {overview.active.current_model ?? 'No model selected'}
+              </code>
             {:else}
-              <div class="flex items-center gap-1.5 mt-0.5">
-                <CircleAlert class="w-3 h-3 text-muted-foreground/60 shrink-0" />
-                <span class="text-xs text-muted-foreground">Not configured</span>
-              </div>
-            {/if}
-            {#if integration.current_model}
-              <p class="text-xs font-mono font-semibold text-foreground mt-0.5">
-                {integration.current_model.split('/').pop()}
+              <h2 class="mt-1 text-lg font-semibold">No active provider</h2>
+              <p class="mt-1 text-sm text-muted-foreground">
+                Connect a provider below, then set it as active to enable AI features.
               </p>
             {/if}
-            {#if testState}
-              <p class="mt-1 text-xs {testState.status === 'success' ? 'text-green-600 dark:text-green-400' : testState.status === 'failure' ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}">
-                {testState.message}
-              </p>
-            {/if}
-          </div>
-
-          <!-- Actions -->
-          <div class="flex flex-wrap items-center justify-end gap-2 shrink-0">
-            {#if canTest}
-              <button
-                onclick={() => handleTestIntegration(integration.id)}
-                disabled={testingAll || testState?.status === 'testing'}
-                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {#if testState?.status === 'testing'}
-                  <Loader2 class="w-3 h-3 animate-spin" />
-                  Testing…
-                {:else}
-                  Test
-                {/if}
-              </button>
-            {/if}
-            {#if canTest && !integration.is_active}
-              {#if confirmingActivate === integration.id}
-                <div class="flex items-center gap-1.5">
-                  <span class="text-xs text-muted-foreground">Switch to {integration.label}?</span>
-                  <button
-                    onclick={async () => { await handleActivate(integration.id); }}
-                    disabled={activating === integration.id}
-                    class="px-2.5 py-1 rounded-md text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                  >Yes</button>
-                  <button
-                    onclick={() => confirmingActivate = ''}
-                    class="px-2.5 py-1 rounded-md text-xs border border-border hover:bg-accent transition-colors"
-                  >No</button>
-                </div>
-              {:else}
-                <button
-                  onclick={() => confirmingActivate = integration.id}
-                  disabled={activating === integration.id}
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors disabled:opacity-50"
-                  style="border-color:{color}50; color:{color}; background:{color}0a"
-                >
-                  <Zap class="w-3 h-3" />
-                  Set Active
-                </button>
-              {/if}
-            {/if}
-            {#if integration.api_key_configured && !integration.is_active && integration.id !== 'ollama'}
-              {#if confirmingDisconnect === integration.id}
-                <div class="flex items-center gap-1.5">
-                  <span class="text-xs text-muted-foreground">Remove key?</span>
-                  <button
-                    onclick={() => handleDisconnect(integration.id)}
-                    disabled={disconnecting === integration.id}
-                    class="px-2.5 py-1 rounded-md text-xs font-semibold bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
-                  >Yes</button>
-                  <button
-                    onclick={() => confirmingDisconnect = ''}
-                    class="px-2.5 py-1 rounded-md text-xs border border-border hover:bg-accent transition-colors"
-                  >No</button>
-                </div>
-              {:else}
-                <button
-                  onclick={() => confirmingDisconnect = integration.id}
-                  disabled={disconnecting === integration.id}
-                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
-                >
-                  Remove
-                </button>
-              {/if}
-            {/if}
-            <button
-              onclick={() => openEdit(integration)}
-              class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm border border-border hover:bg-accent transition-colors text-muted-foreground"
-            >
-              {#if canTest}
-                <Pencil class="w-3.5 h-3.5" />
-                Edit
-              {:else}
-                <Plus class="w-3.5 h-3.5" />
-                Connect
-              {/if}
-            </button>
           </div>
         </div>
-      {/each}
 
-      {#if !anyConfigured}
-        <p class="text-xs text-muted-foreground text-center py-2">
-          Connect at least one provider to enable AI features.
-        </p>
+        <div class="lg:text-right">
+          <button
+            onclick={handleTestAll}
+            disabled={testingAll || testableIntegrations.length === 0}
+            class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            {#if testingAll}
+              <Loader2 class="h-4 w-4 animate-spin" />
+              Testing all…
+            {:else}
+              <Activity class="h-4 w-4" />
+              Test all connected
+            {/if}
+          </button>
+          <p class="mt-2 max-w-sm text-xs text-muted-foreground lg:max-w-xs">
+            Sends one minimal request to each connected provider and may incur a small charge.
+          </p>
+        </div>
+      </div>
+
+      <div class="grid gap-px border-t border-border bg-border sm:grid-cols-3">
+        <div class="bg-card px-5 py-4">
+          <p class="text-2xl font-semibold">{overview.connectedCount}</p>
+          <p class="text-xs text-muted-foreground">Connected providers</p>
+        </div>
+        <div class="bg-card px-5 py-4">
+          <p class="text-2xl font-semibold">{overview.credentialCount}</p>
+          <p class="text-xs text-muted-foreground">Credentials saved</p>
+        </div>
+        <div class="bg-card px-5 py-4">
+          {#if testSummary}
+            <p class="text-2xl font-semibold">{testSummary.passed}/{testSummary.total}</p>
+            <p class="text-xs text-muted-foreground">
+              Passed latest test{testSummary.failed ? ` · ${testSummary.failed} failed` : ''}
+            </p>
+          {:else}
+            <p class="text-2xl font-semibold">—</p>
+            <p class="text-xs text-muted-foreground">Not tested this session</p>
+          {/if}
+        </div>
+      </div>
+    </section>
+
+    <section class="space-y-4">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 class="text-base font-semibold">Connected</h2>
+          <p class="text-sm text-muted-foreground">
+            Providers ready to use with their saved model and credential.
+          </p>
+        </div>
+        <span class="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+          {grouped.connected.length} configured
+        </span>
+      </div>
+
+      {#if grouped.connected.length > 0}
+        <div class="grid gap-4 lg:grid-cols-2">
+          {#each grouped.connected as integration}
+            {@const color = PROVIDER_COLORS[integration.id] ?? '#6b7280'}
+            {@const mark = PROVIDER_MARKS[integration.id] ?? integration.label.slice(0, 2).toUpperCase()}
+            {@const provider = providerFor(integration.id)}
+            {@const testState = testStates[integration.id]}
+            {@const modelKind = integrationModelKind(integration, providers)}
+            <article class="rounded-xl border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/30">
+              <div class="flex items-start gap-3">
+                <div
+                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xs font-bold"
+                  style="background:{color}18; color:{color}"
+                  aria-hidden="true"
+                >
+                  {mark}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="font-semibold">{integration.label}</h3>
+                    {#if integration.is_active}
+                      <span class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        <Zap class="h-2.5 w-2.5" />
+                        Active
+                      </span>
+                    {/if}
+                  </div>
+                  <p class="mt-0.5 text-xs text-muted-foreground">
+                    {#if provider?.local}
+                      Local provider · no credential required
+                    {:else}
+                      Credential configured
+                    {/if}
+                  </p>
+                </div>
+
+                {#if integration.api_key_configured && !integration.is_active && integration.id !== 'ollama'}
+                  <details class="relative shrink-0">
+                    <summary
+                      class="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&::-webkit-details-marker]:hidden"
+                      aria-label={`More actions for ${integration.label}`}
+                    >
+                      <MoreHorizontal class="h-4 w-4" />
+                    </summary>
+                    <div class="absolute right-0 z-20 mt-2 w-60 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg">
+                      {#if confirmingDisconnect === integration.id}
+                        <p class="text-sm font-medium">Remove saved credential?</p>
+                        <p class="mt-1 text-xs text-muted-foreground">
+                          This provider will move back to Available providers.
+                        </p>
+                        <div class="mt-3 flex gap-2">
+                          <button
+                            onclick={() => handleDisconnect(integration.id)}
+                            disabled={disconnecting === integration.id}
+                            class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-destructive px-2.5 py-1.5 text-xs font-semibold text-destructive-foreground disabled:opacity-50"
+                          >
+                            {#if disconnecting === integration.id}
+                              <Loader2 class="h-3 w-3 animate-spin" />
+                            {:else}
+                              <Trash2 class="h-3 w-3" />
+                            {/if}
+                            Remove
+                          </button>
+                          <button
+                            onclick={() => (confirmingDisconnect = '')}
+                            class="rounded-md border border-border px-2.5 py-1.5 text-xs hover:bg-accent"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      {:else}
+                        <button
+                          onclick={() => (confirmingDisconnect = integration.id)}
+                          class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 class="h-4 w-4" />
+                          Remove credential
+                        </button>
+                      {/if}
+                    </div>
+                  </details>
+                {/if}
+              </div>
+
+              <div class="mt-4 rounded-lg border border-border/70 bg-muted/30 p-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <span class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Selected model
+                  </span>
+                  {#if modelKind}
+                    <span class={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${modelKindClass(modelKind)}`}>
+                      {modelKindLabel(modelKind)}
+                    </span>
+                  {/if}
+                </div>
+                <code class="mt-1.5 block break-all text-sm font-medium">
+                  {integration.current_model ?? 'No model selected'}
+                </code>
+                {#if modelKind === 'unavailable'}
+                  <p class="mt-2 text-xs text-yellow-700 dark:text-yellow-300">
+                    This model is no longer in the current catalog. Edit the provider to replace it.
+                  </p>
+                {/if}
+              </div>
+
+              <div class="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                {#if provider?.local}
+                  <CircleCheck class="h-3.5 w-3.5 text-blue-500" />
+                  Ready on this device
+                {:else}
+                  <KeyRound class="h-3.5 w-3.5 text-green-500" />
+                  {integration.masked_api_key ?? 'Credential stored securely'}
+                {/if}
+              </div>
+
+              {#if testState}
+                <div class="mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs {testState.status === 'success' ? 'bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-300' : testState.status === 'failure' ? 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300' : 'bg-muted text-muted-foreground'}">
+                  {#if testState.status === 'testing'}
+                    <Loader2 class="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin" />
+                  {:else if testState.status === 'success'}
+                    <CircleCheck class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {:else}
+                    <CircleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {/if}
+                  <span>{testState.message}</span>
+                </div>
+              {/if}
+
+              <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                {#if !integration.is_active}
+                  {#if confirmingActivate === integration.id}
+                    <div class="flex flex-1 items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2">
+                      <span class="flex-1 text-xs">Set {integration.label} as active?</span>
+                      <button
+                        onclick={() => handleActivate(integration.id)}
+                        disabled={activating === integration.id}
+                        class="rounded-md bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                      >
+                        {activating === integration.id ? 'Switching…' : 'Confirm'}
+                      </button>
+                      <button
+                        onclick={() => (confirmingActivate = '')}
+                        class="rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  {:else}
+                    <button
+                      onclick={() => (confirmingActivate = integration.id)}
+                      class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                    >
+                      <Zap class="h-3.5 w-3.5" />
+                      Set active
+                    </button>
+                  {/if}
+                {/if}
+                <button
+                  onclick={() => handleTestIntegration(integration.id)}
+                  disabled={testingAll || testState?.status === 'testing'}
+                  class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {#if testState?.status === 'testing'}
+                    <Loader2 class="h-3.5 w-3.5 animate-spin" />
+                    Testing…
+                  {:else}
+                    <Activity class="h-3.5 w-3.5" />
+                    Test
+                  {/if}
+                </button>
+                <button
+                  onclick={() => openEdit(integration)}
+                  class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <Pencil class="h-3.5 w-3.5" />
+                  Edit
+                </button>
+              </div>
+            </article>
+          {/each}
+        </div>
+      {:else}
+        <div class="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
+          <div class="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-muted">
+            <Plus class="h-5 w-5 text-muted-foreground" />
+          </div>
+          <h3 class="mt-3 font-medium">No providers connected yet</h3>
+          <p class="mt-1 text-sm text-muted-foreground">
+            Choose a provider from the list below to configure your first AI model.
+          </p>
+        </div>
       {/if}
+    </section>
+
+    {#if grouped.available.length > 0}
+      <section class="space-y-4">
+        <div>
+          <h2 class="text-base font-semibold">Available providers</h2>
+          <p class="text-sm text-muted-foreground">
+            Add another provider now and switch between models whenever you need.
+          </p>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {#each grouped.available as integration}
+            {@const color = PROVIDER_COLORS[integration.id] ?? '#6b7280'}
+            {@const mark = PROVIDER_MARKS[integration.id] ?? integration.label.slice(0, 2).toUpperCase()}
+            {@const provider = providerFor(integration.id)}
+            <article class="flex flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-accent/20">
+              <div class="flex items-start gap-3">
+                <div
+                  class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold"
+                  style="background:{color}18; color:{color}"
+                  aria-hidden="true"
+                >
+                  {mark}
+                </div>
+                <div class="min-w-0 flex-1">
+                  <h3 class="font-medium">{integration.label}</h3>
+                  <p class="mt-0.5 text-xs text-muted-foreground">
+                    {#if provider?.local}
+                      Local · no API key
+                    {:else if provider?.auth_type === 'token'}
+                      Access token required
+                    {:else}
+                      API key required
+                    {/if}
+                  </p>
+                </div>
+              </div>
+
+              <p class="mt-4 flex-1 text-sm text-muted-foreground">
+                {#if provider?.local}
+                  Run supported models locally without sending a credential to ApplyKit.
+                {:else}
+                  Save a provider credential and select the model you want ApplyKit to use.
+                {/if}
+              </p>
+
+              <div class="mt-4 flex items-center justify-between gap-3">
+                {#if provider?.credential_url}
+                  <a
+                    href={provider.credential_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  >
+                    {credentialActionLabel(provider.auth_type)}
+                    <ExternalLink class="h-3 w-3" />
+                  </a>
+                {:else}
+                  <span class="text-xs text-muted-foreground">Ready to configure</span>
+                {/if}
+                <button
+                  onclick={() => openEdit(integration)}
+                  class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  <Plus class="h-3.5 w-3.5" />
+                  Connect
+                </button>
+              </div>
+            </article>
+          {/each}
+        </div>
+      </section>
     {/if}
-  </div>
+  {/if}
 </div>
 
-<SettingsModal bind:open={modalOpen} initialProviderId={modalProviderId} initialModel={modalModel} initialApiKeyConfigured={modalApiKeyConfigured} />
+<SettingsModal
+  bind:open={modalOpen}
+  initialProviderId={modalProviderId}
+  initialModel={modalModel}
+  initialApiKeyConfigured={modalApiKeyConfigured}
+/>

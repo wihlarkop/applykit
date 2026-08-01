@@ -1,41 +1,54 @@
-from app.exceptions.base import (
-    AppError,
-    BaseCustomException,
-    ErrorBody,
-    ErrorCode,
-    ErrorEnvelope,
-    error_response,
-    not_found_404,
-)
+from app.exceptions.base import AppError, ErrorBody, ErrorCode, ErrorEnvelope
 from app.exceptions.infrastructure import (
-    AIProcessingError,
     InternalApplicationError,
-    InternalServerError,
+    PDFRenderFailedError,
     RateLimitError,
-    StorageError,
+    ScrapeFailedError,
 )
-from app.exceptions.llm import APIKeyNotConfiguredError, LLMCallError, LLMOutputError
-from app.exceptions.request import ValidationAppError, ValidationError
-from app.exceptions.resource import ConflictError, NotFoundError
+from app.exceptions.llm import (
+    APIKeyNotConfiguredError,
+    CVImportOutputError,
+    LLMCallError,
+    LLMOutputError,
+)
+from app.exceptions.request import (
+    FileParseError,
+    FileTooLargeError,
+    InvalidRequestError,
+    ScrapeValueError,
+    UnsupportedFileTypeError,
+    ValidationAppError,
+)
+from app.exceptions.resource import (
+    ApplicationNotFoundError,
+    HistoryEntryNotFoundError,
+    ProfileNotFoundError,
+    ProviderNotFoundError,
+)
+from app.exceptions.stream import stream_error_event
 
 __all__ = [
     "AppError",
-    "BaseCustomException",
     "ErrorCode",
     "ErrorBody",
     "ErrorEnvelope",
-    "NotFoundError",
+    "ProfileNotFoundError",
+    "ApplicationNotFoundError",
+    "HistoryEntryNotFoundError",
+    "ProviderNotFoundError",
     "ValidationAppError",
-    "ValidationError",
-    "ConflictError",
+    "InvalidRequestError",
+    "ScrapeValueError",
+    "FileTooLargeError",
+    "UnsupportedFileTypeError",
+    "FileParseError",
     "InternalApplicationError",
-    "InternalServerError",
-    "AIProcessingError",
     "RateLimitError",
-    "StorageError",
+    "ScrapeFailedError",
+    "PDFRenderFailedError",
     "APIKeyNotConfiguredError",
     "LLMCallError",
     "LLMOutputError",
-    "error_response",
-    "not_found_404",
+    "CVImportOutputError",
+    "stream_error_event",
 ]

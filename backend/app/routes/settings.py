@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.exceptions import ProviderNotFoundError
 from app.llm.catalog import CATALOG, get_provider
+from app.llm.provider_credentials import credential_url_for_provider
 from app.llm.schemas import ModelOption, ModelsResponse, ProviderInfo
 from app.public_errors import PROVIDER_CONNECTION_ERROR_MESSAGE
 from app.schemas import (
@@ -66,7 +67,6 @@ def get_integrations(db: Session = Depends(get_db)):
         api_key = ""
         if provider_requires_api_key(provider.id):
             api_key = get_provider_api_key(db, provider.id) or ""
-            # Legacy fallback for the active provider
             if not api_key and provider.id == active_provider:
                 api_key = get_setting(db, "llm_api_key") or ""
 
@@ -94,8 +94,6 @@ def get_integrations(db: Session = Depends(get_db)):
 def update_settings(req: UpdateSettingsRequest, db: Session = Depends(get_db)):
     migrate_legacy_api_key(db)
 
-    # An omitted or blank key means "keep the existing secret". Providers that do
-    # not require a key never persist placeholders or submitted secret values.
     provider_id = provider_from_model(req.model)
     api_key = req.api_key.strip() if req.api_key else ""
     if provider_id:
@@ -204,6 +202,7 @@ def get_models():
                 label=provider.label,
                 auth_type=provider.auth_type.value,
                 local=provider.local,
+                credential_url=credential_url_for_provider(provider.id),
                 requires_api_key=provider_requires_api_key(provider.id),
                 models=[
                     ModelOption(

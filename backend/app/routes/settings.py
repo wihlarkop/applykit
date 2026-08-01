@@ -1,9 +1,10 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.exceptions import ProviderNotFoundError
 from app.public_errors import PROVIDER_CONNECTION_ERROR_MESSAGE
 from app.schemas import (
     ActivateProviderRequest,
@@ -189,7 +190,7 @@ def test_connection(req: UpdateSettingsRequest):
 def disconnect_provider(provider_id: str, db: Session = Depends(get_db)):
     """Remove the stored API key for a provider. If it was active, clear the active model."""
     if provider_id not in KNOWN_MODELS:
-        raise HTTPException(status_code=404, detail="Unknown provider")
+        raise ProviderNotFoundError(provider_id)
 
     clear_provider_api_key(db, provider_id)
 

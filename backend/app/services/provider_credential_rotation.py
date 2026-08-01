@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import re
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import TypeVar
@@ -52,6 +54,12 @@ class NoEligibleCredentialError(ValueError):
     pass
 
 
+@dataclass(frozen=True)
+class ResolvedCredentialAttempt:
+    credential_id: int
+    secret: str
+
+
 def _utc_now() -> datetime:
     return datetime.now(UTC)
 
@@ -61,6 +69,72 @@ def _db_datetime(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value
     return value.astimezone(UTC).replace(tzinfo=None)
+
+
+def _status_code(error: Exception) -> int | None:
+    status = getattr(error, "status_code", None)
+    if isinstance(status, int):
+        return status
+    response = getattr(error, "response", None)
+    response_status = getattr(response, "status_code", None)
+    return response_status if isinstance(response_status, int) else None
+
+
+def _retry_after(error: Exception) -> float | None:
+    direct = getattr(error, "retry_after", None)
+    if isinstance(direct, int | float):
+        return float(direct)
+
+    response = getattr(error, "response", None)
+    headers = getattr(response, "headers", None)
+    if headers:
+        value = headers.get("retry-after") or headers.get("Retry-After")
+        try:
+            return float(value) if value is not None else None
+        except (TypeError, ValueError):
+            pass
+
+    message = str(error)
+    for pattern in (
+        r"retry[_\s]delay[\":\s]+(\d+(?:\.\d+)?)",
+        r"retry in (\d+(?:\.\d+)?)s",
+    ):
+        match = re.search(pattern, message, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+    return None
+
+
+def classify_provider_exception(error: Exception) -> CredentialAttemptError:
+    """Map provider exceptions to the limited set of safe rotation decisions."""
+    status = _status_code(error)
+    name = type(error).__name__.lower()
+
+    if status in {401, 403} or any(
+        marker in name
+        for marker in ("authentication", "permissiondenied", "unauthorized")
+    ):
+        kind = CredentialFailureKind.AUTHENTICATION
+    elif status == 429 or "ratelimit" in name:
+        kind = CredentialFailureKind.RATE_LIMIT
+    elif (status is not None and 500 <= status <= 599) or any(
+        marker in name
+        for marker in (
+            "serviceunavailable",
+            "apiconnection",
+            "timeout",
+            "internalserver",
+        )
+    ):
+        kind = CredentialFailureKind.TEMPORARY
+    else:
+        kind = CredentialFailureKind.NON_RETRYABLE
+
+    return CredentialAttemptError(
+        kind,
+        retry_after=_retry_after(error),
+        original=error,
+    )
 
 
 def get_credential_policy(
@@ -229,6 +303,77 @@ def _record_failure(
         )
 
 
+class CredentialRotationPlan:
+    """Reusable rotation state for synchronous and streaming operations."""
+
+    def __init__(
+        self,
+        db: Session,
+        provider_id: str,
+        *,
+        cipher: CredentialCipher | None = None,
+        now: datetime | None = None,
+    ) -> None:
+        self.db = db
+        self.provider_id = provider_id
+        self.now = now or _utc_now()
+        self.policy = get_credential_policy(db, provider_id)
+        self.strategy = CredentialStrategy(self.policy.strategy)
+        self.eligible = _eligible_credentials(db, provider_id, self.now)
+        candidates = _ordered_candidates(self.eligible, self.policy)
+        allowed_attempts = (
+            1 if self.strategy is CredentialStrategy.MANUAL else self.policy.max_attempts
+        )
+        self.candidates = candidates[: min(allowed_attempts, len(candidates))]
+        self.cipher = cipher or get_credential_cipher()
+
+        if not self.candidates:
+            raise NoEligibleCredentialError(
+                "No enabled provider credential is currently available."
+            )
+
+    def attempts(self) -> Iterator[ResolvedCredentialAttempt]:
+        for credential in self.candidates:
+            yield ResolvedCredentialAttempt(
+                credential_id=credential.id,
+                secret=decrypt_provider_credential(credential, cipher=self.cipher),
+            )
+
+    def _credential(self, credential_id: int) -> ProviderCredential:
+        credential = next(
+            (item for item in self.candidates if item.id == credential_id),
+            None,
+        )
+        if credential is None:
+            raise NoEligibleCredentialError("Credential is not part of this rotation plan.")
+        return credential
+
+    def record_failure(
+        self,
+        credential_id: int,
+        error: CredentialAttemptError,
+    ) -> None:
+        if error.kind is CredentialFailureKind.NON_RETRYABLE:
+            return
+        _record_failure(self.db, self._credential(credential_id), error, self.now)
+        self.db.commit()
+
+    def record_success(self, credential_id: int) -> None:
+        credential = self._credential(credential_id)
+        _record_success(credential, self.now)
+        if self.strategy is CredentialStrategy.ROUND_ROBIN and self.eligible:
+            successful_index = next(
+                index
+                for index, item in enumerate(self.eligible)
+                if item.id == credential.id
+            )
+            self.policy.round_robin_cursor = (successful_index + 1) % len(
+                self.eligible
+            )
+            self.policy.updated_at = _db_datetime(self.now)
+        self.db.commit()
+
+
 def execute_with_credential_rotation(
     db: Session,
     provider_id: str,
@@ -238,42 +383,27 @@ def execute_with_credential_rotation(
     now: datetime | None = None,
 ) -> ResultT:
     """Execute one operation using the provider's configured credential policy."""
-    current_time = now or _utc_now()
-    policy = get_credential_policy(db, provider_id)
-    eligible = _eligible_credentials(db, provider_id, current_time)
-    candidates = _ordered_candidates(eligible, policy)
-    if not candidates:
-        raise NoEligibleCredentialError(
-            "No enabled provider credential is currently available."
-        )
-
-    strategy = CredentialStrategy(policy.strategy)
-    allowed_attempts = 1 if strategy is CredentialStrategy.MANUAL else policy.max_attempts
-    selected_cipher = cipher or get_credential_cipher()
+    plan = CredentialRotationPlan(
+        db,
+        provider_id,
+        cipher=cipher,
+        now=now,
+    )
     last_error: CredentialAttemptError | None = None
 
-    for credential in candidates[: min(allowed_attempts, len(candidates))]:
-        secret = decrypt_provider_credential(credential, cipher=selected_cipher)
+    for resolved in plan.attempts():
         try:
-            result = attempt(secret, credential.id)
+            result = attempt(resolved.secret, resolved.credential_id)
         except CredentialAttemptError as error:
             last_error = error
             if error.kind is CredentialFailureKind.NON_RETRYABLE:
                 raise
-            _record_failure(db, credential, error, current_time)
-            db.commit()
-            if strategy is CredentialStrategy.MANUAL:
+            plan.record_failure(resolved.credential_id, error)
+            if plan.strategy is CredentialStrategy.MANUAL:
                 raise
             continue
 
-        _record_success(credential, current_time)
-        if strategy is CredentialStrategy.ROUND_ROBIN and eligible:
-            successful_index = next(
-                index for index, item in enumerate(eligible) if item.id == credential.id
-            )
-            policy.round_robin_cursor = (successful_index + 1) % len(eligible)
-            policy.updated_at = _db_datetime(current_time)
-        db.commit()
+        plan.record_success(resolved.credential_id)
         return result
 
     if last_error is not None:

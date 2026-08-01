@@ -7,14 +7,37 @@ class ValidationAppError(AppError):
     default_message = "Validation error."
 
 
-class ValidationError(ValidationAppError):
-    """Compatibility wrapper for the previous public exception API."""
+class InvalidRequestError(AppError):
+    code = ErrorCode.INVALID_REQUEST
+    status_code = 400
+    default_message = "Invalid request."
 
-    def __init__(
-        self,
-        message: str | list[str],
-        field: str | None = None,
-    ) -> None:
-        public_message = message if isinstance(message, str) else "; ".join(message)
-        details = {"field": field} if field else {}
-        super().__init__(public_message, details=details)
+
+class ScrapeValueError(AppError):
+    code = ErrorCode.SCRAPE_VALUE_ERROR
+    status_code = 422
+    default_message = "The job posting input is invalid."
+
+
+class FileTooLargeError(AppError):
+    code = ErrorCode.FILE_TOO_LARGE
+    status_code = 413
+    default_message = "File is too large."
+
+    def __init__(self, max_size_mb: int) -> None:
+        super().__init__(
+            f"File too large. Maximum size is {max_size_mb}MB.",
+            details={"max_size_mb": max_size_mb},
+        )
+
+
+class UnsupportedFileTypeError(AppError):
+    code = ErrorCode.FILE_TYPE_UNSUPPORTED
+    status_code = 422
+    default_message = "Unsupported file type. Use PDF, DOCX, or plain text."
+
+
+class FileParseError(AppError):
+    code = ErrorCode.FILE_PARSE_FAILED
+    status_code = 422
+    default_message = "Could not extract text from file."

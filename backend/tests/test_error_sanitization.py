@@ -4,7 +4,7 @@ import json
 import litellm
 import pytest
 
-import main
+from app.exceptions.handlers import generic_exception_handler
 from app.exceptions.llm import LLMCallError
 from app.routes.settings import test_connection as check_connection
 from app.schemas import UpdateSettingsRequest
@@ -14,7 +14,7 @@ _RAW_ERROR = "provider failed api_key=sk-secret-value https://internal.example/d
 
 
 def test_generic_exception_response_does_not_expose_raw_error():
-    response = asyncio.run(main.generic_exception_handler(None, RuntimeError(_RAW_ERROR)))
+    response = asyncio.run(generic_exception_handler(None, RuntimeError(_RAW_ERROR)))
     payload = json.loads(response.body)
 
     assert response.status_code == 500

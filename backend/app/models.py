@@ -10,6 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase
 
@@ -115,6 +116,54 @@ class AppSetting(Base):
 
     key = Column(String, primary_key=True)
     value = Column(Text, nullable=False)
+
+
+class ProviderCredential(Base):
+    __tablename__ = "provider_credential"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider_id",
+            "fingerprint",
+            name="uq_provider_credential_fingerprint",
+        ),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    provider_id = Column(String(64), nullable=False, index=True)
+    label = Column(String(80), nullable=False)
+    encrypted_secret = Column(Text, nullable=False)
+    masked_secret = Column(String(64), nullable=False)
+    fingerprint = Column(String(64), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=False, index=True)
+    is_enabled = Column(Boolean, nullable=False, default=True)
+    priority = Column(Integer, nullable=False, default=1)
+    health_status = Column(String(32), nullable=False, default="unknown")
+    consecutive_failures = Column(Integer, nullable=False, default=0)
+    cooldown_until = Column(DateTime, nullable=True)
+    last_tested_at = Column(DateTime, nullable=True)
+    last_used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+
+class ProviderCredentialPolicy(Base):
+    __tablename__ = "provider_credential_policy"
+
+    provider_id = Column(String(64), primary_key=True)
+    strategy = Column(String(32), nullable=False, default="manual")
+    max_attempts = Column(Integer, nullable=False, default=2)
+    round_robin_cursor = Column(Integer, nullable=False, default=0)
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
 
 
 class LlmUsageLog(Base):

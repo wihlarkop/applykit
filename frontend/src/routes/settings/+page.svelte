@@ -1,11 +1,25 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
-  import { page } from '$app/state';
   import { activateProvider, disconnectProvider, getIntegrations } from '$lib/api';
   import SettingsModal from '$lib/components/SettingsModal.svelte';
+  import { testConfiguredIntegration } from '$lib/integration-api';
+  import {
+    connectedIntegrations,
+    testConnectedIntegrations,
+    type IntegrationTestState,
+    type IntegrationTestSummary,
+  } from '$lib/integration-testing';
   import { toastState } from '$lib/toast.svelte';
   import type { IntegrationInfo } from '$lib/types';
-  import { ChevronRight, CircleAlert, CircleCheck, Pencil, Plus, Settings, Zap } from '@lucide/svelte';
+  import {
+    CircleAlert,
+    CircleCheck,
+    Loader2,
+    Pencil,
+    Plus,
+    Settings,
+    Zap,
+  } from '@lucide/svelte';
 
   let modalOpen = $state(false);
   let modalProviderId = $state('');
@@ -17,6 +31,9 @@
   let confirmingActivate = $state('');
   let disconnecting = $state('');
   let confirmingDisconnect = $state('');
+  let testStates = $state<Record<string, IntegrationTestState>>({});
+  let testingAll = $state(false);
+  let testSummary = $state<IntegrationTestSummary | null>(null);
 
   const PROVIDER_COLORS: Record<string, string> = {
     gemini: '#8b5cf6',
@@ -71,6 +88,10 @@
     try {
       const res = await disconnectProvider(providerId);
       integrations = res.integrations;
+      const nextStates = { ...testStates };
+      delete nextStates[providerId];
+      testStates = nextStates;
+      testSummary = null;
       await invalidateAll();
       toastState.success('Provider disconnected.');
     } catch {
@@ -81,20 +102,58 @@
     }
   }
 
-  const anyConfigured = $derived(
-    integrations.some((i) => i.api_key_configured || (i.id === 'ollama' && Boolean(i.current_model)))
-  );
+  function updateTestState(providerId: string, state: IntegrationTestState) {
+    testStates = { ...testStates, [providerId]: state };
+  }
+
+  async function handleTestIntegration(providerId: string) {
+    updateTestState(providerId, {
+      status: 'testing',
+      message: 'Testing connection…',
+    });
+    testSummary = null;
+
+    try {
+      const result = await testConfiguredIntegration(providerId);
+      updateTestState(providerId, {
+        status: result.ok ? 'success' : 'failure',
+        message: result.message,
+      });
+    } catch {
+      updateTestState(providerId, {
+        status: 'failure',
+        message: 'Connection test request failed.',
+      });
+    }
+  }
+
+  async function handleTestAll() {
+    testingAll = true;
+    testSummary = null;
+    try {
+      testSummary = await testConnectedIntegrations(
+        integrations,
+        testConfiguredIntegration,
+        updateTestState,
+      );
+    } finally {
+      testingAll = false;
+    }
+  }
+
+  const testableIntegrations = $derived(connectedIntegrations(integrations));
+  const anyConfigured = $derived(testableIntegrations.length > 0);
 </script>
 
 <div class="max-w-2xl space-y-6">
   <div class="flex items-start justify-between gap-4">
     <div>
-    <h1 class="text-2xl font-bold flex items-center gap-2">
-      <Settings class="w-6 h-6 text-primary" />
-      Settings
-    </h1>
-    <p class="text-sm text-muted-foreground mt-1">Manage your AI integrations. You can connect multiple providers and switch between them.</p>
-  </div>
+      <h1 class="text-2xl font-bold flex items-center gap-2">
+        <Settings class="w-6 h-6 text-primary" />
+        Settings
+      </h1>
+      <p class="text-sm text-muted-foreground mt-1">Manage your AI integrations. You can connect multiple providers and switch between them.</p>
+    </div>
     <a href="/usage" class="shrink-0 text-xs text-primary hover:underline mt-1">View LLM Usage →</a>
   </div>
 
@@ -119,7 +178,29 @@
   {/if}
 
   <div class="space-y-3">
-    <h2 class="text-sm font-medium text-muted-foreground uppercase tracking-wide">AI Integrations</h2>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="text-sm font-medium text-muted-foreground uppercase tracking-wide">AI Integrations</h2>
+      <div class="flex flex-wrap items-center justify-end gap-2">
+        {#if testSummary}
+          <span class="text-xs text-muted-foreground">
+            {testSummary.passed} passed · {testSummary.failed} failed
+          </span>
+        {/if}
+        <button
+          onclick={handleTestAll}
+          disabled={loading || testingAll || testableIntegrations.length === 0}
+          title="Sends one minimal request to each connected provider and may incur a small provider charge."
+          class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {#if testingAll}
+            <Loader2 class="h-3.5 w-3.5 animate-spin" />
+            Testing all…
+          {:else}
+            Test All Connected
+          {/if}
+        </button>
+      </div>
+    </div>
 
     {#if loading}
       {#each [1, 2, 3, 4] as _}
@@ -129,6 +210,8 @@
       {#each integrations as integration}
         {@const color = PROVIDER_COLORS[integration.id] ?? '#6b7280'}
         {@const icon = PROVIDER_ICONS[integration.id] ?? '◉'}
+        {@const testState = testStates[integration.id]}
+        {@const canTest = integration.api_key_configured || (integration.id === 'ollama' && Boolean(integration.current_model))}
         <div class="border rounded-lg p-4 bg-card flex items-center gap-4 transition-colors {integration.is_active ? 'border-l-4 border-l-primary border-primary/20 bg-primary/5' : 'border-border'}">
           <!-- Icon -->
           <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 text-base font-bold" style="background:{color}18; color:{color}">
@@ -171,11 +254,30 @@
                 {integration.current_model.split('/').pop()}
               </p>
             {/if}
+            {#if testState}
+              <p class="mt-1 text-xs {testState.status === 'success' ? 'text-green-600 dark:text-green-400' : testState.status === 'failure' ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'}">
+                {testState.message}
+              </p>
+            {/if}
           </div>
 
           <!-- Actions -->
-          <div class="flex items-center gap-2 shrink-0">
-            {#if (integration.api_key_configured || integration.id === 'ollama') && !integration.is_active}
+          <div class="flex flex-wrap items-center justify-end gap-2 shrink-0">
+            {#if canTest}
+              <button
+                onclick={() => handleTestIntegration(integration.id)}
+                disabled={testingAll || testState?.status === 'testing'}
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {#if testState?.status === 'testing'}
+                  <Loader2 class="w-3 h-3 animate-spin" />
+                  Testing…
+                {:else}
+                  Test
+                {/if}
+              </button>
+            {/if}
+            {#if canTest && !integration.is_active}
               {#if confirmingActivate === integration.id}
                 <div class="flex items-center gap-1.5">
                   <span class="text-xs text-muted-foreground">Switch to {integration.label}?</span>
@@ -229,7 +331,7 @@
               onclick={() => openEdit(integration)}
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm border border-border hover:bg-accent transition-colors text-muted-foreground"
             >
-              {#if integration.api_key_configured || integration.id === 'ollama'}
+              {#if canTest}
                 <Pencil class="w-3.5 h-3.5" />
                 Edit
               {:else}

@@ -14,6 +14,7 @@ export interface CatalogProviderInfo extends Omit<ProviderInfo, 'models'> {
   auth_type: ProviderAuthType;
   local: boolean;
   credential_url: string | null;
+  supports_custom_models: boolean;
   models: CatalogModelOption[];
 }
 
@@ -26,6 +27,29 @@ export interface CatalogModelFilters {
 
 export function credentialActionLabel(authType: ProviderAuthType): string {
   return authType === 'token' ? 'Get access token' : 'Get API key';
+}
+
+export function customModelValidationError(providerId: string, modelId: string): string | null {
+  const normalized = modelId.trim();
+  if (!normalized) return 'Enter a model ID.';
+  if (normalized.length > 200) return 'Model ID must be at most 200 characters.';
+  if (/\s/.test(normalized)) return 'Model ID cannot contain spaces or line breaks.';
+  if (!normalized.startsWith(`${providerId}/`)) {
+    return `Model ID must start with ${providerId}/.`;
+  }
+  if (normalized === `${providerId}/`) return 'Enter a model name after the provider prefix.';
+  return null;
+}
+
+export function isCustomModel(
+  provider: Pick<CatalogProviderInfo, 'supports_custom_models' | 'models'> | undefined,
+  modelId: string,
+): boolean {
+  return Boolean(
+    provider?.supports_custom_models &&
+      modelId &&
+      !provider.models.some((model) => model.value === modelId),
+  );
 }
 
 export function filterCatalogModels(

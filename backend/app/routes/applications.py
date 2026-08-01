@@ -1,9 +1,10 @@
 from datetime import UTC, date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.exceptions import ApplicationNotFoundError
 from app.models import Application, GeneratedCoverLetter, GeneratedCV
 from app.schemas import (
     ApplicationEntry,
@@ -14,6 +15,13 @@ from app.schemas import (
 from app.utils import batch_load_profiles
 
 router = APIRouter()
+
+
+def _get_application_or_404(db: Session, application_id: int) -> Application:
+    application = db.query(Application).filter_by(id=application_id).first()
+    if not application:
+        raise ApplicationNotFoundError(application_id)
+    return application
 
 
 def _enrich_app(app: Application, profiles: dict) -> dict:
@@ -178,23 +186,14 @@ def list_applications(
 
 @router.get("/applications/{app_id}", response_model=ApplicationEntry)
 def get_application(app_id: int, db: Session = Depends(get_db)):
-    app = db.query(Application).filter_by(id=app_id).first()
-    if not app:
-        raise HTTPException(
-            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
-        )
-    return _build_app_entry(app, db)
+    return _build_app_entry(_get_application_or_404(db, app_id), db)
 
 
 @router.patch("/applications/{app_id}", response_model=ApplicationEntry)
 def update_application(
     app_id: int, body: UpdateApplicationRequest, db: Session = Depends(get_db)
 ):
-    app = db.query(Application).filter_by(id=app_id).first()
-    if not app:
-        raise HTTPException(
-            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
-        )
+    app = _get_application_or_404(db, app_id)
     for field, value in body.model_dump(exclude_unset=True).items():
         if field == "status" and value is not None:
             value = value if isinstance(value, str) else value.value
@@ -207,11 +206,7 @@ def update_application(
 
 @router.delete("/applications/{app_id}")
 def delete_application(app_id: int, db: Session = Depends(get_db)):
-    app = db.query(Application).filter_by(id=app_id).first()
-    if not app:
-        raise HTTPException(
-            status_code=404, detail={"detail": "Not found", "code": "NOT_FOUND"}
-        )
+    app = _get_application_or_404(db, app_id)
     # Nullify FKs on linked documents before deleting
     db.query(GeneratedCoverLetter).filter_by(application_id=app_id).update(
         {"application_id": None}

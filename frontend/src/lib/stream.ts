@@ -1,8 +1,26 @@
+import { parseApiError } from './api-error';
+
+
 export interface StreamOptions {
   onChunk?: (text: string) => void;
   onDone?: () => void;
   onError?: (msg: string) => void;
   transformChunk?: (chunk: string) => string;
+}
+
+function streamErrorMessage(payload: unknown, fallback = 'Request failed.'): string | undefined {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+    return undefined;
+  }
+
+  const record = payload as Record<string, unknown>;
+  if (typeof record.error === 'string' && record.error.trim()) {
+    return record.error;
+  }
+  if (typeof record.error === 'object' && record.error !== null) {
+    return parseApiError(payload, fallback).message;
+  }
+  return undefined;
 }
 
 export async function consumeStream(response: Response, options: StreamOptions = {}): Promise<void> {
@@ -48,8 +66,9 @@ export async function consumeStream(response: Response, options: StreamOptions =
               onDone?.();
               return;
             }
-            if (parsed.error) {
-              onError?.(parsed.error);
+            const errorMessage = streamErrorMessage(parsed);
+            if (errorMessage) {
+              onError?.(errorMessage);
               return;
             }
             if (parsed.chunk !== undefined) {
@@ -110,6 +129,13 @@ export async function consumeStructuredStream(
           try {
             const parsed = JSON.parse(raw);
             const data = typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
+            if (currentEvent === 'error') {
+              options.onError?.(
+                streamErrorMessage(data, 'Streaming request failed.')
+                ?? 'Streaming request failed.'
+              );
+              return;
+            }
             options.onEvent(currentEvent, data);
           } catch {
             options.onError?.(raw);

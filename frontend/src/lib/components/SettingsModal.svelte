@@ -7,6 +7,7 @@
   import type { TestConnectionResponse } from '$lib/types';
   import { errorMessage } from '$lib/utils';
   import { CheckCircle, CircleAlert, Eye, EyeOff, Loader2, XCircle } from '@lucide/svelte';
+  import ModelSelector from '$lib/components/ModelSelector.svelte';
 
   let { open = $bindable(false), initialProviderId = '', initialModel = '', initialApiKeyConfigured = false }: {
     open: boolean;
@@ -189,15 +190,12 @@
         {/if}
 
         <div class="space-y-1.5">
-          <label for="model-select" class="text-sm font-medium">Model</label>
-          <select id="model-select" bind:value={selectedModel} class="w-full border border-border rounded-md px-3 py-2 text-sm bg-background">
-            {#if unavailableCurrentModel}
-              <option value={initialModel}>{initialModel} — unavailable</option>
-            {/if}
-            {#each selectedProvider?.models ?? [] as model}
-              <option value={model.value}>{model.label}</option>
-            {/each}
-          </select>
+          <label class="text-sm font-medium">Model</label>
+          <ModelSelector
+            models={selectedProvider?.models ?? []}
+            bind:value={selectedModel}
+            unavailableValue={unavailableCurrentModel ? initialModel : ''}
+          />
 
           {#if unavailableCurrentModel && selectedModel === initialModel}
             <div class="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-300">

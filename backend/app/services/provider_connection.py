@@ -2,6 +2,7 @@ import logging
 
 import litellm
 
+from app.public_errors import PROVIDER_CONNECTION_ERROR_MESSAGE
 from app.schemas import TestConnectionResponse
 
 logger = logging.getLogger(__name__)
@@ -10,6 +11,8 @@ logger = logging.getLogger(__name__)
 def test_provider_connection(
     model_id: str,
     api_key: str | None = None,
+    *,
+    failure_message: str = PROVIDER_CONNECTION_ERROR_MESSAGE,
 ) -> TestConnectionResponse:
     request_kwargs: dict[str, object] = {
         "model": model_id,
@@ -34,5 +37,5 @@ def test_provider_connection(
         )
         return TestConnectionResponse(
             ok=False,
-            message="Provider connection failed.",
+            message=failure_message,
         )

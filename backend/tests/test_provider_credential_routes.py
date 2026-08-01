@@ -10,6 +10,7 @@ from app.routes.settings import (
     get_integrations,
     get_provider_credentials,
 )
+from app.services.settings import get_setting, set_setting
 
 
 def _make_session():
@@ -72,6 +73,28 @@ def test_manual_activation_and_deletion_keep_one_active_credential():
         assert len(remaining) == 1
         assert remaining[0].id == first.id
         assert remaining[0].is_active is True
+    finally:
+        db.close()
+
+
+def test_deleting_final_credential_clears_active_model_for_provider():
+    db = _make_session()
+    try:
+        set_setting(db, "llm_provider", "openai/gpt-5-mini")
+        credential = add_provider_credential(
+            "openai",
+            CreateProviderCredentialRequest(
+                label="Only key",
+                secret="sk-route-only",
+                activate=True,
+            ),
+            db,
+        )
+
+        delete_credential("openai", credential.id, db)
+
+        assert get_provider_credentials("openai", db).credentials == []
+        assert get_setting(db, "llm_provider") == ""
     finally:
         db.close()
 

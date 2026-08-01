@@ -132,6 +132,7 @@ def test_failover_places_rate_limited_key_in_cooldown_without_disabling_it():
     db = _make_session()
     cipher = _cipher()
     now = datetime(2026, 8, 2, 1, 0, tzinfo=UTC)
+    persisted_now = now.replace(tzinfo=None)
     try:
         primary, backup, _ = _add_credentials(db, cipher)
         update_credential_policy(
@@ -162,8 +163,8 @@ def test_failover_places_rate_limited_key_in_cooldown_without_disabling_it():
         assert primary.is_enabled is True
         assert primary.is_active is True
         assert primary.health_status == "rate_limited"
-        assert primary.cooldown_until == now + timedelta(seconds=45)
-        assert backup.last_used_at == now
+        assert primary.cooldown_until == persisted_now + timedelta(seconds=45)
+        assert backup.last_used_at == persisted_now
     finally:
         db.close()
 
@@ -244,7 +245,7 @@ def test_cooldown_and_disabled_credentials_are_skipped():
     now = datetime(2026, 8, 2, 1, 0, tzinfo=UTC)
     try:
         primary, backup, third = _add_credentials(db, cipher)
-        primary.cooldown_until = now + timedelta(minutes=5)
+        primary.cooldown_until = (now + timedelta(minutes=5)).replace(tzinfo=None)
         backup.is_enabled = False
         db.commit()
         update_credential_policy(

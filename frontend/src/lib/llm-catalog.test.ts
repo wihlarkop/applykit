@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 
-import { filterCatalogModels, type CatalogModelFilters, type CatalogModelOption } from '$lib/llm-catalog';
+import {
+  credentialActionLabel,
+  filterCatalogModels,
+  type CatalogModelFilters,
+  type CatalogModelOption,
+} from '$lib/llm-catalog';
 
 const models: CatalogModelOption[] = [
   {
@@ -35,6 +40,13 @@ const noFilters: CatalogModelFilters = {
   reasoning: false,
   structuredOutput: false,
 };
+
+describe('credentialActionLabel', () => {
+  test('uses token-specific copy only for token providers', () => {
+    expect(credentialActionLabel('token')).toBe('Get access token');
+    expect(credentialActionLabel('api_key')).toBe('Get API key');
+  });
+});
 
 describe('filterCatalogModels', () => {
   test('searches case-insensitively by label and model ID', () => {

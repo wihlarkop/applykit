@@ -21,3 +21,9 @@ class LLMOutputError(AppError):
     default_message = (
         "The AI provider returned an invalid structured response. Please try again."
     )
+
+
+class CVImportOutputError(AppError):
+    code = ErrorCode.LLM_OUTPUT_INVALID
+    status_code = 422
+    default_message = "Could not parse CV into profile fields. Try editing manually."

@@ -25,6 +25,6 @@ def stream_error_event(exc: Exception) -> ServerSentEvent:
         event = "error"
 
     return ServerSentEvent(
-        data=public_error.to_envelope().model_dump_json(),
+        data=public_error.to_envelope().model_dump(mode="json"),
         event=event,
     )

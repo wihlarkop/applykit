@@ -18,6 +18,7 @@ class ProviderInfo(BaseModel):
     auth_type: Literal["api_key", "token", "none"]
     local: bool
     credential_url: str | None
+    supports_custom_models: bool
     models: list[ModelOption]
     requires_api_key: bool
 

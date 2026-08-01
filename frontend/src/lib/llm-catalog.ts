@@ -15,3 +15,42 @@ export interface CatalogProviderInfo extends Omit<ProviderInfo, 'models'> {
   local: boolean;
   models: CatalogModelOption[];
 }
+
+export interface CatalogModelFilters {
+  statuses: ReadonlySet<ModelStatus>;
+  freeTier: boolean;
+  reasoning: boolean;
+  structuredOutput: boolean;
+}
+
+export function filterCatalogModels(
+  models: readonly CatalogModelOption[],
+  query: string,
+  filters: CatalogModelFilters,
+): CatalogModelOption[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+
+  return models.filter((model) => {
+    if (
+      normalizedQuery &&
+      !`${model.label} ${model.value}`.toLocaleLowerCase().includes(normalizedQuery)
+    ) {
+      return false;
+    }
+
+    if (filters.statuses.size > 0 && !filters.statuses.has(model.status)) {
+      return false;
+    }
+    if (filters.freeTier && !model.free_tier) {
+      return false;
+    }
+    if (filters.reasoning && !model.traits.includes('reasoning')) {
+      return false;
+    }
+    if (filters.structuredOutput && !model.capabilities.includes('structured_output')) {
+      return false;
+    }
+
+    return true;
+  });
+}

@@ -5,13 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.exceptions.handlers import (
-    app_exception_handler,
-    exception_handlers,
-    generic_exception_handler,
-    http_exception_handler,
-    validation_exception_handler,
-)
+from app.exceptions import handlers as exception_handler_module
 from app.http_client import start_http_client, stop_http_client
 from app.routes import (
     analyze,
@@ -28,6 +22,13 @@ from app.routes import (
 from app.services.usage_logging import stop_usage_logger
 
 _settings = get_settings()
+
+# Transitional module-level aliases retained for existing imports and tests.
+app_exception_handler = exception_handler_module.app_exception_handler
+http_exception_handler = exception_handler_module.http_exception_handler
+validation_exception_handler = exception_handler_module.validation_exception_handler
+generic_exception_handler = exception_handler_module.generic_exception_handler
+exception_handlers = exception_handler_module.exception_handlers
 
 
 @asynccontextmanager

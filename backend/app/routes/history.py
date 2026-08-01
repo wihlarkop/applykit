@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.exceptions import not_found_404
+from app.exceptions import HistoryEntryNotFoundError
 from app.models import Application, GeneratedCoverLetter, GeneratedCV
 from app.schemas import (
     BulkDeleteRequest,
@@ -116,7 +116,7 @@ def list_cv_history(
 def get_cv_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCV).filter_by(id=entry_id).first()
     if not entry:
-        raise not_found_404("CV entry")
+        raise HistoryEntryNotFoundError("CV entry", entry_id)
     return _enrich_cv(entry, batch_load_profiles([entry], db))
 
 
@@ -124,7 +124,7 @@ def get_cv_history_entry(entry_id: int, db: Session = Depends(get_db)):
 def delete_cv_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCV).filter_by(id=entry_id).first()
     if not entry:
-        raise not_found_404("CV entry")
+        raise HistoryEntryNotFoundError("CV entry", entry_id)
     db.delete(entry)
     db.commit()
 
@@ -135,7 +135,7 @@ def update_cv_status(
 ):
     entry = db.query(GeneratedCV).filter_by(id=entry_id).first()
     if not entry:
-        raise not_found_404("CV entry")
+        raise HistoryEntryNotFoundError("CV entry", entry_id)
     entry.application_status = body.status
     db.commit()
     return _enrich_cv(entry, batch_load_profiles([entry], db))
@@ -193,7 +193,7 @@ def list_cover_letter_history(
 def get_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCoverLetter).filter_by(id=entry_id).first()
     if not entry:
-        raise not_found_404("Cover letter")
+        raise HistoryEntryNotFoundError("Cover letter", entry_id)
     return _enrich_cl(entry, batch_load_profiles([entry], db))
 
 
@@ -201,7 +201,7 @@ def get_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_db))
 def delete_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCoverLetter).filter_by(id=entry_id).first()
     if not entry:
-        raise not_found_404("Cover letter")
+        raise HistoryEntryNotFoundError("Cover letter", entry_id)
     db.delete(entry)
     db.commit()
 
@@ -214,7 +214,7 @@ def update_cover_letter_status(
 ):
     entry = db.query(GeneratedCoverLetter).filter_by(id=entry_id).first()
     if not entry:
-        raise not_found_404("Cover letter")
+        raise HistoryEntryNotFoundError("Cover letter", entry_id)
     entry.application_status = body.status
     if body.status:
         if entry.application_id:

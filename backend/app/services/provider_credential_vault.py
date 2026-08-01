@@ -52,6 +52,18 @@ def list_provider_credentials(
     )
 
 
+def get_provider_credential(
+    db: Session,
+    provider_id: str,
+    credential_id: int,
+) -> ProviderCredential | None:
+    return (
+        db.query(ProviderCredential)
+        .filter_by(id=credential_id, provider_id=provider_id)
+        .first()
+    )
+
+
 def get_active_provider_credential(
     db: Session,
     provider_id: str,
@@ -160,11 +172,7 @@ def replace_provider_credential_secret(
     *,
     cipher: CredentialCipher | None = None,
 ) -> ProviderCredential:
-    credential = (
-        db.query(ProviderCredential)
-        .filter_by(id=credential_id, provider_id=provider_id)
-        .first()
-    )
+    credential = get_provider_credential(db, provider_id, credential_id)
     if not credential:
         raise CredentialNotFoundError("Credential was not found.")
 
@@ -193,6 +201,27 @@ def replace_provider_credential_secret(
     credential.health_status = "unknown"
     credential.consecutive_failures = 0
     credential.cooldown_until = None
+    credential.updated_at = datetime.now(UTC)
+    db.commit()
+    db.refresh(credential)
+    return credential
+
+
+def rename_provider_credential(
+    db: Session,
+    provider_id: str,
+    credential_id: int,
+    label: str,
+) -> ProviderCredential:
+    credential = get_provider_credential(db, provider_id, credential_id)
+    if not credential:
+        raise CredentialNotFoundError("Credential was not found.")
+    label = label.strip()
+    if not label:
+        raise CredentialVaultError("Credential label is required.")
+    if len(label) > 80:
+        raise CredentialVaultError("Credential label must be 80 characters or fewer.")
+    credential.label = label
     credential.updated_at = datetime.now(UTC)
     db.commit()
     db.refresh(credential)
@@ -231,16 +260,8 @@ def activate_provider_credential(
     provider_id: str,
     credential_id: int,
 ) -> ProviderCredential:
-    credential = (
-        db.query(ProviderCredential)
-        .filter_by(
-            id=credential_id,
-            provider_id=provider_id,
-            is_enabled=True,
-        )
-        .first()
-    )
-    if not credential:
+    credential = get_provider_credential(db, provider_id, credential_id)
+    if not credential or not credential.is_enabled:
         raise CredentialNotFoundError("Credential was not found or is disabled.")
 
     _deactivate_provider_credentials(db, provider_id)
@@ -249,6 +270,34 @@ def activate_provider_credential(
     db.commit()
     db.refresh(credential)
     return credential
+
+
+def delete_provider_credential(
+    db: Session,
+    provider_id: str,
+    credential_id: int,
+) -> None:
+    credential = get_provider_credential(db, provider_id, credential_id)
+    if not credential:
+        raise CredentialNotFoundError("Credential was not found.")
+
+    was_active = credential.is_active
+    db.delete(credential)
+    db.flush()
+    if was_active:
+        replacement = (
+            db.query(ProviderCredential)
+            .filter_by(provider_id=provider_id, is_enabled=True)
+            .order_by(
+                ProviderCredential.priority.asc(),
+                ProviderCredential.id.asc(),
+            )
+            .first()
+        )
+        if replacement:
+            replacement.is_active = True
+            replacement.updated_at = datetime.now(UTC)
+    db.commit()
 
 
 def clear_provider_credentials(db: Session, provider_id: str) -> None:

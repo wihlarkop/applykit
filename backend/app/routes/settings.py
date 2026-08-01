@@ -188,7 +188,11 @@ def test_configured_integration(
                 message="Credential is not configured.",
             )
 
-    return test_provider_connection(model_id, api_key or None)
+    return test_provider_connection(
+        model_id,
+        api_key or None,
+        failure_message="Provider connection failed.",
+    )
 
 
 @router.delete("/settings/integrations/{provider_id}", response_model=IntegrationsResponse)

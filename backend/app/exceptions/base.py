@@ -1,140 +1,116 @@
-from datetime import UTC, datetime
-from typing import Any
+from __future__ import annotations
 
-from fastapi import HTTPException, status
+from copy import deepcopy
+from enum import StrEnum
+from typing import Any, ClassVar
+
+from fastapi import HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class BaseCustomException(HTTPException):
-    """Base custom exception class with structured error information."""
+class ErrorCode(StrEnum):
+    """Stable machine-readable error codes exposed by the API."""
+
+    VALIDATION_ERROR = "VALIDATION_ERROR"
+    HTTP_ERROR = "HTTP_ERROR"
+    INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR"
+    RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND"
+    RESOURCE_CONFLICT = "RESOURCE_CONFLICT"
+    AI_PROCESSING_ERROR = "AI_PROCESSING_ERROR"
+    RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED"
+    STORAGE_ERROR = "STORAGE_ERROR"
+    API_KEY_NOT_CONFIGURED = "API_KEY_NOT_CONFIGURED"
+    LLM_CALL_FAILED = "LLM_CALL_FAILED"
+    LLM_OUTPUT_INVALID = "LLM_OUTPUT_INVALID"
+
+    # Legacy route codes retained during incremental migration.
+    PROFILE_NOT_FOUND = "PROFILE_NOT_FOUND"
+    APPLICATION_NOT_FOUND = "APPLICATION_NOT_FOUND"
+    NOT_FOUND = "NOT_FOUND"
+    SCRAPE_VALUE_ERROR = "SCRAPE_VALUE_ERROR"
+    SCRAPE_FAILED = "SCRAPE_FAILED"
+    INVALID_REQUEST = "INVALID_REQUEST"
+    FILE_TOO_LARGE = "FILE_TOO_LARGE"
+    FILE_TYPE_UNSUPPORTED = "FILE_TYPE_UNSUPPORTED"
+    FILE_PARSE_FAILED = "FILE_PARSE_FAILED"
+    PDF_RENDER_FAILED = "PDF_RENDER_FAILED"
+
+
+class ErrorBody(BaseModel):
+    """Public error fields returned to API clients."""
+
+    model_config = ConfigDict(frozen=True)
+
+    code: ErrorCode
+    message: str
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class ErrorEnvelope(BaseModel):
+    """Top-level public error response."""
+
+    model_config = ConfigDict(frozen=True)
+
+    error: ErrorBody
+
+
+class AppError(Exception):
+    """Base type for expected application failures."""
+
+    code: ClassVar[ErrorCode]
+    status_code: ClassVar[int]
+    default_message: ClassVar[str]
 
     def __init__(
         self,
-        message: str | list[str],
-        status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
-        error_code: str | None = None,
-        details: dict[str, Any] | None = None,
-    ) -> None:
-        super().__init__(status_code=status_code, detail=message)
-        self.message = message
-        self.error_code = error_code or self.__class__.__name__.upper()
-        self.details = details or {}
-
-
-class NotFoundError(BaseCustomException):
-    """Exception for resource not found errors."""
-
-    def __init__(self, resource: str, identifier: str | int) -> None:
-        message = f"{resource} with identifier '{identifier}' not found"
-        error_code = f"{resource.upper()}_NOT_FOUND"
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_404_NOT_FOUND,
-            error_code=error_code,
-        )
-
-
-class ValidationError(BaseCustomException):
-    """Exception for validation errors."""
-
-    def __init__(
-        self,
-        message: str | list[str],
-        field: str | None = None,
-    ) -> None:
-        details = {"field": field} if field else {}
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            error_code="VALIDATION_ERROR",
-            details=details,
-        )
-
-
-class ConflictError(BaseCustomException):
-    """Exception for resource conflict errors (e.g., duplicate ID)."""
-
-    def __init__(
-        self,
-        resource: str,
-        identifier: str | int,
         message: str | None = None,
-    ) -> None:
-        error_message = (
-            message or f"{resource} with identifier '{identifier}' already exists"
-        )
-        error_code = f"{resource.upper()}_CONFLICT"
-        super().__init__(
-            message=error_message,
-            status_code=status.HTTP_409_CONFLICT,
-            error_code=error_code,
-        )
-
-
-class InternalServerError(BaseCustomException):
-    """Exception for internal server errors."""
-
-    def __init__(
-        self,
-        message: str = "An internal server error occurred",
+        *,
         details: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            error_code="INTERNAL_SERVER_ERROR",
-            details=details,
+        if type(self) is AppError:
+            raise TypeError("AppError cannot be instantiated directly")
+
+        error_type = type(self)
+        code = getattr(error_type, "code", None)
+        status_code = getattr(error_type, "status_code", None)
+        default_message = getattr(error_type, "default_message", None)
+
+        if not isinstance(code, ErrorCode):
+            raise TypeError(f"{error_type.__name__}.code must be an ErrorCode")
+        if not isinstance(status_code, int) or not 400 <= status_code <= 599:
+            raise TypeError(
+                f"{error_type.__name__}.status_code must be an integer from 400 to 599"
+            )
+        if not isinstance(default_message, str) or not default_message.strip():
+            raise TypeError(
+                f"{error_type.__name__}.default_message must be a non-empty string"
+            )
+        if message is not None and (not isinstance(message, str) or not message.strip()):
+            raise TypeError("AppError message must be a non-empty string")
+        if details is not None and not isinstance(details, dict):
+            raise TypeError("AppError details must be a dictionary")
+        if headers is not None and not isinstance(headers, dict):
+            raise TypeError("AppError headers must be a dictionary")
+
+        self.message = message or default_message
+        self.error_code = code.value
+        self.details = deepcopy(details) if details is not None else {}
+        self.headers = dict(headers) if headers is not None else {}
+        super().__init__(self.message)
+
+    def to_envelope(self) -> ErrorEnvelope:
+        return ErrorEnvelope(
+            error=ErrorBody(
+                code=self.code,
+                message=self.message,
+                details=deepcopy(self.details),
+            )
         )
 
 
-class AIProcessingError(BaseCustomException):
-    """Exception for AI processing errors."""
-
-    def __init__(
-        self,
-        message: str = "AI processing failed",
-        model: str | None = None,
-    ) -> None:
-        details = {"model": model} if model else {}
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            error_code="AI_PROCESSING_ERROR",
-            details=details,
-        )
-
-
-class RateLimitError(BaseCustomException):
-    """Exception for rate limit errors (HTTP 429)."""
-
-    def __init__(
-        self,
-        message: str = "Rate limit exceeded. Please retry later.",
-        retry_after: float | None = None,
-    ) -> None:
-        details = {"retry_after": retry_after} if retry_after else {}
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            error_code="RATE_LIMIT_EXCEEDED",
-            details=details,
-        )
-
-
-class StorageError(BaseCustomException):
-    """Exception for storage/upload errors."""
-
-    def __init__(
-        self,
-        message: str = "Storage operation failed",
-        operation: str | None = None,
-    ) -> None:
-        details = {"operation": operation} if operation else {}
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            error_code="STORAGE_ERROR",
-            details=details,
-        )
+# Transitional compatibility name for existing imports. New code should use AppError.
+BaseCustomException = AppError
 
 
 def error_response(
@@ -143,21 +119,28 @@ def error_response(
     error_code: str | None = None,
     details: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Create standardized error response."""
-    return {
-        "success": False,
-        "status_code": status_code,
-        "error_code": error_code,
-        "message": message,
-        "details": details or {},
-        "timestamp": datetime.now(UTC).isoformat(),
-    }
+    """Build the new envelope for callers using the legacy helper."""
+    del status_code
+    try:
+        code = ErrorCode(error_code) if error_code else ErrorCode.HTTP_ERROR
+    except ValueError:
+        code = ErrorCode.HTTP_ERROR
+    public_message = message if isinstance(message, str) else "; ".join(message)
+    return ErrorEnvelope(
+        error=ErrorBody(
+            code=code,
+            message=public_message,
+            details=deepcopy(details) if details is not None else {},
+        )
+    ).model_dump(mode="json")
 
 
 def not_found_404(resource: str = "Resource") -> HTTPException:
-    """Create a standardized 404 Not Found HTTPException."""
-    code = f"{resource.upper().replace(' ', '_')}_NOT_FOUND"
+    """Create a legacy 404 response that the global adapter can normalize."""
     return HTTPException(
         status_code=404,
-        detail={"detail": f"{resource} not found", "code": code},
+        detail={
+            "detail": f"{resource} not found",
+            "code": ErrorCode.RESOURCE_NOT_FOUND.value,
+        },
     )

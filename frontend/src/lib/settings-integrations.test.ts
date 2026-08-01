@@ -88,6 +88,25 @@ describe('groupIntegrations', () => {
       'gemini',
     ]);
   });
+
+  test('keeps the active provider first and sorts remaining connected providers by label', () => {
+    const grouped = groupIntegrations([
+      { ...integrations[1], label: 'Zulu Local' },
+      { ...integrations[0], is_active: false, label: 'Alpha AI' },
+      {
+        ...integrations[0],
+        id: 'anthropic',
+        label: 'Anthropic Claude',
+        is_active: true,
+      },
+    ]);
+
+    expect(grouped.connected.map((integration) => integration.label)).toEqual([
+      'Anthropic Claude',
+      'Alpha AI',
+      'Zulu Local',
+    ]);
+  });
 });
 
 describe('integrationModelKind', () => {

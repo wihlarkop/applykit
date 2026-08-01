@@ -2,7 +2,12 @@
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { getModels, getSettings, testConnection, updateSettings } from '$lib/api';
-  import { credentialActionLabel, type CatalogProviderInfo } from '$lib/llm-catalog';
+  import {
+    credentialActionLabel,
+    customModelValidationError,
+    isCustomModel,
+    type CatalogProviderInfo,
+  } from '$lib/llm-catalog';
   import { toastState } from '$lib/toast.svelte';
   import type { TestConnectionResponse } from '$lib/types';
   import { errorMessage } from '$lib/utils';
@@ -19,6 +24,7 @@
   let providers: CatalogProviderInfo[] = $state([]);
   let selectedProviderId = $state('gemini');
   let selectedModel = $state('');
+  let customMode = $state(false);
   let apiKey = $state('');
   let showApiKey = $state(false);
   let loading = $state(true);
@@ -29,11 +35,21 @@
 
   const selectedProvider = $derived(providers.find((p) => p.id === selectedProviderId));
   const selectedModelInfo = $derived(selectedProvider?.models.find((model) => model.value === selectedModel));
+  const customModelError = $derived(
+    customMode && selectedProvider
+      ? customModelValidationError(selectedProvider.id, selectedModel)
+      : null,
+  );
   const unavailableCurrentModel = $derived(
-    Boolean(initialModel && selectedProvider && !selectedProvider.models.some((model) => model.value === initialModel))
+    Boolean(
+      initialModel &&
+        selectedProvider &&
+        !customMode &&
+        !selectedProvider.models.some((model) => model.value === initialModel),
+    ),
   );
   const canReuseStoredKey = $derived(
-    Boolean(initialProviderId && initialApiKeyConfigured && selectedProvider?.requires_api_key)
+    Boolean(initialProviderId && initialApiKeyConfigured && selectedProvider?.requires_api_key),
   );
 
   $effect(() => {
@@ -41,28 +57,48 @@
     loadData();
   });
 
+  function selectExistingModel(modelId: string): boolean {
+    for (const provider of providers) {
+      if (provider.models.some((model) => model.value === modelId)) {
+        selectedProviderId = provider.id;
+        selectedModel = modelId;
+        customMode = false;
+        return true;
+      }
+    }
+
+    const providerId = modelId.split('/', 1)[0];
+    const provider = providers.find(
+      (item) => item.id === providerId && item.supports_custom_models,
+    );
+    if (provider) {
+      selectedProviderId = provider.id;
+      selectedModel = modelId;
+      customMode = isCustomModel(provider, modelId);
+      return true;
+    }
+    return false;
+  }
+
   async function loadData() {
     loading = true;
     testResult = null;
     saveError = '';
     apiKey = '';
     showApiKey = false;
+    customMode = false;
     try {
       const [modelsRes, settingsRes] = await Promise.all([getModels(), getSettings()]);
       providers = modelsRes.providers as CatalogProviderInfo[];
       source = settingsRes.source;
 
       if (initialProviderId) {
+        const provider = providers.find((item) => item.id === initialProviderId);
         selectedProviderId = initialProviderId;
-        selectedModel = initialModel || (providers.find((p) => p.id === initialProviderId)?.models[0]?.value ?? '');
-      } else if (settingsRes.model) {
-        for (const provider of providers) {
-          if (provider.models.some((model) => model.value === settingsRes.model)) {
-            selectedProviderId = provider.id;
-            selectedModel = settingsRes.model;
-            break;
-          }
-        }
+        selectedModel = initialModel || provider?.models[0]?.value || '';
+        customMode = isCustomModel(provider, selectedModel);
+      } else if (settingsRes.model && selectExistingModel(settingsRes.model)) {
+        // Selection was restored from saved settings.
       } else if (providers.length > 0) {
         selectedProviderId = providers[0].id;
         selectedModel = providers[0].models[0]?.value ?? '';
@@ -78,18 +114,29 @@
     selectedProviderId = id;
     const provider = providers.find((item) => item.id === id);
     selectedModel = provider?.models[0]?.value ?? '';
+    customMode = false;
     apiKey = '';
     testResult = null;
   }
 
+  function toggleCustomMode() {
+    if (!selectedProvider?.supports_custom_models) return;
+    customMode = !customMode;
+    selectedModel = customMode
+      ? `${selectedProvider.id}/`
+      : selectedProvider.models[0]?.value ?? '';
+    testResult = null;
+    saveError = '';
+  }
+
   async function handleTest() {
-    if (!selectedModel) return;
+    if (!selectedModel || customModelError) return;
     const keyToTest = apiKey.trim() || null;
     if (selectedProvider?.requires_api_key && !keyToTest) return;
     testing = true;
     testResult = null;
     try {
-      testResult = await testConnection({ model: selectedModel, api_key: keyToTest });
+      testResult = await testConnection({ model: selectedModel.trim(), api_key: keyToTest });
     } catch {
       testResult = { ok: false, message: 'Request failed.' };
     } finally {
@@ -104,6 +151,10 @@
       saveError = 'Select a model.';
       return;
     }
+    if (customModelError) {
+      saveError = customModelError;
+      return;
+    }
     const keyToSave = apiKey.trim() || null;
     if (selectedProvider?.requires_api_key && !keyToSave && !canReuseStoredKey) {
       saveError = 'API key is required.';
@@ -112,13 +163,13 @@
     saving = activate ? 'activate' : 'key';
     saveError = '';
     try {
-      await updateSettings({ model: selectedModel, api_key: keyToSave, activate });
+      await updateSettings({ model: selectedModel.trim(), api_key: keyToSave, activate });
       toastState.success(
         activate
           ? 'Saved and set as active model.'
           : keyToSave
             ? 'API key saved.'
-            : 'Model saved. Existing API key was kept.'
+            : 'Model saved. Existing API key was kept.',
       );
       open = false;
       await invalidateAll();
@@ -190,12 +241,43 @@
         {/if}
 
         <div class="space-y-1.5">
-          <label class="text-sm font-medium">Model</label>
-          <ModelSelector
-            models={selectedProvider?.models ?? []}
-            bind:value={selectedModel}
-            unavailableValue={unavailableCurrentModel ? initialModel : ''}
-          />
+          <div class="flex items-center justify-between gap-3">
+            <label for={customMode ? 'custom-model-input' : undefined} class="text-sm font-medium">Model</label>
+            {#if selectedProvider?.supports_custom_models}
+              <button
+                type="button"
+                onclick={toggleCustomMode}
+                class="text-xs font-medium text-primary hover:underline"
+              >
+                {customMode ? 'Choose from catalog' : 'Use custom model ID'}
+              </button>
+            {/if}
+          </div>
+
+          {#if customMode}
+            <input
+              id="custom-model-input"
+              bind:value={selectedModel}
+              placeholder={`${selectedProvider?.id ?? 'provider'}/model-name`}
+              maxlength="200"
+              spellcheck="false"
+              autocomplete="off"
+              class="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-sm outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <div class="flex items-center justify-between gap-3">
+              <span class="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-purple-800 dark:bg-purple-950 dark:text-purple-300">Custom</span>
+              <span class="text-[11px] text-muted-foreground">Use the full LiteLLM model ID.</span>
+            </div>
+            {#if customModelError}
+              <p class="text-xs text-red-600 dark:text-red-400">{customModelError}</p>
+            {/if}
+          {:else}
+            <ModelSelector
+              models={selectedProvider?.models ?? []}
+              bind:value={selectedModel}
+              unavailableValue={unavailableCurrentModel ? initialModel : ''}
+            />
+          {/if}
 
           {#if unavailableCurrentModel && selectedModel === initialModel}
             <div class="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-900 dark:bg-yellow-950/30 dark:text-yellow-300">
@@ -260,7 +342,7 @@
         <div class="space-y-2">
           <button
             onclick={handleTest}
-            disabled={testing || !selectedModel || (selectedProvider?.requires_api_key && !apiKey)}
+            disabled={testing || !selectedModel || Boolean(customModelError) || (selectedProvider?.requires_api_key && !apiKey)}
             class="w-full px-4 py-2 rounded-md border border-border text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {#if testing}<Loader2 class="w-4 h-4 animate-spin" />Testing…{:else}Test Connection{/if}
@@ -281,7 +363,7 @@
           {#if initialProviderId && selectedProvider?.requires_api_key}
             <button
               onclick={() => handleSave(false)}
-              disabled={saving !== null || !selectedModel || (!apiKey && !canReuseStoredKey)}
+              disabled={saving !== null || !selectedModel || Boolean(customModelError) || (!apiKey && !canReuseStoredKey)}
               class="px-4 py-2 rounded-md text-sm border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {#if saving === 'key'}<Loader2 class="w-4 h-4 animate-spin" />{/if}
@@ -290,7 +372,7 @@
           {/if}
           <button
             onclick={() => handleSave(true)}
-            disabled={saving !== null || !selectedModel || (selectedProvider?.requires_api_key && !apiKey && !canReuseStoredKey)}
+            disabled={saving !== null || !selectedModel || Boolean(customModelError) || (selectedProvider?.requires_api_key && !apiKey && !canReuseStoredKey)}
             class="px-4 py-2 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {#if saving === 'activate'}<Loader2 class="w-4 h-4 animate-spin" />{/if}

@@ -18,7 +18,13 @@ def test_generic_exception_response_does_not_expose_raw_error():
     payload = json.loads(response.body)
 
     assert response.status_code == 500
-    assert payload["message"] == "An unexpected error occurred"
+    assert payload == {
+        "error": {
+            "code": "INTERNAL_SERVER_ERROR",
+            "message": "An unexpected error occurred",
+            "details": {},
+        }
+    }
     assert "sk-secret-value" not in response.body.decode()
     assert "internal.example" not in response.body.decode()
 

@@ -13,6 +13,7 @@ export interface CatalogModelOption extends ModelOption {
 export interface CatalogProviderInfo extends Omit<ProviderInfo, 'models'> {
   auth_type: ProviderAuthType;
   local: boolean;
+  credential_url: string | null;
   models: CatalogModelOption[];
 }
 
@@ -21,6 +22,10 @@ export interface CatalogModelFilters {
   freeTier: boolean;
   reasoning: boolean;
   structuredOutput: boolean;
+}
+
+export function credentialActionLabel(authType: ProviderAuthType): string {
+  return authType === 'token' ? 'Get access token' : 'Get API key';
 }
 
 export function filterCatalogModels(

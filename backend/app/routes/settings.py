@@ -1,11 +1,12 @@
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.exceptions import ProviderNotFoundError
 from app.llm.catalog import CATALOG, get_provider
+from app.llm.model_selection import supports_custom_models, validate_model_id
 from app.llm.provider_credentials import credential_url_for_provider
 from app.llm.schemas import ModelOption, ModelsResponse, ProviderInfo
 from app.public_errors import PROVIDER_CONNECTION_ERROR_MESSAGE
@@ -42,6 +43,13 @@ def _mask_api_key(key: str) -> str | None:
     if len(key) <= 8:
         return "•" * len(key)
     return key[:4] + "•" * (len(key) - 8) + key[-4:]
+
+
+def _validate_model_or_422(model_id: str) -> str:
+    try:
+        return validate_model_id(model_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/settings", response_model=SettingsResponse)
@@ -94,7 +102,8 @@ def get_integrations(db: Session = Depends(get_db)):
 def update_settings(req: UpdateSettingsRequest, db: Session = Depends(get_db)):
     migrate_legacy_api_key(db)
 
-    provider_id = provider_from_model(req.model)
+    model_id = _validate_model_or_422(req.model)
+    provider_id = provider_from_model(model_id)
     api_key = req.api_key.strip() if req.api_key else ""
     if provider_id:
         if provider_requires_api_key(provider_id):
@@ -102,12 +111,10 @@ def update_settings(req: UpdateSettingsRequest, db: Session = Depends(get_db)):
                 set_provider_api_key(db, provider_id, api_key)
         else:
             clear_provider_api_key(db, provider_id)
-        set_setting(db, f"selected_model_{provider_id}", req.model)
-    elif api_key:
-        set_setting(db, "llm_api_key", api_key)
+        set_setting(db, f"selected_model_{provider_id}", model_id)
 
     if req.activate:
-        set_active_model(db, req.model)
+        set_active_model(db, model_id)
 
     model, configured_api_key = get_llm_config(db)
     return SettingsResponse(
@@ -142,7 +149,8 @@ def activate_provider(req: ActivateProviderRequest, db: Session = Depends(get_db
 def test_connection(req: UpdateSettingsRequest):
     import litellm
 
-    provider_id = provider_from_model(req.model)
+    model_id = _validate_model_or_422(req.model)
+    provider_id = provider_from_model(model_id)
     api_key = req.api_key.strip() if req.api_key else ""
     if provider_requires_api_key(provider_id) and not api_key:
         return TestConnectionResponse(
@@ -151,7 +159,7 @@ def test_connection(req: UpdateSettingsRequest):
         )
 
     request_kwargs = {
-        "model": req.model,
+        "model": model_id,
         "messages": [{"role": "user", "content": "Reply with the single word: ok"}],
         "timeout": 15,
         "max_tokens": 5,
@@ -168,7 +176,7 @@ def test_connection(req: UpdateSettingsRequest):
     except Exception as exc:
         logger.warning(
             "LLM connection test failed for model %s",
-            req.model,
+            model_id,
             exc_info=(type(exc), exc, exc.__traceback__),
         )
         return TestConnectionResponse(
@@ -203,6 +211,7 @@ def get_models():
                 auth_type=provider.auth_type.value,
                 local=provider.local,
                 credential_url=credential_url_for_provider(provider.id),
+                supports_custom_models=supports_custom_models(provider.id),
                 requires_api_key=provider_requires_api_key(provider.id),
                 models=[
                     ModelOption(

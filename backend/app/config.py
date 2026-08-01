@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "sqlite:///./applykit.db"
 
+    # Credential vault
+    # Supply a Fernet key through APPLYKIT_CREDENTIAL_ENCRYPTION_KEY in managed
+    # deployments. Local installs automatically create the fallback key file.
+    credential_encryption_key: str | None = None
+    credential_key_file: str = ".applykit/credential.key"
+    max_provider_credentials: int = 20
+
     # CORS
     cors_origins: list[str] = ["http://localhost:5173"]
 

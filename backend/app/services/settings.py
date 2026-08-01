@@ -1,59 +1,18 @@
 from sqlalchemy.orm import Session
 
+from app.llm.catalog import (
+    CATALOG,
+    get_provider_models,
+    provider_from_model,
+    provider_requires_api_key,
+)
 from app.models import AppSetting
 
-# Full LiteLLM model strings, grouped by provider family.
-# Used by GET /api/settings/models and the Settings UI.
+# Backward-compatible projection for callers that still need provider -> model IDs.
 KNOWN_MODELS: dict[str, list[str]] = {
-    "gemini": [
-        "gemini/gemini-2.5-flash",
-        "gemini/gemini-2.5-pro",
-        "gemini/gemini-2.5-flash-lite",
-        "gemini/gemini-3.1-flash-lite-preview",
-        "gemini/gemini-3-flash-preview",
-        "gemini/gemini-3.1-pro-preview",
-    ],
-    "anthropic": [
-        "anthropic/claude-haiku-4-5-20251001",
-        "anthropic/claude-sonnet-4-6",
-        "anthropic/claude-opus-4-6",
-    ],
-    "openai": [
-        "openai/gpt-4o-mini-2024-07-18",
-        "openai/gpt-4o-2024-08-06",
-        "openai/gpt-4.1-2025-04-14",
-        "openai/gpt-4.1-mini-2025-04-14",
-        "openai/o4-mini-2025-04-16",
-        "openai/o3-2025-04-16",
-    ],
-    "ollama": [
-        "ollama/llama4",
-        "ollama/llama3.2",
-        "ollama/llama3.1",
-        "ollama/llama3",
-        "ollama/qwen3.5",
-        "ollama/qwen3-next",
-        "ollama/glm-5",
-        "ollama/glm-4.7-flash",
-    ],
+    provider.id: list(get_provider_models(provider.id))
+    for provider in CATALOG.providers
 }
-
-KEYLESS_PROVIDERS = frozenset({"ollama"})
-
-
-def provider_from_model(model: str) -> str | None:
-    """Extract provider id from a LiteLLM model string like 'gemini/gemini-2.5-flash'."""
-    if not model:
-        return None
-    for provider_id in KNOWN_MODELS:
-        if model.startswith(provider_id + "/") or model == provider_id:
-            return provider_id
-    return None
-
-
-def provider_requires_api_key(provider_id: str | None) -> bool:
-    """Return whether a provider requires a stored secret to be usable."""
-    return provider_id not in KEYLESS_PROVIDERS
 
 
 def is_llm_configured(model: str, api_key: str | None) -> bool:

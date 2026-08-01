@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -9,7 +7,6 @@ from app.llm.catalog import CATALOG, get_provider
 from app.llm.model_selection import supports_custom_models, validate_model_id
 from app.llm.provider_credentials import credential_url_for_provider
 from app.llm.schemas import ModelOption, ModelsResponse, ProviderInfo
-from app.public_errors import PROVIDER_CONNECTION_ERROR_MESSAGE
 from app.schemas import (
     ActivateProviderRequest,
     IntegrationInfo,
@@ -18,6 +15,7 @@ from app.schemas import (
     TestConnectionResponse,
     UpdateSettingsRequest,
 )
+from app.services.provider_connection import test_provider_connection
 from app.services.settings import (
     clear_provider_api_key,
     get_llm_config,
@@ -33,7 +31,6 @@ from app.services.settings import (
 )
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
 
 def _mask_api_key(key: str) -> str | None:
@@ -147,8 +144,6 @@ def activate_provider(req: ActivateProviderRequest, db: Session = Depends(get_db
 
 @router.post("/settings/test", response_model=TestConnectionResponse)
 def test_connection(req: UpdateSettingsRequest):
-    import litellm
-
     model_id = _validate_model_or_422(req.model)
     provider_id = provider_from_model(model_id)
     api_key = req.api_key.strip() if req.api_key else ""
@@ -158,31 +153,42 @@ def test_connection(req: UpdateSettingsRequest):
             message="API key is required for this provider.",
         )
 
-    request_kwargs = {
-        "model": model_id,
-        "messages": [{"role": "user", "content": "Reply with the single word: ok"}],
-        "timeout": 15,
-        "max_tokens": 5,
-    }
-    if api_key:
-        request_kwargs["api_key"] = api_key
+    return test_provider_connection(model_id, api_key or None)
 
-    try:
-        response = litellm.completion(**request_kwargs)
-        content = response.choices[0].message.content if response.choices else ""
-        if content:
-            return TestConnectionResponse(ok=True, message="Connection successful.")
-        return TestConnectionResponse(ok=False, message="LLM returned empty response.")
-    except Exception as exc:
-        logger.warning(
-            "LLM connection test failed for model %s",
-            model_id,
-            exc_info=(type(exc), exc, exc.__traceback__),
-        )
-        return TestConnectionResponse(
-            ok=False,
-            message=PROVIDER_CONNECTION_ERROR_MESSAGE,
-        )
+
+@router.post(
+    "/settings/integrations/{provider_id}/test",
+    response_model=TestConnectionResponse,
+)
+def test_configured_integration(
+    provider_id: str,
+    db: Session = Depends(get_db),
+):
+    provider = get_provider(provider_id)
+    if provider is None:
+        raise ProviderNotFoundError(provider_id)
+
+    active_model = get_setting(db, "llm_provider") or ""
+    active_provider = provider_from_model(active_model)
+    saved_model = (
+        active_model
+        if active_provider == provider_id
+        else get_setting(db, f"selected_model_{provider_id}")
+    )
+    model_id = saved_model or provider.models[0].id
+
+    api_key = ""
+    if provider_requires_api_key(provider_id):
+        api_key = get_provider_api_key(db, provider_id) or ""
+        if not api_key and active_provider == provider_id:
+            api_key = get_setting(db, "llm_api_key") or ""
+        if not api_key:
+            return TestConnectionResponse(
+                ok=False,
+                message="Credential is not configured.",
+            )
+
+    return test_provider_connection(model_id, api_key or None)
 
 
 @router.delete("/settings/integrations/{provider_id}", response_model=IntegrationsResponse)

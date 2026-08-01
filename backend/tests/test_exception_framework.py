@@ -142,6 +142,24 @@ def test_http_exception_handler_does_not_reflect_nested_detail_objects():
     assert secret not in response.body.decode()
 
 
+def test_http_exception_handler_sanitizes_unknown_server_errors():
+    secret = "database failed password=secret https://internal.example/debug"
+    exc = HTTPException(status_code=503, detail=secret)
+
+    response = asyncio.run(http_exception_handler(_request(), exc))
+
+    assert response.status_code == 503
+    assert _payload(response) == {
+        "error": {
+            "code": "INTERNAL_SERVER_ERROR",
+            "message": "An unexpected error occurred",
+            "details": {},
+        }
+    }
+    assert "password=secret" not in response.body.decode()
+    assert "internal.example" not in response.body.decode()
+
+
 def test_validation_exception_handler_excludes_raw_input():
     secret = "sk-secret-value"
     exc = RequestValidationError(

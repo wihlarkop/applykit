@@ -1,9 +1,10 @@
 import httpx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import require_llm_config
+from app.exceptions import InvalidRequestError, ScrapeFailedError, ScrapeValueError
 from app.http_client import get_http_client
 from app.schemas import (
     ParseJobDescriptionRequest,
@@ -25,19 +26,10 @@ async def scrape_job(
 ):
     try:
         result = await scrape_job_url(body.url, client)
-    except ValueError as e:
-        raise HTTPException(
-            status_code=422,
-            detail={"detail": str(e), "code": "SCRAPE_VALUE_ERROR"},
-        ) from e
+    except ValueError as exc:
+        raise ScrapeValueError(str(exc)) from exc
     except Exception:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "detail": "Could not extract job posting. Please paste the text manually.",
-                "code": "SCRAPE_FAILED",
-            },
-        ) from None
+        raise ScrapeFailedError() from None
     return ScrapeJobResponse(
         job_description=result.job_description,
         company_name=result.company_name,
@@ -63,13 +55,7 @@ async def scrape_analyze(
     client: httpx.AsyncClient = Depends(get_http_client),
 ):
     if not body.url and not body.text:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "detail": "Either url or text must be provided",
-                "code": "INVALID_REQUEST",
-            },
-        )
+        raise InvalidRequestError("Either url or text must be provided")
 
     provider, api_key = require_llm_config(db)
 
@@ -94,8 +80,5 @@ async def scrape_analyze(
             job_description=job_description,
             source=source,
         )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=422,
-            detail={"detail": str(e), "code": "SCRAPE_VALUE_ERROR"},
-        )
+    except ValueError as exc:
+        raise ScrapeValueError(str(exc)) from exc

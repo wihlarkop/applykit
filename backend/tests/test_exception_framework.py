@@ -4,14 +4,14 @@ import logging
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
 from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.exceptions import AppError, ErrorCode
 from app.exceptions.handlers import (
     app_exception_handler,
+    framework_http_exception_handler,
     generic_exception_handler,
-    http_exception_handler,
     validation_exception_handler,
 )
 
@@ -88,38 +88,17 @@ def test_app_exception_handler_uses_status_envelope_and_headers():
     }
 
 
-def test_http_exception_handler_normalizes_known_legacy_payload():
-    exc = HTTPException(
+def test_framework_http_exception_handler_normalizes_string_detail():
+    exc = StarletteHTTPException(
         status_code=400,
-        detail={
-            "detail": "LLM not configured.",
-            "code": "API_KEY_NOT_CONFIGURED",
-        },
+        detail="Request rejected.",
+        headers={"X-Reason": "invalid"},
     )
 
-    response = asyncio.run(http_exception_handler(_request(), exc))
+    response = asyncio.run(framework_http_exception_handler(_request(), exc))
 
     assert response.status_code == 400
-    assert _payload(response) == {
-        "error": {
-            "code": "API_KEY_NOT_CONFIGURED",
-            "message": "LLM not configured.",
-            "details": {},
-        }
-    }
-
-
-def test_http_exception_handler_uses_safe_code_for_unknown_legacy_code():
-    exc = HTTPException(
-        status_code=418,
-        detail={"detail": "Request rejected.", "code": "RUNTIME_CODE"},
-        headers={"X-Reason": "teapot"},
-    )
-
-    response = asyncio.run(http_exception_handler(_request(), exc))
-
-    assert response.status_code == 418
-    assert response.headers["x-reason"] == "teapot"
+    assert response.headers["x-reason"] == "invalid"
     assert _payload(response) == {
         "error": {
             "code": "HTTP_ERROR",
@@ -129,24 +108,24 @@ def test_http_exception_handler_uses_safe_code_for_unknown_legacy_code():
     }
 
 
-def test_http_exception_handler_does_not_reflect_nested_detail_objects():
+def test_framework_http_exception_handler_does_not_reflect_nested_details():
     secret = "sk-secret-value"
-    exc = HTTPException(
+    exc = StarletteHTTPException(
         status_code=400,
-        detail={"detail": {"api_key": secret}, "code": "UNKNOWN"},
+        detail={"api_key": secret},
     )
 
-    response = asyncio.run(http_exception_handler(_request(), exc))
+    response = asyncio.run(framework_http_exception_handler(_request(), exc))
 
     assert _payload(response)["error"]["message"] == "Request failed."
     assert secret not in response.body.decode()
 
 
-def test_http_exception_handler_sanitizes_unknown_server_errors():
+def test_framework_http_exception_handler_sanitizes_server_errors():
     secret = "database failed password=secret https://internal.example/debug"
-    exc = HTTPException(status_code=503, detail=secret)
+    exc = StarletteHTTPException(status_code=503, detail=secret)
 
-    response = asyncio.run(http_exception_handler(_request(), exc))
+    response = asyncio.run(framework_http_exception_handler(_request(), exc))
 
     assert response.status_code == 503
     assert _payload(response) == {

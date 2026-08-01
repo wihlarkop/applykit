@@ -1,45 +1,23 @@
-"""LLM-specific exceptions — integrated with the global exception handler."""
+"""LLM-specific application errors."""
 
-from fastapi import status
-
-from app.exceptions.base import BaseCustomException
+from app.exceptions.base import AppError, ErrorCode
 
 
-class APIKeyNotConfiguredError(BaseCustomException):
-    """Raised when LLM API key is not configured."""
-
-    def __init__(
-        self, message: str = "LLM not configured. Set provider and API key in Settings."
-    ):
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_400_BAD_REQUEST,
-            error_code="API_KEY_NOT_CONFIGURED",
-        )
+class APIKeyNotConfiguredError(AppError):
+    code = ErrorCode.API_KEY_NOT_CONFIGURED
+    status_code = 400
+    default_message = "LLM not configured. Set provider and API key in Settings."
 
 
-class LLMCallError(BaseCustomException):
-    """Raised when an LLM call fails."""
-
-    def __init__(self, message: str = "LLM call failed."):
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            error_code="LLM_CALL_FAILED",
-        )
+class LLMCallError(AppError):
+    code = ErrorCode.LLM_CALL_FAILED
+    status_code = 502
+    default_message = "LLM call failed."
 
 
-class LLMOutputError(BaseCustomException):
-    """Raised when an LLM response is not valid for the requested schema."""
-
-    def __init__(
-        self,
-        message: str = (
-            "The AI provider returned an invalid structured response. Please try again."
-        ),
-    ):
-        super().__init__(
-            message=message,
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            error_code="LLM_OUTPUT_INVALID",
-        )
+class LLMOutputError(AppError):
+    code = ErrorCode.LLM_OUTPUT_INVALID
+    status_code = 502
+    default_message = (
+        "The AI provider returned an invalid structured response. Please try again."
+    )

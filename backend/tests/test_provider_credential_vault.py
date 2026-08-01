@@ -76,8 +76,8 @@ def test_multiple_credentials_support_manual_active_selection():
         assert active is not None
         assert active.id == second.id
         assert [item.label for item in list_provider_credentials(db, "openai")] == [
-            "Personal",
             "Work",
+            "Personal",
         ]
     finally:
         db.close()

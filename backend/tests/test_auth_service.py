@@ -19,7 +19,6 @@ from app.auth.service import (
     verify_owner_password,
 )
 from app.models import (
-    AuthOwner,
     AuthSession,
     AuthSetupToken,
     Base,
@@ -33,6 +32,10 @@ def _make_session() -> Session:
     return sessionmaker(bind=engine)()
 
 
+def _as_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
 def test_setup_token_is_one_time_hashed_and_expires_after_30_minutes() -> None:
     db = _make_session()
     now = datetime(2026, 8, 2, 9, 0, tzinfo=UTC)
@@ -43,7 +46,7 @@ def test_setup_token_is_one_time_hashed_and_expires_after_30_minutes() -> None:
         assert raw_token
         assert stored is not None
         assert stored.token_hash != raw_token
-        assert stored.expires_at == now + timedelta(minutes=30)
+        assert _as_utc(stored.expires_at) == now + timedelta(minutes=30)
 
         owner = complete_owner_setup(
             db,
@@ -251,6 +254,6 @@ def test_security_audit_log_keeps_only_1000_latest_events() -> None:
             db.scalars(select(SecurityAuditEvent).order_by(SecurityAuditEvent.id))
         )
         assert len(events) == 1000
-        assert events[0].created_at == now + timedelta(seconds=5)
+        assert _as_utc(events[0].created_at) == now + timedelta(seconds=5)
     finally:
         db.close()

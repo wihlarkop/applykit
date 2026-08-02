@@ -12,6 +12,7 @@ def test_provider_connection(
     model_id: str,
     api_key: str | None = None,
     *,
+    api_base: str | None = None,
     failure_message: str = PROVIDER_CONNECTION_ERROR_MESSAGE,
 ) -> TestConnectionResponse:
     request_kwargs: dict[str, object] = {
@@ -22,6 +23,8 @@ def test_provider_connection(
     }
     if api_key:
         request_kwargs["api_key"] = api_key
+    if api_base:
+        request_kwargs["api_base"] = api_base
 
     try:
         response = litellm.completion(**request_kwargs)

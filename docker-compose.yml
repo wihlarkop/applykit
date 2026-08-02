@@ -8,6 +8,8 @@ services:
     environment:
       DATABASE_URL: sqlite:////data/applykit.db
       CREDENTIAL_KEY_FILE: /data/credential.key
+      AUTH_MODE: ${AUTH_MODE:-disabled}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       CORS_ORIGINS: '["http://localhost:3000"]'
     restart: unless-stopped
 

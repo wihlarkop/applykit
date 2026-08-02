@@ -47,6 +47,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
+        request.state.auth_settings = self.settings
         request.state.authenticated = self.settings.auth_mode == "disabled"
         request.state.auth_session_id = None
         request.state.auth_session_expires_at = None

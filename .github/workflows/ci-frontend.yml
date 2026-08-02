@@ -11,9 +11,6 @@ on:
       - 'frontend/**'
       - '.github/workflows/ci-frontend.yml'
 
-permissions:
-  contents: write
-
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -23,28 +20,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.head_ref }}
 
       - name: Set up bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: Resolve auth dependencies
-        run: bun add @zxcvbn-ts/core @zxcvbn-ts/language-common @zxcvbn-ts/language-en
-
-      - name: Commit dependency lock
-        working-directory: .
-        run: |
-          if git diff --quiet -- frontend/package.json frontend/bun.lock; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add frontend/package.json frontend/bun.lock
-          git commit -m "build: add password strength dependencies"
-          git push origin HEAD:${{ github.head_ref }}
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
       - name: Unit tests
         run: bun run test

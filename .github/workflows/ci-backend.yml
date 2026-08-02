@@ -11,9 +11,6 @@ on:
       - 'backend/**'
       - '.github/workflows/ci-backend.yml'
 
-permissions:
-  contents: write
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -27,8 +24,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.head_ref }}
 
       - name: Set up uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
@@ -38,19 +33,6 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --dev
-
-      - name: Commit resolved lock
-        if: matrix.python-version == '3.12'
-        working-directory: .
-        run: |
-          if git diff --quiet -- backend/uv.lock; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/uv.lock
-          git commit -m "build: refresh backend dependency lock"
-          git push origin HEAD:${{ github.head_ref }}
 
       - name: Lint
         # Keep the CI contract explicit so future Ruff default changes do not

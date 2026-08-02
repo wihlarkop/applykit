@@ -2,7 +2,14 @@
 
 import logging
 
-from app.auth.service import issue_setup_token, owner_exists, record_security_event
+from sqlalchemy import delete
+
+from app.auth.service import (
+    issue_setup_token,
+    owner_exists,
+    prune_auth_sessions,
+    record_security_event,
+)
 from app.config import Settings
 from app.database import SessionLocal
 from app.models import AuthSetupToken
@@ -20,6 +27,7 @@ def initialize_auth(settings: Settings) -> None:
         )
 
     with SessionLocal() as db:
+        prune_auth_sessions(db)
         record_security_event(db, f"auth_mode_{settings.auth_mode}_started")
         db.commit()
 
@@ -28,7 +36,7 @@ def initialize_auth(settings: Settings) -> None:
 
         # A fresh token is generated on every unclaimed startup. This ensures
         # that only the token visible in the latest server logs can be used.
-        db.query(AuthSetupToken).delete()
+        db.execute(delete(AuthSetupToken))
         db.commit()
         setup_token = issue_setup_token(db)
         logger.warning(

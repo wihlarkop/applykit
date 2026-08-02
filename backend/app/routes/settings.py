@@ -11,6 +11,7 @@ from app.credential_schemas import (
     CredentialPolicyResponse,
     ProviderCredentialInfo,
     ProviderCredentialsResponse,
+    ProviderSettingsRequest,
     UpdateCredentialPolicyRequest,
     UpdateProviderCredentialRequest,
 )
@@ -24,7 +25,6 @@ from app.schemas import (
     ActivateProviderRequest,
     SettingsResponse,
     TestConnectionResponse,
-    UpdateSettingsRequest,
 )
 from app.services.provider_connection import test_provider_connection
 from app.services.provider_credential_rotation import (
@@ -46,15 +46,19 @@ from app.services.provider_credential_vault import (
 )
 from app.services.settings import (
     clear_provider_api_key,
+    clear_provider_base_url,
     get_llm_config,
     get_provider_api_key,
+    get_provider_base_url,
     get_setting,
     is_llm_configured,
     migrate_legacy_api_key,
+    normalize_provider_base_url,
     provider_from_model,
     provider_requires_api_key,
     set_active_model,
     set_provider_api_key,
+    set_provider_base_url,
     set_setting,
 )
 
@@ -64,6 +68,15 @@ router = APIRouter()
 def _validate_model_or_422(model_id: str) -> str:
     try:
         return validate_model_id(model_id)
+    except ValueError as exc:
+        raise ValidationAppError(str(exc)) from exc
+
+
+def _normalize_base_url_or_422(provider_id: str | None, value: str | None) -> str | None:
+    if not provider_id:
+        return None
+    try:
+        return normalize_provider_base_url(provider_id, value)
     except ValueError as exc:
         raise ValidationAppError(str(exc)) from exc
 
@@ -168,6 +181,7 @@ def get_integrations(db: Session = Depends(get_db)):
                     active_credential.masked_secret if active_credential else None
                 ),
                 current_model=current_model,
+                base_url=get_provider_base_url(db, provider.id),
                 credential_count=len(credentials),
                 active_credential_id=(
                     active_credential.id if active_credential else None
@@ -186,7 +200,7 @@ def get_integrations(db: Session = Depends(get_db)):
 
 
 @router.put("/settings", response_model=SettingsResponse)
-def update_settings(req: UpdateSettingsRequest, db: Session = Depends(get_db)):
+def update_settings(req: ProviderSettingsRequest, db: Session = Depends(get_db)):
     migrate_legacy_api_key(db)
 
     model_id = _validate_model_or_422(req.model)
@@ -198,6 +212,9 @@ def update_settings(req: UpdateSettingsRequest, db: Session = Depends(get_db)):
                 set_provider_api_key(db, provider_id, api_key)
         else:
             clear_provider_api_key(db, provider_id)
+        if provider_id == "ollama":
+            base_url = _normalize_base_url_or_422(provider_id, req.base_url)
+            set_provider_base_url(db, provider_id, base_url)
         set_setting(db, f"selected_model_{provider_id}", model_id)
 
     if req.activate:
@@ -230,7 +247,7 @@ def activate_provider(req: ActivateProviderRequest, db: Session = Depends(get_db
 
 
 @router.post("/settings/test", response_model=TestConnectionResponse)
-def test_connection(req: UpdateSettingsRequest):
+def test_connection(req: ProviderSettingsRequest):
     model_id = _validate_model_or_422(req.model)
     provider_id = provider_from_model(model_id)
     api_key = req.api_key.strip() if req.api_key else ""
@@ -240,7 +257,12 @@ def test_connection(req: UpdateSettingsRequest):
             message="API key is required for this provider.",
         )
 
-    return test_provider_connection(model_id, api_key or None)
+    api_base = _normalize_base_url_or_422(provider_id, req.base_url)
+    return test_provider_connection(
+        model_id,
+        api_key or None,
+        api_base=api_base,
+    )
 
 
 @router.post(
@@ -274,6 +296,7 @@ def test_configured_integration(
     return test_provider_connection(
         model_id,
         api_key or None,
+        api_base=get_provider_base_url(db, provider_id),
         failure_message="Provider connection failed.",
     )
 
@@ -462,9 +485,11 @@ def delete_credential(
     response_model=CredentialIntegrationsResponse,
 )
 def disconnect_provider(provider_id: str, db: Session = Depends(get_db)):
-    """Remove all credentials for a provider and clear it when active."""
+    """Remove all saved configuration for a provider."""
     _provider_or_404(provider_id)
     clear_provider_api_key(db, provider_id)
+    clear_provider_base_url(db, provider_id)
+    set_setting(db, f"selected_model_{provider_id}", "")
 
     active_model = get_setting(db, "llm_provider") or ""
     active_provider = provider_from_model(active_model)

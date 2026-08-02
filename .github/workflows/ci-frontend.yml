@@ -37,3 +37,37 @@ jobs:
 
       - name: Build
         run: bun run build
+
+  container-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build frontend container
+        run: docker build --tag applykit-frontend:ci ./frontend
+
+      - name: Start frontend container
+        run: docker run --detach --name applykit-frontend-ci --publish 3000:3000 applykit-frontend:ci
+
+      - name: Wait for frontend
+        run: |
+          for attempt in {1..30}; do
+            if ! docker ps --filter name=applykit-frontend-ci --filter status=running --quiet | grep --quiet .; then
+              docker logs applykit-frontend-ci
+              exit 1
+            fi
+
+            if curl --fail --silent --show-error http://localhost:3000 > /dev/null; then
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          docker logs applykit-frontend-ci
+          exit 1
+
+      - name: Stop frontend container
+        if: always()
+        run: docker rm --force applykit-frontend-ci || true

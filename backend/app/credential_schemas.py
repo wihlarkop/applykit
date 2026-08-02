@@ -6,6 +6,13 @@ from pydantic import BaseModel, Field
 CredentialStrategyName = Literal["manual", "failover", "round_robin"]
 
 
+class ProviderSettingsRequest(BaseModel):
+    model: str
+    api_key: str | None = None
+    activate: bool = True
+    base_url: str | None = None
+
+
 class CredentialIntegrationInfo(BaseModel):
     id: str
     label: str
@@ -13,6 +20,7 @@ class CredentialIntegrationInfo(BaseModel):
     api_key_configured: bool
     masked_api_key: str | None
     current_model: str | None
+    base_url: str | None = None
     credential_count: int = 0
     active_credential_id: int | None = None
     active_credential_label: str | None = None

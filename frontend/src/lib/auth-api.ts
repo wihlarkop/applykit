@@ -1,4 +1,5 @@
 import { parseApiError } from './api-error';
+import { authenticationErrorMessage } from './auth-error';
 import type {
     AuthenticatedSession,
     AuthStatus,
@@ -34,7 +35,9 @@ async function authRequest<T>(
 
     if (!response.ok) {
         const payload: unknown = await response.json().catch(() => undefined);
-        throw parseApiError(payload, 'Authentication request failed.', response.status);
+        const error = parseApiError(payload, 'Authentication request failed.', response.status);
+        error.message = authenticationErrorMessage(error, error.message);
+        throw error;
     }
 
     if (response.status === 204 || response.headers.get('content-length') === '0') {

@@ -1,11 +1,12 @@
-import { redirect, isRedirect } from '@sveltejs/kit';
 import { browser } from '$app/environment';
+import { redirect, isRedirect } from '@sveltejs/kit';
 import { getOnboardingStatus, getStatus, listProfiles, createProfile } from '$lib/api';
+import { getAuthStatus } from '$lib/auth-api';
+import { resolveAuthDestination } from '$lib/auth-routing';
+import { authState } from '$lib/auth-state.svelte';
 import { profiles } from '$lib/profiles.svelte';
 import { activeProfile } from '$lib/activeProfile.svelte';
 
-// Module-level cache — survives across navigations within the same browser session.
-// Re-fetched only when the user visits /settings or /onboarding (where values can change).
 let cachedOnboarded: boolean | null = null;
 let cachedApiKeyConfigured: boolean | null = null;
 let profilesLoaded = false;
@@ -14,11 +15,25 @@ export const ssr = false;
 
 export const load = async ({ url, fetch }) => {
   const pathname = url.pathname;
+  const isAuthRoute = pathname === '/login' || pathname === '/setup';
   const onSettings = pathname.startsWith('/settings');
   const onOnboarding = pathname.startsWith('/onboarding');
   const onProfile = pathname === '/profile' || pathname.startsWith('/profile/');
 
-  // Bust cache when visiting pages where these values can change
+  const authStatus = await getAuthStatus(fetch);
+  authState.applyStatus(authStatus);
+  const authDestination = resolveAuthDestination(authStatus, pathname, url.search);
+  if (authDestination) throw redirect(307, authDestination);
+
+  if (isAuthRoute) {
+    return {
+      authStatus,
+      isAuthRoute: true,
+      isOnboarded: cachedOnboarded ?? true,
+      isApiKeyConfigured: cachedApiKeyConfigured ?? true,
+    };
+  }
+
   if (onSettings || onOnboarding) {
     cachedOnboarded = null;
     cachedApiKeyConfigured = null;
@@ -29,7 +44,6 @@ export const load = async ({ url, fetch }) => {
   let isApiKeyConfigured = cachedApiKeyConfigured ?? true;
 
   try {
-    // Only hit the API if we don't have cached values yet
     if (cachedOnboarded === null || cachedApiKeyConfigured === null) {
       const [onboarding, llmStatus] = await Promise.all([
         getOnboardingStatus(fetch),
@@ -41,7 +55,6 @@ export const load = async ({ url, fetch }) => {
       cachedApiKeyConfigured = isApiKeyConfigured;
     }
 
-    // Only fetch profiles once per session
     if (!profilesLoaded) {
       try {
         let res = await listProfiles(fetch);
@@ -62,15 +75,21 @@ export const load = async ({ url, fetch }) => {
           } catch { /* corrupted localStorage — ignore */ }
         }
         const activeItem =
-          (storedId != null ? res.items.find((p) => p.id === storedId) : null) ??
+          (storedId != null ? res.items.find((profile) => profile.id === storedId) : null) ??
           res.items[0] ??
           null;
         const validated = activeItem
-          ? { id: activeItem.id, label: activeItem.label, color: activeItem.color, icon: activeItem.icon, name: activeItem.name }
+          ? {
+              id: activeItem.id,
+              label: activeItem.label,
+              color: activeItem.color,
+              icon: activeItem.icon,
+              name: activeItem.name,
+            }
           : null;
         activeProfile.initFromStorage(validated);
-      } catch (e) {
-        console.warn('Could not load profiles. Using defaults.', e);
+      } catch (error) {
+        console.warn('Could not load profiles. Using defaults.', error);
       }
     }
 
@@ -81,10 +100,10 @@ export const load = async ({ url, fetch }) => {
     if (!isOnboarded && !onSettings && !onOnboarding && !onProfile) {
       throw redirect(307, '/onboarding');
     }
-  } catch (err: unknown) {
-    if (isRedirect(err)) throw err;
-    console.warn('Could not check onboarding status. Allowing navigation.', err);
+  } catch (error: unknown) {
+    if (isRedirect(error)) throw error;
+    console.warn('Could not check onboarding status. Allowing navigation.', error);
   }
 
-  return { isOnboarded, isApiKeyConfigured };
+  return { authStatus, isAuthRoute: false, isOnboarded, isApiKeyConfigured };
 };

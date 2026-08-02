@@ -1,10 +1,12 @@
 from inspect import signature
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import app.routes.settings as settings_routes
+import app.services.llm as llm_service
 from app.credential_schemas import ProviderSettingsRequest
 from app.exceptions import ValidationAppError
 from app.models import Base
@@ -129,6 +131,68 @@ def test_connection_passes_draft_ollama_base_url(monkeypatch):
 
     assert result.ok is True
     assert captured["api_base"] == "https://ollama.example.com"
+
+
+def test_saved_ollama_base_url_reaches_sync_generation(monkeypatch):
+    db = _make_session()
+    captured: dict[str, object] = {}
+
+    def fake_completion(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content="ok"))],
+            usage=None,
+        )
+
+    try:
+        set_setting(db, "base_url_ollama", "https://ollama.example.com")
+        monkeypatch.setattr(llm_service.litellm, "completion", fake_completion)
+
+        result = call_llm(
+            "hello",
+            provider="ollama/llama3.2",
+            credential_db=db,
+        )
+
+        assert result == "ok"
+        assert captured["api_base"] == "https://ollama.example.com"
+    finally:
+        db.close()
+
+
+@pytest.mark.anyio
+async def test_saved_ollama_base_url_reaches_streaming_generation(monkeypatch):
+    db = _make_session()
+    captured: dict[str, object] = {}
+
+    async def fake_acompletion(**kwargs):
+        captured.update(kwargs)
+
+        async def chunks():
+            yield SimpleNamespace(
+                choices=[SimpleNamespace(delta=SimpleNamespace(content="ok"))],
+                usage=None,
+            )
+
+        return chunks()
+
+    try:
+        set_setting(db, "base_url_ollama", "https://ollama.example.com")
+        monkeypatch.setattr(llm_service.litellm, "acompletion", fake_acompletion)
+
+        chunks = [
+            chunk
+            async for chunk in stream_llm(
+                "hello",
+                provider="ollama/llama3.2",
+                credential_db=db,
+            )
+        ]
+
+        assert chunks == ["ok"]
+        assert captured["api_base"] == "https://ollama.example.com"
+    finally:
+        db.close()
 
 
 def test_llm_request_interfaces_accept_api_base():

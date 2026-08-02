@@ -117,7 +117,7 @@ For localhost over HTTP:
 COOKIE_SECURE=false
 ```
 
-For any remote HTTPS deployment:
+For remote protected mode, serve the frontend and API from the same hostname. A reverse proxy can expose the frontend at `/` and forward `/api` to the backend. This is required so the browser can read the CSRF cookie and send it with mutation requests.
 
 ```env
 AUTH_MODE=password
@@ -125,7 +125,13 @@ COOKIE_SECURE=true
 CORS_ORIGINS=["https://applykit.example.com"]
 ```
 
-Do not expose protected mode through public plain HTTP. ApplyKit logs a warning when password mode starts with `COOKIE_SECURE=false`.
+Build the frontend with the same-origin API path:
+
+```bash
+VITE_API_BASE_URL=https://applykit.example.com/api docker compose up --build
+```
+
+Do not place the browser UI at `app.example.com` while using a host-only API cookie from `api.example.com`. Do not expose protected mode through public plain HTTP. ApplyKit logs a warning when password mode starts with `COOKIE_SECURE=false`.
 
 ### Forgotten password
 
@@ -213,11 +219,7 @@ CREDENTIAL_KEY_FILE=.applykit/credential.key
 MAX_PROVIDER_CREDENTIALS=20
 ```
 
-For a remote frontend build, set the browser-reachable API URL:
-
-```bash
-VITE_API_BASE_URL=https://api.example.com/api docker compose up --build
-```
+For a remote frontend build, use the browser-reachable same-host API URL described under protected mode.
 
 ## Stack
 

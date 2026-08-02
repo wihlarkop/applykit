@@ -219,6 +219,7 @@ export interface UpdateSettingsRequest {
   model: string;
   api_key: string | null;
   activate?: boolean;
+  base_url?: string | null;
 }
 
 export interface TestConnectionResponse {
@@ -249,6 +250,7 @@ export interface IntegrationInfo {
   api_key_configured: boolean;
   masked_api_key: string | null;
   current_model: string | null;
+  base_url?: string | null;
 }
 
 export interface IntegrationsResponse {

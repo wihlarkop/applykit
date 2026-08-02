@@ -5,15 +5,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import app.routes.settings as settings_routes
+from app.credential_schemas import ProviderSettingsRequest
 from app.exceptions import ValidationAppError
 from app.models import Base
 from app.routes.settings import (
     disconnect_provider,
     get_integrations,
-    test_connection,
+    test_connection as test_settings_connection,
     update_settings,
 )
-from app.schemas import TestConnectionResponse, UpdateSettingsRequest
+from app.schemas import TestConnectionResponse as ConnectionTestResponse
 from app.services.llm import call_llm, stream_llm
 from app.services.settings import get_setting, set_setting
 
@@ -50,7 +51,7 @@ def test_ollama_integration_exposes_default_base_url():
             item for item in get_integrations(db).integrations if item.id == "ollama"
         )
 
-        assert ollama.model_dump().get("base_url") == "http://localhost:11434"
+        assert ollama.base_url == "http://localhost:11434"
     finally:
         db.close()
 
@@ -59,7 +60,7 @@ def test_update_settings_persists_normalized_ollama_base_url():
     db = _make_session()
     try:
         update_settings(
-            UpdateSettingsRequest(
+            ProviderSettingsRequest(
                 model="ollama/llama3.2",
                 api_key=None,
                 activate=False,
@@ -86,7 +87,7 @@ def test_update_settings_rejects_invalid_ollama_base_url(base_url: str):
     try:
         with pytest.raises(ValidationAppError):
             update_settings(
-                UpdateSettingsRequest(
+                ProviderSettingsRequest(
                     model="ollama/llama3.2",
                     api_key=None,
                     activate=False,
@@ -105,11 +106,11 @@ def test_connection_passes_draft_ollama_base_url(monkeypatch):
         model_id: str,
         api_key: str | None = None,
         **kwargs,
-    ) -> TestConnectionResponse:
+    ) -> ConnectionTestResponse:
         captured["model_id"] = model_id
         captured["api_key"] = api_key
         captured.update(kwargs)
-        return TestConnectionResponse(ok=True, message="Connection successful.")
+        return ConnectionTestResponse(ok=True, message="Connection successful.")
 
     monkeypatch.setattr(
         settings_routes,
@@ -117,8 +118,8 @@ def test_connection_passes_draft_ollama_base_url(monkeypatch):
         fake_test_provider_connection,
     )
 
-    result = test_connection(
-        UpdateSettingsRequest(
+    result = test_settings_connection(
+        ProviderSettingsRequest(
             model="ollama/llama3.2",
             api_key=None,
             activate=False,

@@ -10,6 +10,7 @@ from app.auth.middleware import AuthMiddleware
 from app.auth.service import issue_setup_token
 from app.config import Settings
 from app.database import get_db
+from app.exceptions.handlers import exception_handlers
 from app.models import Base
 from app.routes import auth
 
@@ -29,7 +30,7 @@ def _make_app(auth_mode: str = "password") -> tuple[FastAPI, sessionmaker, str |
         cors_origins=["http://testserver"],
     )
 
-    app = FastAPI()
+    app = FastAPI(exception_handlers=exception_handlers)
     app.add_middleware(
         AuthMiddleware,
         settings=settings,

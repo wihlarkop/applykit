@@ -5,6 +5,8 @@ import {
   modalMode,
   modalTitle,
   primaryActionLabel,
+  saveSettingsWithRefresh,
+  type SettingsSaveResult,
 } from '$lib/settings-modal';
 
 describe('settings modal presentation', () => {
@@ -68,5 +70,53 @@ describe('connection testing mode', () => {
         providerId: 'openai',
       }),
     ).toBe('disabled');
+  });
+});
+
+describe('settings save refresh flow', () => {
+  test('refreshes the parent after persistence succeeds', async () => {
+    const calls: string[] = [];
+
+    const result = await saveSettingsWithRefresh(
+      async () => {
+        calls.push('persist');
+      },
+      async () => {
+        calls.push('refresh');
+      },
+    );
+
+    expect(result).toEqual({ status: 'saved' } satisfies SettingsSaveResult);
+    expect(calls).toEqual(['persist', 'refresh']);
+  });
+
+  test('does not refresh when persistence fails', async () => {
+    const error = new Error('save failed');
+    let refreshCalls = 0;
+
+    const result = await saveSettingsWithRefresh(
+      async () => {
+        throw error;
+      },
+      async () => {
+        refreshCalls += 1;
+      },
+    );
+
+    expect(result).toEqual({ status: 'save_failed', error });
+    expect(refreshCalls).toBe(0);
+  });
+
+  test('reports a refresh failure after persistence succeeds', async () => {
+    const error = new Error('refresh failed');
+
+    const result = await saveSettingsWithRefresh(
+      async () => undefined,
+      async () => {
+        throw error;
+      },
+    );
+
+    expect(result).toEqual({ status: 'refresh_failed', error });
   });
 });

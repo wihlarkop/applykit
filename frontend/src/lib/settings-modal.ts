@@ -1,5 +1,28 @@
 export type SettingsModalMode = 'connect' | 'edit';
 export type ConnectionTestMode = 'draft' | 'stored' | 'disabled';
+export type SettingsSaveResult =
+  | { status: 'saved' }
+  | { status: 'save_failed'; error: unknown }
+  | { status: 'refresh_failed'; error: unknown };
+
+export async function saveSettingsWithRefresh(
+  persist: () => Promise<unknown>,
+  refresh: () => Promise<void>,
+): Promise<SettingsSaveResult> {
+  try {
+    await persist();
+  } catch (error) {
+    return { status: 'save_failed', error };
+  }
+
+  try {
+    await refresh();
+  } catch (error) {
+    return { status: 'refresh_failed', error };
+  }
+
+  return { status: 'saved' };
+}
 
 export function modalMode(
   initialProviderId: string,

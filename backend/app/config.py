@@ -1,6 +1,7 @@
 """Centralized application configuration using pydantic-settings."""
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,6 +24,12 @@ class Settings(BaseSettings):
     credential_encryption_key: str | None = None
     credential_key_file: str = ".applykit/credential.key"
     max_provider_credentials: int = 20
+
+    # Community authentication
+    # disabled: local-first mode without login (default)
+    # password: optional single-owner protected mode
+    auth_mode: Literal["disabled", "password"] = "disabled"
+    cookie_secure: bool = False
 
     # CORS
     cors_origins: list[str] = ["http://localhost:5173"]

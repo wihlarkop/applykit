@@ -34,6 +34,14 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
 
+      - name: Export resolved lock
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: resolved-uv-lock
+          path: backend/uv.lock
+          retention-days: 1
+
       - name: Lint
         # Keep the CI contract explicit so future Ruff default changes do not
         # introduce unrelated failures across the existing codebase.

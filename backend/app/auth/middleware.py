@@ -26,13 +26,19 @@ PUBLIC_PATHS = {
     "/api/auth/login",
     "/api/auth/setup",
 }
+API_DOCUMENTATION_PATHS = {"/docs", "/redoc", "/openapi.json"}
 
 
 def _error_response(error: AppError) -> JSONResponse:
+    headers = {
+        "Cache-Control": "no-store",
+        "Pragma": "no-cache",
+        **error.headers,
+    }
     return JSONResponse(
         status_code=error.status_code,
         content=error.to_envelope().model_dump(mode="json"),
-        headers=error.headers or None,
+        headers=headers,
     )
 
 
@@ -52,7 +58,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     def _origin_allowed(self, origin: str | None) -> bool:
         if not origin:
-            return True
+            return False
         return "*" in self.settings.cors_origins or origin in self.settings.cors_origins
 
     async def dispatch(
@@ -69,7 +75,17 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if self.settings.auth_mode == "disabled":
             return await call_next(request)
 
+        # When documentation is disabled, allow FastAPI to return a real 404
+        # rather than turning an absent route into an authentication challenge.
+        if (
+            not self.settings.debug
+            and request.url.path in API_DOCUMENTATION_PATHS
+        ):
+            return await call_next(request)
+
         session_token = request.cookies.get(SESSION_COOKIE_NAME)
+        is_public = request.method == "OPTIONS" or request.url.path in PUBLIC_PATHS
+
         with self.session_factory() as db:
             auth_session = authenticate_session(db, session_token)
             if auth_session is not None:
@@ -80,29 +96,27 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     auth_session.remember_device
                 )
 
-            if request.method == "OPTIONS" or request.url.path in PUBLIC_PATHS:
-                return await call_next(request)
+            if not is_public:
+                if auth_session is None:
+                    response = _error_response(AuthenticationRequiredError())
+                    if session_token:
+                        clear_auth_cookies(
+                            response,
+                            secure=self.settings.cookie_secure,
+                        )
+                    return response
 
-            if auth_session is None:
-                response = _error_response(AuthenticationRequiredError())
-                if session_token:
-                    clear_auth_cookies(
-                        response,
-                        secure=self.settings.cookie_secure,
-                    )
-                return response
-
-            if request.method not in SAFE_METHODS:
-                origin = request.headers.get("origin")
-                csrf_header = request.headers.get("x-csrf-token")
-                csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
-                if (
-                    not self._origin_allowed(origin)
-                    or not csrf_header
-                    or not csrf_cookie
-                    or csrf_header != csrf_cookie
-                    or not validate_csrf_token(auth_session, csrf_header)
-                ):
-                    return _error_response(AuthenticationForbiddenError())
+                if request.method not in SAFE_METHODS:
+                    origin = request.headers.get("origin")
+                    csrf_header = request.headers.get("x-csrf-token")
+                    csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
+                    if (
+                        not self._origin_allowed(origin)
+                        or not csrf_header
+                        or not csrf_cookie
+                        or csrf_header != csrf_cookie
+                        or not validate_csrf_token(auth_session, csrf_header)
+                    ):
+                        return _error_response(AuthenticationForbiddenError())
 
         return await call_next(request)

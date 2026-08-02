@@ -27,7 +27,7 @@ from app.services.provider_credential_rotation import (
     classify_provider_exception,
     execute_with_credential_rotation,
 )
-from app.services.settings import is_llm_configured
+from app.services.settings import get_provider_base_url, is_llm_configured
 from app.services.usage_logging import log_usage_background
 
 logger = logging.getLogger(__name__)
@@ -137,11 +137,33 @@ def _open_rotation_session(
     return db, owns_session
 
 
+def _resolve_api_base(
+    provider: str,
+    api_base: str | None,
+    provided_db: Session | None,
+) -> str | None:
+    if api_base:
+        return api_base
+
+    provider_id = provider_from_model(provider)
+    if provider_id != "ollama":
+        return None
+
+    db = provided_db or SessionLocal()
+    owns_session = provided_db is None
+    try:
+        return get_provider_base_url(db, provider_id)
+    finally:
+        if owns_session:
+            db.close()
+
+
 def _completion_request(
     provider: str,
     messages: list[dict],
     timeout: int,
     api_key: str,
+    api_base: str | None = None,
 ):
     request_kwargs: dict[str, Any] = {
         "model": provider,
@@ -150,6 +172,8 @@ def _completion_request(
     }
     if api_key:
         request_kwargs["api_key"] = api_key
+    if api_base:
+        request_kwargs["api_base"] = api_base
     return litellm.completion(**request_kwargs)
 
 
@@ -158,9 +182,10 @@ def _rotation_completion_attempt(
     messages: list[dict],
     timeout: int,
     api_key: str,
+    api_base: str | None = None,
 ):
     try:
-        return _completion_request(provider, messages, timeout, api_key)
+        return _completion_request(provider, messages, timeout, api_key, api_base)
     except (APIKeyNotConfiguredError, LLMCallError, RateLimitError):
         raise
     except Exception as exc:
@@ -269,6 +294,7 @@ def call_llm(
     profile_id: int | None = None,
     credential_db: Session | None = None,
     credential_cipher: CredentialCipher | None = None,
+    api_base: str | None = None,
 ) -> str:
     if not is_llm_configured(provider, api_key):
         raise APIKeyNotConfiguredError(
@@ -279,6 +305,7 @@ def call_llm(
     started_at = time.time()
     rotation_db, owns_rotation_db = _open_rotation_session(provider, credential_db)
     provider_id = provider_from_model(provider)
+    resolved_api_base = _resolve_api_base(provider, api_base, credential_db)
 
     try:
         if rotation_db is not None and provider_id:
@@ -290,11 +317,18 @@ def call_llm(
                     messages,
                     timeout,
                     selected_key,
+                    resolved_api_base,
                 ),
                 cipher=credential_cipher,
             )
         else:
-            response = _completion_request(provider, messages, timeout, api_key)
+            response = _completion_request(
+                provider,
+                messages,
+                timeout,
+                api_key,
+                resolved_api_base,
+            )
 
         content = response.choices[0].message.content if response.choices else None
         if not content:
@@ -344,6 +378,7 @@ async def _stream_request(
     provider: str,
     messages: list[dict],
     api_key: str,
+    api_base: str | None = None,
 ):
     request_kwargs: dict[str, Any] = {
         "model": provider,
@@ -354,6 +389,8 @@ async def _stream_request(
     }
     if api_key:
         request_kwargs["api_key"] = api_key
+    if api_base:
+        request_kwargs["api_base"] = api_base
     return await litellm.acompletion(**request_kwargs)
 
 
@@ -399,6 +436,7 @@ async def stream_llm(
     profile_id: int | None = None,
     credential_db: Session | None = None,
     credential_cipher: CredentialCipher | None = None,
+    api_base: str | None = None,
 ) -> AsyncGenerator[str, None]:
     if not is_llm_configured(provider, api_key):
         raise APIKeyNotConfiguredError(
@@ -409,11 +447,17 @@ async def stream_llm(
     started_at = time.time()
     rotation_db, owns_rotation_db = _open_rotation_session(provider, credential_db)
     provider_id = provider_from_model(provider)
+    resolved_api_base = _resolve_api_base(provider, api_base, credential_db)
 
     try:
         if rotation_db is None or not provider_id:
             try:
-                response = await _stream_request(provider, messages, api_key)
+                response = await _stream_request(
+                    provider,
+                    messages,
+                    api_key,
+                    resolved_api_base,
+                )
                 final_usage = None
                 final_chunk = None
                 async for chunk in response:
@@ -460,6 +504,7 @@ async def stream_llm(
                     provider,
                     messages,
                     resolved.secret,
+                    resolved_api_base,
                 )
                 async for chunk in response:
                     final_chunk = chunk

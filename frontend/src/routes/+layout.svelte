@@ -131,6 +131,18 @@
                 <Menu class="w-4.5 h-4.5" />
               {/if}
             </button>
+          {:else}
+            <ThemeToggle />
+            {#if authState.authMode === 'password'}
+              <button
+                type="button"
+                onclick={signOut}
+                disabled={signingOut}
+                class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+              >
+                <LogOut class="h-4 w-4" />Sign out
+              </button>
+            {/if}
           {/if}
         </div>
       </div>

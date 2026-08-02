@@ -1,3 +1,5 @@
+import { apiFetch } from '$lib/api-client';
+import { parseApiError } from '$lib/api-error';
 import type {
   CreateProviderCredentialRequest,
   CredentialPolicyResponse,
@@ -14,7 +16,7 @@ async function requestJson<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const response = await apiFetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -23,17 +25,8 @@ async function requestJson<T>(
   });
 
   if (!response.ok) {
-    let message = 'Credential request failed.';
-    try {
-      const payload = (await response.json()) as {
-        detail?: string;
-        error?: { message?: string };
-      };
-      message = payload.error?.message ?? payload.detail ?? message;
-    } catch {
-      // Keep the stable fallback instead of exposing an unreadable response body.
-    }
-    throw new Error(message);
+    const payload: unknown = await response.json().catch(() => undefined);
+    throw parseApiError(payload, 'Credential request failed.', response.status);
   }
 
   return response.json() as Promise<T>;

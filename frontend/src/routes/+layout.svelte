@@ -42,7 +42,7 @@
     signingOut = true;
     try {
       await logoutOwner();
-      authState.clearSession();
+      authState.clearSession(false);
       await goto('/login');
     } catch (error) {
       toastState.error(error instanceof Error ? error.message : 'Could not sign out.');

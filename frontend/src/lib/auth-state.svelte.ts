@@ -1,6 +1,12 @@
 import { getAuthStatus } from './auth-api';
 import { onUnauthorized } from './api-client';
+import { armDraftRecovery } from './draft-recovery';
 import type { AuthenticatedSession, AuthMode, AuthStatus } from './auth-types';
+
+function armBrowserDrafts(): void {
+    if (typeof sessionStorage === 'undefined') return;
+    armDraftRecovery(sessionStorage);
+}
 
 function createAuthState() {
     let authMode = $state<AuthMode>('disabled');
@@ -25,7 +31,8 @@ function createAuthState() {
         checking = false;
     }
 
-    function clearSession(): void {
+    function clearSession(recoverDrafts: boolean = true): void {
+        if (recoverDrafts && authMode === 'password') armBrowserDrafts();
         if (authMode === 'password') authenticated = false;
         sessionExpiresAt = null;
         checking = false;
@@ -43,13 +50,14 @@ function createAuthState() {
     }
 
     function markExpired(): void {
+        armBrowserDrafts();
         authMode = 'password';
         authenticated = false;
         sessionExpiresAt = null;
         checking = false;
     }
 
-    onUnauthorized(clearSession);
+    onUnauthorized(() => clearSession(true));
 
     return {
         get authMode() { return authMode; },

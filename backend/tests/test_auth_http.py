@@ -15,7 +15,11 @@ from app.models import Base
 from app.routes import auth
 
 
-def _make_app(auth_mode: str = "password") -> tuple[FastAPI, sessionmaker, str | None]:
+def _make_app(
+    auth_mode: str = "password",
+    *,
+    debug: bool = False,
+) -> tuple[FastAPI, sessionmaker, str | None]:
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -28,9 +32,15 @@ def _make_app(auth_mode: str = "password") -> tuple[FastAPI, sessionmaker, str |
         auth_mode=auth_mode,
         cookie_secure=False,
         cors_origins=["http://testserver"],
+        debug=debug,
     )
 
-    app = FastAPI(exception_handlers=exception_handlers)
+    app = FastAPI(
+        exception_handlers=exception_handlers,
+        docs_url="/docs" if debug else None,
+        redoc_url="/redoc" if debug else None,
+        openapi_url="/openapi.json" if debug else None,
+    )
     app.add_middleware(
         AuthMiddleware,
         settings=settings,
@@ -94,7 +104,37 @@ def test_password_mode_exposes_only_health_and_auth_setup_before_login() -> None
             "authenticated": False,
             "session_expires_at": None,
         }
-        assert client.get("/api/private").status_code == 401
+        private = client.get("/api/private")
+        assert private.status_code == 401
+        assert private.json()["error"]["code"] == "AUTH_REQUIRED"
+
+
+def test_public_setup_requires_an_explicit_allowed_origin() -> None:
+    app, _, setup_token = _make_app()
+    assert setup_token is not None
+    payload = {
+        "setup_token": setup_token,
+        "password": "correct horse battery staple",
+    }
+
+    with TestClient(app) as client:
+        missing = client.post("/api/auth/setup", json=payload)
+        assert missing.status_code == 403
+        assert missing.json()["error"]["code"] == "AUTH_FORBIDDEN"
+
+        wrong = client.post(
+            "/api/auth/setup",
+            headers={"Origin": "http://evil.example"},
+            json=payload,
+        )
+        assert wrong.status_code == 403
+
+        allowed = client.post(
+            "/api/auth/setup",
+            headers={"Origin": "http://testserver"},
+            json=payload,
+        )
+        assert allowed.status_code == 201
 
 
 def test_owner_setup_creates_session_and_setup_token_is_one_time() -> None:
@@ -168,6 +208,7 @@ def test_logout_revokes_current_session_and_clears_cookies() -> None:
         )
 
         assert response.status_code == 204
+        assert response.headers["cache-control"] == "no-store"
         assert client.get("/api/private").status_code == 401
         assert client.cookies.get("applykit_session") is None
         assert client.cookies.get("applykit_csrf") is None
@@ -197,6 +238,7 @@ def test_login_supports_seven_and_thirty_day_absolute_sessions() -> None:
             },
         )
         assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
         assert response.json()["authenticated"] is True
         assert response.json()["remember_device"] is True
 
@@ -260,6 +302,28 @@ def test_security_summary_and_sign_out_other_devices() -> None:
         )
         assert response.json() == {"revoked_sessions": 1}
         assert second.get("/api/private").status_code == 401
+
+
+def test_api_documentation_follows_debug_and_auth_rules() -> None:
+    protected_app, _, _ = _make_app(debug=False)
+    debug_protected_app, _, setup_token = _make_app(debug=True)
+    debug_local_app, _, _ = _make_app(auth_mode="disabled", debug=True)
+    assert setup_token is not None
+
+    with TestClient(protected_app) as protected:
+        assert protected.get("/docs").status_code == 404
+        assert protected.get("/redoc").status_code == 404
+        assert protected.get("/openapi.json").status_code == 404
+
+    with TestClient(debug_protected_app) as debug_protected:
+        assert debug_protected.get("/docs").status_code == 401
+        _setup_owner(debug_protected, setup_token)
+        assert debug_protected.get("/docs").status_code == 200
+        assert debug_protected.get("/openapi.json").status_code == 200
+
+    with TestClient(debug_local_app) as debug_local:
+        assert debug_local.get("/docs").status_code == 200
+        assert debug_local.get("/openapi.json").status_code == 200
 
 
 def test_disabled_mode_never_requires_owner_or_session() -> None:

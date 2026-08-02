@@ -182,9 +182,10 @@ class AuthOwner(Base):
 
 class AuthSession(Base):
     __tablename__ = "auth_session"
+    __table_args__ = {"sqlite_autoincrement": True}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True)
     csrf_token_hash = Column(String(64), nullable=False)
     remember_device = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))

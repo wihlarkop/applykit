@@ -1,5 +1,6 @@
 from urllib.parse import urlsplit
 
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.llm.catalog import (
@@ -74,7 +75,10 @@ def normalize_provider_base_url(provider_id: str, value: str | None) -> str | No
 def get_provider_base_url(db: Session, provider_id: str | None) -> str | None:
     if provider_id != "ollama":
         return None
-    stored = get_setting(db, "base_url_ollama")
+    try:
+        stored = get_setting(db, "base_url_ollama")
+    except OperationalError:
+        return DEFAULT_OLLAMA_BASE_URL
     return normalize_provider_base_url("ollama", stored)
 
 

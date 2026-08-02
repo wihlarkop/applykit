@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { getModels, getSettings, testConnection, updateSettings } from '$lib/api';
@@ -92,6 +93,17 @@
   let savedRoutingStrategy: CredentialStrategy = $state('manual');
   let savedRoutingMaxAttempts = $state(2);
   let savingRouting = $state(false);
+  let parentRefreshFailed = $state(false);
+  let refreshingParent = $state(false);
+  let panelElement: HTMLElement | undefined = $state();
+  let previouslyFocused: HTMLElement | null = null;
+  let previousBodyOverflow = '';
+  let previousBodyPosition = '';
+  let previousBodyTop = '';
+  let previousBodyLeft = '';
+  let previousBodyWidth = '';
+  let lockedScrollX = 0;
+  let lockedScrollY = 0;
 
   const selectedProvider = $derived(
     providers.find((provider) => provider.id === selectedProviderId),
@@ -162,6 +174,37 @@
     loadData();
   });
 
+  $effect(() => {
+    if (!open || typeof document === 'undefined') return;
+
+    previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    lockedScrollX = window.scrollX;
+    lockedScrollY = window.scrollY;
+    previousBodyOverflow = document.body.style.overflow;
+    previousBodyPosition = document.body.style.position;
+    previousBodyTop = document.body.style.top;
+    previousBodyLeft = document.body.style.left;
+    previousBodyWidth = document.body.style.width;
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${lockedScrollY}px`;
+    document.body.style.left = `-${lockedScrollX}px`;
+    document.body.style.width = '100%';
+    void tick().then(() => panelElement?.focus());
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.position = previousBodyPosition;
+      document.body.style.top = previousBodyTop;
+      document.body.style.left = previousBodyLeft;
+      document.body.style.width = previousBodyWidth;
+      previouslyFocused?.focus({ preventScroll: true });
+      window.scrollTo(lockedScrollX, lockedScrollY);
+    };
+  });
+
   function selectExistingModel(modelId: string): boolean {
     for (const provider of providers) {
       if (provider.models.some((model) => model.value === modelId)) {
@@ -224,6 +267,7 @@
     showApiKey = false;
     customMode = false;
     hasStoredCredential = initialApiKeyConfigured;
+    parentRefreshFailed = false;
 
     try {
       const [modelsResponse, settingsResponse] = await Promise.all([
@@ -273,6 +317,7 @@
     activeTab = 'model';
     testResult = null;
     saveError = '';
+    parentRefreshFailed = false;
   }
 
   function toggleCustomMode() {
@@ -289,6 +334,24 @@
     activeTab = tab;
     saveError = '';
     testResult = null;
+  }
+
+  async function handleTabKeydown(event: KeyboardEvent, currentTab: ProviderSettingsTab) {
+    const tabs: ProviderSettingsTab[] = ['model', 'credentials', 'routing'];
+    const currentIndex = tabs.indexOf(currentTab);
+    let nextIndex = currentIndex;
+
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = tabs.length - 1;
+    else return;
+
+    event.preventDefault();
+    const nextTab = tabs[nextIndex];
+    selectTab(nextTab);
+    await tick();
+    document.getElementById(`provider-tab-${nextTab}`)?.focus();
   }
 
   async function handleTest() {
@@ -352,8 +415,11 @@
       }
       if (result.status === 'refresh_failed') {
         saveError = 'Provider saved, but the settings list could not refresh. Try refreshing again.';
+        parentRefreshFailed = true;
         return;
       }
+
+      parentRefreshFailed = false;
 
       toastState.success(
         activate
@@ -380,8 +446,24 @@
     try {
       await refreshCredentialState(selectedProviderId);
       await onsaved();
+      parentRefreshFailed = false;
     } catch {
       saveError = 'Credential saved, but the settings list could not refresh.';
+      parentRefreshFailed = true;
+    }
+  }
+
+  async function retryParentRefresh() {
+    refreshingParent = true;
+    try {
+      await onsaved();
+      parentRefreshFailed = false;
+      saveError = '';
+      toastState.success('Settings list refreshed.');
+    } catch {
+      saveError = 'The settings list still could not refresh. Try again.';
+    } finally {
+      refreshingParent = false;
     }
   }
 
@@ -420,8 +502,33 @@
     open = false;
   }
 
+  function handleBackdropClick(event: MouseEvent) {
+    if (event.target === event.currentTarget) closeModal();
+  }
+
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') closeModal();
+    if (event.key === 'Escape') {
+      closeModal();
+      return;
+    }
+    if (event.key !== 'Tab' || !panelElement) return;
+
+    const focusable = Array.from(
+      panelElement.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((element) => !element.hasAttribute('hidden'));
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 </script>
 
@@ -429,20 +536,19 @@
 
 {#if open}
   <div
-    class="fixed inset-0 z-50 flex items-end justify-center bg-black/55 sm:items-center sm:p-4"
-    onclick={closeModal}
-    onkeydown={(event) => event.key === 'Escape' && closeModal()}
-    role="dialog"
-    tabindex="-1"
-    aria-modal="true"
-    aria-labelledby="provider-settings-title"
+    class="panel-overlay fixed inset-0 z-[70] bg-black/55"
+    onclick={handleBackdropClick}
+    role="presentation"
   >
     <div
-      class="flex max-h-[96vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl border border-border bg-background shadow-2xl sm:max-h-[calc(100vh-2rem)] sm:rounded-2xl"
-      onclick={(event) => event.stopPropagation()}
-      role="presentation"
+      bind:this={panelElement}
+      class="provider-panel ml-auto flex h-full w-full max-w-[46rem] flex-col overflow-hidden border-l border-border bg-background shadow-2xl"
+      role="dialog"
+      tabindex="-1"
+      aria-modal="true"
+      aria-labelledby="provider-settings-title"
     >
-      <header class="flex items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
+      <header class="flex shrink-0 items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
         <div class="flex min-w-0 items-start gap-3">
           <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Sparkles class="h-5 w-5" />
@@ -471,7 +577,7 @@
             </div>
             {#if managesCredentialVault}
               <p class="mt-1 text-sm text-muted-foreground">
-                {credentialSummary.length} credential{credentialSummary.length === 1 ? '' : 's'} ·
+                {credentialSummary.length} credential{credentialSummary.length === 1 ? '' : 's'} &middot;
                 {credentialStrategyLabel(savedRoutingStrategy)} strategy
               </p>
             {:else}
@@ -484,7 +590,7 @@
         <button
           onclick={closeModal}
           disabled={saving !== null || testing || savingRouting}
-          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
           aria-label="Close provider settings"
         >
           <X class="h-4 w-4" />
@@ -492,20 +598,30 @@
       </header>
 
       {#if managesCredentialVault}
-        <nav class="sticky top-0 z-10 flex border-b border-border bg-background px-5 sm:px-6" aria-label="Provider settings sections">
+        <div class="flex shrink-0 overflow-x-auto border-b border-border bg-background px-5 sm:px-6" role="tablist" aria-label="Provider settings sections">
           <button
+            id="provider-tab-model"
             type="button"
+            role="tab"
             onclick={() => selectTab('model')}
+            onkeydown={(event) => handleTabKeydown(event, 'model')}
             aria-selected={activeTab === 'model'}
-            class="inline-flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors {activeTab === 'model' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+            aria-controls="provider-settings-content"
+            tabindex={activeTab === 'model' ? 0 : -1}
+            class="inline-flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 {activeTab === 'model' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
           >
             <Sparkles class="h-4 w-4" /> Model
           </button>
           <button
+            id="provider-tab-credentials"
             type="button"
+            role="tab"
             onclick={() => selectTab('credentials')}
+            onkeydown={(event) => handleTabKeydown(event, 'credentials')}
             aria-selected={activeTab === 'credentials'}
-            class="inline-flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors {activeTab === 'credentials' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+            aria-controls="provider-settings-content"
+            tabindex={activeTab === 'credentials' ? 0 : -1}
+            class="inline-flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 {activeTab === 'credentials' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
           >
             <KeyRound class="h-4 w-4" /> Credentials
             <span class="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
@@ -513,23 +629,33 @@
             </span>
           </button>
           <button
+            id="provider-tab-routing"
             type="button"
+            role="tab"
             onclick={() => selectTab('routing')}
+            onkeydown={(event) => handleTabKeydown(event, 'routing')}
             aria-selected={activeTab === 'routing'}
-            class="inline-flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors {activeTab === 'routing' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
+            aria-controls="provider-settings-content"
+            tabindex={activeTab === 'routing' ? 0 : -1}
+            class="inline-flex min-h-12 shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 {activeTab === 'routing' ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}"
           >
             <Route class="h-4 w-4" /> Routing
           </button>
-        </nav>
+        </div>
       {/if}
 
       {#if loading}
         <div class="flex min-h-80 flex-1 items-center justify-center gap-2 text-muted-foreground">
           <Loader2 class="h-5 w-5 animate-spin" />
-          Loading provider settings…
+          Loading provider settings...
         </div>
       {:else}
-        <div class="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+        <div
+          id={managesCredentialVault ? 'provider-settings-content' : undefined}
+          role={managesCredentialVault ? 'tabpanel' : undefined}
+          aria-labelledby={managesCredentialVault ? `provider-tab-${activeTab}` : undefined}
+          class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6"
+        >
           {#if source === 'env' && activeTab === 'model'}
             <div class="mb-5 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
               <CircleAlert class="mt-0.5 h-4 w-4 shrink-0" />
@@ -845,14 +971,29 @@
           {/if}
 
           {#if saveError}
-            <div class="mx-auto mt-5 flex max-w-2xl items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+            <div role="alert" class="mx-auto mt-5 flex max-w-2xl items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
               <XCircle class="mt-0.5 h-4 w-4 shrink-0" />
-              <span>{saveError}</span>
+              <div class="min-w-0 flex-1">
+                <p>{saveError}</p>
+                {#if parentRefreshFailed}
+                  <button
+                    type="button"
+                    onclick={retryParentRefresh}
+                    disabled={refreshingParent}
+                    class="mt-2 inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-300 bg-background px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
+                  >
+                    {#if refreshingParent}
+                      <Loader2 class="h-3.5 w-3.5 animate-spin" />
+                    {/if}
+                    Retry refresh
+                  </button>
+                {/if}
+              </div>
             </div>
           {/if}
         </div>
 
-        <footer class="border-t border-border bg-background/95 px-5 py-4 backdrop-blur sm:px-6">
+        <footer class="shrink-0 border-t border-border bg-background/95 px-5 py-4 backdrop-blur sm:px-6">
           {#if activeTab === 'credentials'}
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p class="text-xs text-muted-foreground">
@@ -860,7 +1001,7 @@
               </p>
               <button
                 onclick={closeModal}
-                class="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                class="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
                 {footerActionForTab('credentials')}
               </button>
@@ -870,14 +1011,14 @@
               <button
                 onclick={closeModal}
                 disabled={savingRouting}
-                class="inline-flex items-center justify-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-accent disabled:opacity-50"
+                class="inline-flex min-h-11 items-center justify-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onclick={handleSaveRouting}
                 disabled={savingRouting || !routingDirty || (routingStrategy !== 'manual' && !automaticRoutingAvailable)}
-                class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {#if savingRouting}
                   <Loader2 class="h-4 w-4 animate-spin" />
@@ -890,7 +1031,7 @@
               <button
                 onclick={closeModal}
                 disabled={saving !== null || testing}
-                class="inline-flex items-center justify-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50"
+                class="inline-flex min-h-11 items-center justify-center rounded-lg border border-border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -899,7 +1040,7 @@
                   <button
                     onclick={() => handleSave(false)}
                     disabled={saving !== null || testing || !canSave}
-                    class="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {#if saving === 'only'}
                       <Loader2 class="h-4 w-4 animate-spin" />
@@ -910,7 +1051,7 @@
                 <button
                   onclick={() => handleSave(true)}
                   disabled={saving !== null || testing || !canSave}
-                  class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  class="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {#if saving === 'activate'}
                     <Loader2 class="h-4 w-4 animate-spin" />
@@ -925,3 +1066,28 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .panel-overlay {
+    animation: overlay-in 180ms ease-out;
+  }
+
+  .provider-panel {
+    animation: panel-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @keyframes overlay-in {
+    from { background-color: rgb(0 0 0 / 0%); }
+  }
+
+  @keyframes panel-in {
+    from { transform: translateX(100%); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel-overlay,
+    .provider-panel {
+      animation: none;
+    }
+  }
+</style>

@@ -68,7 +68,7 @@ AUTH_MODE=password  # single-owner protected mode
 
 Protected mode secures the whole installation and every career profile with one owner password. It does not create separate accounts for individual profiles.
 
-The backend foundation is available in this release. The matching browser setup and login screens are delivered by the frontend authentication follow-up.
+When password mode is enabled, the browser redirects an unclaimed installation to `/setup` and an existing protected installation to `/login`. The normal local flow remains unchanged when authentication is disabled.
 
 ### First owner setup
 
@@ -84,7 +84,7 @@ uv run alembic upgrade head
 uv run main.py
 ```
 
-An unclaimed installation prints a one-time setup token. The token:
+Open ApplyKit, paste the one-time token into the setup page, and create the owner password. The token:
 
 - expires after 30 minutes;
 - is stored only as a hash;
@@ -98,6 +98,7 @@ Owner passwords must contain 12–128 characters. Passphrases are supported with
 - Normal sessions expire 7 days after login.
 - **Remember this device** sessions expire after 30 days.
 - Expiry is absolute and does not extend with activity.
+- The browser warns during the final five minutes and can reauthenticate in a separate tab.
 - Session and CSRF token hashes are stored in SQLite; raw session tokens stay in cookies.
 - Session cookies are `HttpOnly` and `SameSite=Lax`.
 - Mutating requests require a session-bound CSRF token and an allowed `Origin`.
@@ -105,6 +106,8 @@ Owner passwords must contain 12–128 characters. Passphrases are supported with
 - Logout revokes the current session. Password reset revokes every session.
 
 Only health checks and the required setup/login endpoints remain public. Application data, AI settings, credentials, and API documentation require authentication in protected mode.
+
+Password changes and signing out other devices are available under **Settings → Security**. ApplyKit displays only the count of other active sessions and does not collect device, IP, or location details for this view.
 
 ### Remote HTTPS deployment
 
@@ -126,7 +129,7 @@ Do not expose protected mode through public plain HTTP. ApplyKit logs a warning 
 
 ### Forgotten password
 
-There is no email recovery or recovery key. Reset the password from the machine running ApplyKit:
+There is no email recovery or recovery key. The login page shows these same recovery commands, which must be run from the machine hosting ApplyKit:
 
 ```bash
 # Docker

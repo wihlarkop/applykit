@@ -9,7 +9,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.auth.passwords import hash_password, verify_password
@@ -87,6 +87,25 @@ def hash_token(token: str) -> str:
 
 def owner_exists(db: Session) -> bool:
     return db.scalar(select(AuthOwner.id).limit(1)) is not None
+
+
+def prune_auth_sessions(
+    db: Session,
+    *,
+    now: datetime | None = None,
+) -> int:
+    """Delete expired or revoked sessions and return the number removed."""
+    timestamp = _db_time(now or _now())
+    result = db.execute(
+        delete(AuthSession).where(
+            or_(
+                AuthSession.expires_at <= timestamp,
+                AuthSession.revoked_at.is_not(None),
+            )
+        )
+    )
+    db.commit()
+    return int(result.rowcount or 0)
 
 
 def record_security_event(
@@ -188,6 +207,7 @@ def create_auth_session(
     now: datetime | None = None,
 ) -> IssuedSession:
     timestamp = now or _now()
+    prune_auth_sessions(db, now=timestamp)
     expires_at = timestamp + (
         REMEMBERED_SESSION_TTL if remember_device else NORMAL_SESSION_TTL
     )

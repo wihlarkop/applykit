@@ -1,15 +1,23 @@
 <script lang="ts">
   import { activeProfile } from '$lib/activeProfile.svelte';
   import { importCvFile, importCvText, saveProfile } from '$lib/api';
+  import { authState } from '$lib/auth-state.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Label } from '$lib/components/ui/label';
   import { Textarea } from '$lib/components/ui/textarea';
+  import { clearDraft, consumeDraft, draftKey, saveDraft } from '$lib/draft-recovery';
+  import { toastState } from '$lib/toast.svelte';
   import type { ProfileData } from '$lib/types';
   import { errorMessage } from '$lib/utils';
   import { CircleCheck, FileText, Save, Sparkles, Type, Upload } from '@lucide/svelte';
 
   type Tab = 'file' | 'text';
+  interface ImportDraft {
+    tab: Tab;
+    pastedText: string;
+    preview: ProfileData | null;
+  }
   let tab: Tab = $state('file');
 
   let file: File | null = $state(null);
@@ -20,6 +28,38 @@
   let errorMsg = $state('');
   let successMsg = $state('');
   let confirmingSave = $state(false);
+  let draftProfileId = $state<number | null>(null);
+
+  $effect(() => {
+    const ap = activeProfile.current;
+    const profileId = ap?.id ?? null;
+    if (draftProfileId === profileId) return;
+    file = null;
+    tab = 'file';
+    pastedText = '';
+    preview = null;
+    errorMsg = '';
+    successMsg = '';
+    draftProfileId = profileId;
+    if (!ap || authState.authMode !== 'password') return;
+    const restored = consumeDraft<ImportDraft>(sessionStorage, draftKey('/import', ap.id));
+    if (!restored) return;
+    tab = restored.tab;
+    pastedText = restored.pastedText;
+    preview = restored.preview;
+    toastState.success('Draft restored after sign-in.');
+  });
+
+  $effect(() => {
+    const ap = activeProfile.current;
+    if (authState.authMode !== 'password' || !ap || draftProfileId !== ap.id) return;
+    const previewSnapshot = preview ? JSON.parse(JSON.stringify(preview)) as ProfileData : null;
+    saveDraft(sessionStorage, draftKey('/import', ap.id), {
+      tab,
+      pastedText,
+      preview: previewSnapshot,
+    } satisfies ImportDraft);
+  });
 
   function handleFileInput(e: Event) {
     const input = e.target as HTMLInputElement;
@@ -57,6 +97,7 @@
     try {
       await saveProfile(ap.id, preview);
       successMsg = 'Profile saved from import!';
+      clearDraft(sessionStorage, draftKey('/import', ap.id));
     } catch (e: unknown) {
       errorMsg = errorMessage(e);
     } finally {

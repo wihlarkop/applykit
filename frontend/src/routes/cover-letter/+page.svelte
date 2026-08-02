@@ -7,6 +7,7 @@
       getProfile,
       scrapeAnalyze,
   } from '$lib/api';
+  import { authState } from '$lib/auth-state.svelte';
   import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
   import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
   import { Button } from '$lib/components/ui/button';
@@ -15,6 +16,7 @@
   import { Label } from '$lib/components/ui/label';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { Textarea } from '$lib/components/ui/textarea';
+  import { consumeDraft, draftKey, saveDraft } from '$lib/draft-recovery';
   import { consumeStream } from '$lib/stream';
   import { toastState } from '$lib/toast.svelte';
   import type { FitAnalysisResponse, ProfileData, Tone } from '$lib/types';
@@ -23,6 +25,24 @@
       ArrowRight, Check, ChevronDown, Copy, Download, Link, Loader2, Lock, Mail,
       MapPin, Pencil, Sparkles, TrendingUp, UserRoundPen,
   } from '@lucide/svelte';
+
+  interface CoverLetterDraft {
+    inputTab: 'paste' | 'url';
+    jobUrl: string;
+    isImported: boolean;
+    importedDomain: string;
+    companyName: string;
+    roleTitle: string;
+    location: string;
+    salary: string;
+    jobDescription: string;
+    jobDescriptionExpanded: boolean;
+    extraContext: string;
+    tone: Tone;
+    fitResult: FitAnalysisResponse | null;
+    showInterviewPrep: boolean;
+    coverLetterText: string;
+  }
 
   let { data } = $props();
   const isOnboarded = $derived(data.isOnboarded);
@@ -98,6 +118,7 @@
   let activeProfileData: ProfileData | null = $state(null);
   let profileLoading = $state(true);
   let lastProfileId = $state<number | null>(null);
+  let draftProfileId = $state<number | null>(null);
 
   const TONES: { value: Tone; label: string }[] = [
     { value: 'professional', label: 'Professional' },
@@ -147,9 +168,56 @@
     }
     if (!ap) { profileLoading = false; return; }
     getProfile(ap.id)
-      .then((p) => { activeProfileData = p; })
+      .then((p) => {
+        activeProfileData = p;
+        const restored = authState.authMode === 'password'
+          ? consumeDraft<CoverLetterDraft>(sessionStorage, draftKey('/cover-letter', ap.id))
+          : null;
+        if (restored) {
+          inputTab = restored.inputTab;
+          jobUrl = restored.jobUrl;
+          isImported = restored.isImported;
+          importedDomain = restored.importedDomain;
+          companyName = restored.companyName;
+          roleTitle = restored.roleTitle;
+          location = restored.location;
+          salary = restored.salary;
+          jobDescription = restored.jobDescription;
+          jobDescriptionExpanded = restored.jobDescriptionExpanded;
+          extraContext = restored.extraContext;
+          tone = restored.tone;
+          fitResult = restored.fitResult;
+          showInterviewPrep = restored.showInterviewPrep;
+          coverLetterText = restored.coverLetterText;
+          toastState.success('Draft restored after sign-in.');
+        }
+        draftProfileId = ap.id;
+      })
       .catch((e: unknown) => { toastState.error(`Failed to load profile: ${errorMessage(e)}`); })
       .finally(() => { profileLoading = false; });
+  });
+
+  $effect(() => {
+    const ap = activeProfile.current;
+    if (authState.authMode !== 'password' || !ap || profileLoading || draftProfileId !== ap.id) return;
+    const fitSnapshot = fitResult ? JSON.parse(JSON.stringify(fitResult)) as FitAnalysisResponse : null;
+    saveDraft(sessionStorage, draftKey('/cover-letter', ap.id), {
+      inputTab,
+      jobUrl,
+      isImported,
+      importedDomain,
+      companyName,
+      roleTitle,
+      location,
+      salary,
+      jobDescription,
+      jobDescriptionExpanded,
+      extraContext,
+      tone,
+      fitResult: fitSnapshot,
+      showInterviewPrep,
+      coverLetterText,
+    } satisfies CoverLetterDraft);
   });
 
   async function handleImport() {

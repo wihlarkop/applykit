@@ -1,6 +1,12 @@
 import { getAuthStatus } from './auth-api';
 import { onUnauthorized } from './api-client';
+import { updateDraftsForSessionEnd, type SessionEndReason } from './draft-recovery';
 import type { AuthenticatedSession, AuthMode, AuthStatus } from './auth-types';
+
+function updateBrowserDrafts(reason: SessionEndReason): void {
+    if (typeof sessionStorage === 'undefined') return;
+    updateDraftsForSessionEnd(sessionStorage, reason);
+}
 
 function createAuthState() {
     let authMode = $state<AuthMode>('disabled');
@@ -25,8 +31,11 @@ function createAuthState() {
         checking = false;
     }
 
-    function clearSession(): void {
-        if (authMode === 'password') authenticated = false;
+    function clearSession(reason: SessionEndReason = 'unauthorized'): void {
+        if (authMode === 'password') {
+            updateBrowserDrafts(reason);
+            authenticated = false;
+        }
         sessionExpiresAt = null;
         checking = false;
     }
@@ -43,13 +52,14 @@ function createAuthState() {
     }
 
     function markExpired(): void {
+        updateBrowserDrafts('expired');
         authMode = 'password';
         authenticated = false;
         sessionExpiresAt = null;
         checking = false;
     }
 
-    onUnauthorized(clearSession);
+    onUnauthorized(() => clearSession('unauthorized'));
 
     return {
         get authMode() { return authMode; },

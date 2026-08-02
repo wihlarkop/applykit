@@ -8,11 +8,13 @@
       generateCv,
       scrapeAnalyze,
   } from '$lib/api';
+  import { authState } from '$lib/auth-state.svelte';
   import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { clearDraft, consumeDraft, draftKey, saveDraft } from '$lib/draft-recovery';
   import { consumeStream } from '$lib/stream';
   import { toastState } from '$lib/toast.svelte';
   import type { FitAnalysisResponse, ScrapeJobResponse } from '$lib/types';
@@ -25,6 +27,25 @@
       MapPin,
       Zap,
   } from '@lucide/svelte';
+
+  interface SmartApplyDraft {
+    inputMode: 'url' | 'paste';
+    jobUrl: string;
+    jobText: string;
+    scrapeResult: ScrapeJobResponse | null;
+    fitResult: FitAnalysisResponse | null;
+    companyName: string;
+    roleTitle: string;
+    location: string;
+    salary: string;
+    jobDescriptionExpanded: boolean;
+    generateCvEnabled: boolean;
+    cvEnhance: boolean;
+    cvContext: string;
+    generateClEnabled: boolean;
+    clTone: 'professional' | 'enthusiastic' | 'concise' | 'creative';
+    clContext: string;
+  }
 
   // ---------------------------------------------------------------------------
   // Section 1 — Job input
@@ -74,6 +95,78 @@
   // ---------------------------------------------------------------------------
   let generating = $state(false);
   let generationStep = $state('');
+  let draftProfileId = $state<number | null>(null);
+
+  $effect(() => {
+    const ap = activeProfile.current;
+    const profileId = ap?.id ?? null;
+    if (draftProfileId === profileId) return;
+
+    inputMode = 'url';
+    jobUrl = '';
+    jobText = '';
+    scrapeResult = null;
+    fitResult = null;
+    analysisError = '';
+    companyName = '';
+    roleTitle = '';
+    location = '';
+    salary = '';
+    jobDescriptionExpanded = false;
+    generateCvEnabled = true;
+    cvEnhance = true;
+    cvContext = '';
+    generateClEnabled = true;
+    clTone = 'professional';
+    clContext = '';
+    draftProfileId = profileId;
+
+    if (!ap || authState.authMode !== 'password') return;
+    const restored = consumeDraft<SmartApplyDraft>(sessionStorage, draftKey('/smart-apply', ap.id));
+    if (!restored) return;
+    inputMode = restored.inputMode;
+    jobUrl = restored.jobUrl;
+    jobText = restored.jobText;
+    scrapeResult = restored.scrapeResult;
+    fitResult = restored.fitResult;
+    companyName = restored.companyName;
+    roleTitle = restored.roleTitle;
+    location = restored.location;
+    salary = restored.salary;
+    jobDescriptionExpanded = restored.jobDescriptionExpanded;
+    generateCvEnabled = restored.generateCvEnabled;
+    cvEnhance = restored.cvEnhance;
+    cvContext = restored.cvContext;
+    generateClEnabled = restored.generateClEnabled;
+    clTone = restored.clTone;
+    clContext = restored.clContext;
+    toastState.success('Draft restored after sign-in.');
+  });
+
+  $effect(() => {
+    const ap = activeProfile.current;
+    if (authState.authMode !== 'password' || !ap || draftProfileId !== ap.id) return;
+    const scrapeSnapshot = scrapeResult ? JSON.parse(JSON.stringify(scrapeResult)) as ScrapeJobResponse : null;
+    const fitSnapshot = fitResult ? JSON.parse(JSON.stringify(fitResult)) as FitAnalysisResponse : null;
+    saveDraft(sessionStorage, draftKey('/smart-apply', ap.id), {
+      inputMode,
+      jobUrl,
+      jobText,
+      scrapeResult: scrapeSnapshot,
+      fitResult: fitSnapshot,
+      companyName,
+      roleTitle,
+      location,
+      salary,
+      jobDescriptionExpanded,
+      generateCvEnabled,
+      cvEnhance,
+      cvContext,
+      generateClEnabled,
+      clTone,
+      clContext,
+    } satisfies SmartApplyDraft);
+  });
 
   // Derived visibility
   const analysisReady = $derived(!!scrapeResult);
@@ -199,6 +292,7 @@
       }
 
       generationStep = 'Done!';
+      clearDraft(sessionStorage, draftKey('/smart-apply', ap.id));
       await goto(`/tracker?new=${app.id}`);
     } catch (e: unknown) {
       toastState.error(`Failed: ${errorMessage(e)}`);

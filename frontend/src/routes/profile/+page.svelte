@@ -3,6 +3,7 @@
   import { page } from '$app/state';
   import { activeProfile } from '$lib/activeProfile.svelte';
   import { getProfile, saveProfile } from '$lib/api';
+  import { authState } from '$lib/auth-state.svelte';
   import PersonalInfoTab from '$lib/components/profile/PersonalInfoTab.svelte';
   import ExperienceTab from '$lib/components/profile/ExperienceTab.svelte';
   import SkillsTab from '$lib/components/profile/SkillsTab.svelte';
@@ -17,6 +18,7 @@
   import { Label } from '$lib/components/ui/label';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { Textarea } from '$lib/components/ui/textarea';
+  import { clearDraft, consumeDraft, draftKey, saveDraft } from '$lib/draft-recovery';
   import { consumeStream } from '$lib/stream';
   import { toastState } from '$lib/toast.svelte';
   import type { ProfileData, Project, WorkExperience } from '$lib/types';
@@ -49,7 +51,13 @@
 
   const isProfileEmpty = $derived(!profile.name && !profile.email && profile.work_experience.length === 0);
 
+  interface ProfileDraft {
+    profile: ProfileData;
+    activeTab: string;
+  }
+
   let loadSeq = 0;
+  let draftProfileId = $state<number | null>(null);
 
   $effect(() => {
     const ap = activeProfile.current;
@@ -59,8 +67,16 @@
     getProfile(ap.id)
       .then((data) => {
         if (seq !== loadSeq) return;
-        profile = { ...data };
+        const restored = authState.authMode === 'password'
+          ? consumeDraft<ProfileDraft>(sessionStorage, draftKey('/profile', ap.id))
+          : null;
+        profile = restored ? restored.profile : { ...data };
+        if (restored) {
+          activeTab = restored.activeTab;
+          toastState.success('Draft restored after sign-in.');
+        }
         loadedProfileJson = JSON.stringify({ ...data });
+        draftProfileId = ap.id;
       })
       .catch((e: unknown) => {
         if (seq !== loadSeq) return;
@@ -70,6 +86,13 @@
         if (seq !== loadSeq) return;
         loading = false;
       });
+  });
+
+  $effect(() => {
+    const ap = activeProfile.current;
+    if (authState.authMode !== 'password' || !ap || loading || draftProfileId !== ap.id) return;
+    const snapshot = JSON.parse(JSON.stringify(profile)) as ProfileData;
+    saveDraft(sessionStorage, draftKey('/profile', ap.id), { profile: snapshot, activeTab } satisfies ProfileDraft);
   });
 
   beforeNavigate(({ cancel }) => {
@@ -92,6 +115,7 @@
       await saveProfile(ap.id, profile);
       toastState.success('Profile saved successfully!');
       loadedProfileJson = JSON.stringify(profile);
+      clearDraft(sessionStorage, draftKey('/profile', ap.id));
       await invalidateAll();
     } catch (e: unknown) {
       toastState.error(`Save failed: ${errorMessage(e)}`);
@@ -108,6 +132,7 @@
         const data = await getProfile(ap.id);
         profile = { ...data };
         loadedProfileJson = JSON.stringify({ ...data });
+        clearDraft(sessionStorage, draftKey('/profile', ap.id));
       } catch (e: unknown) {
         toastState.error(`Failed to reload profile: ${errorMessage(e)}`);
       }

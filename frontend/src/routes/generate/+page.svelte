@@ -1,6 +1,7 @@
 <script lang="ts">
   import { activeProfile } from '$lib/activeProfile.svelte';
   import { generateCvPdf, generateCvStream, getProfile } from '$lib/api';
+  import { authState } from '$lib/auth-state.svelte';
   import CvPreview from '$lib/components/CvPreview.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
@@ -9,12 +10,19 @@
   import { Label } from '$lib/components/ui/label';
   import { Skeleton } from '$lib/components/ui/skeleton';
   import { Textarea } from '$lib/components/ui/textarea';
+  import { consumeDraft, draftKey, saveDraft } from '$lib/draft-recovery';
   import { consumeStructuredStream } from '$lib/stream';
   import { toastState } from '$lib/toast.svelte';
   import type { ProfileData } from '$lib/types';
   import { errorMessage } from '$lib/utils';
   import { Download, FileText, Lock, Sparkles, UserRoundPen } from '@lucide/svelte';
   import confetti from 'canvas-confetti';
+
+  interface GenerateDraft {
+    jobDescription: string;
+    profile: ProfileData | null;
+    enhanced: boolean;
+  }
 
   let { data } = $props();
   const isOnboarded = $derived(data.isOnboarded);
@@ -26,6 +34,7 @@
   let jobDescription = $state('');
   let activeProfileData: ProfileData | null = $state(null);
   let profileLoading = $state(true);
+  let draftProfileId = $state<number | null>(null);
 
   // Always show something in the preview: the generated CV if available, else the raw profile
   const previewProfile = $derived(profile ?? activeProfileData);
@@ -45,11 +54,35 @@
     profile = null;
     enhanced = false;
     profileLoading = true;
+    draftProfileId = null;
     if (!ap) { profileLoading = false; return; }
     getProfile(ap.id)
-      .then(p => { activeProfileData = p; })
+      .then((p) => {
+        activeProfileData = p;
+        const restored = authState.authMode === 'password'
+          ? consumeDraft<GenerateDraft>(sessionStorage, draftKey('/generate', ap.id))
+          : null;
+        if (restored) {
+          jobDescription = restored.jobDescription;
+          profile = restored.profile;
+          enhanced = restored.enhanced;
+          toastState.success('Draft restored after sign-in.');
+        }
+        draftProfileId = ap.id;
+      })
       .catch((e) => { toastState.error(`Failed to load profile data: ${errorMessage(e)}`); })
       .finally(() => { profileLoading = false; });
+  });
+
+  $effect(() => {
+    const ap = activeProfile.current;
+    if (authState.authMode !== 'password' || !ap || profileLoading || draftProfileId !== ap.id) return;
+    const generatedProfile = profile ? JSON.parse(JSON.stringify(profile)) as ProfileData : null;
+    saveDraft(sessionStorage, draftKey('/generate', ap.id), {
+      jobDescription,
+      profile: generatedProfile,
+      enhanced,
+    } satisfies GenerateDraft);
   });
 
   async function handleGenerate() {

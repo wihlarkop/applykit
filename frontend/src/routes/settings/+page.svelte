@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import { activateProvider, disconnectProvider, getIntegrations, getModels } from '$lib/api';
+  import OllamaSettingsModal from '$lib/components/OllamaSettingsModal.svelte';
   import SettingsModal from '$lib/components/SettingsModal.svelte';
   import { testConfiguredIntegration } from '$lib/integration-api';
   import {
@@ -11,18 +12,19 @@
   } from '$lib/integration-testing';
   import {
     credentialActionLabel,
+    type CatalogModelOption,
     type CatalogProviderInfo,
   } from '$lib/llm-catalog';
-  import {
-    credentialStrategyLabel,
-  } from '$lib/provider-credentials';
+  import { credentialStrategyLabel } from '$lib/provider-credentials';
   import type { CredentialIntegrationInfo } from '$lib/provider-credential-types';
   import {
+    canDisconnectIntegration,
     groupIntegrations,
     integrationModelKind,
     settingsOverview,
     type IntegrationModelKind,
   } from '$lib/settings-integrations';
+  import { DEFAULT_OLLAMA_BASE_URL } from '$lib/settings-modal';
   import { toastState } from '$lib/toast.svelte';
   import {
     Activity,
@@ -36,7 +38,6 @@
     Pencil,
     Plus,
     Settings,
-    ShieldCheck,
     Trash2,
     Zap,
   } from '@lucide/svelte';
@@ -45,6 +46,11 @@
   let modalProviderId = $state('');
   let modalModel = $state('');
   let modalApiKeyConfigured = $state(false);
+  let ollamaModalOpen = $state(false);
+  let ollamaModel = $state('');
+  let ollamaBaseUrl = $state(DEFAULT_OLLAMA_BASE_URL);
+  let ollamaIsActive = $state(false);
+  let ollamaModels: CatalogModelOption[] = $state([]);
   let integrations: CredentialIntegrationInfo[] = $state([]);
   let providers: CatalogProviderInfo[] = $state([]);
   let loading = $state(true);
@@ -118,6 +124,16 @@
   }
 
   function openEdit(integration: CredentialIntegrationInfo) {
+    if (integration.id === 'ollama') {
+      const provider = providerFor('ollama');
+      ollamaModel = integration.current_model ?? provider?.models[0]?.value ?? '';
+      ollamaBaseUrl = integration.base_url ?? DEFAULT_OLLAMA_BASE_URL;
+      ollamaIsActive = integration.is_active;
+      ollamaModels = provider?.models ?? [];
+      ollamaModalOpen = true;
+      return;
+    }
+
     modalProviderId = integration.id;
     modalModel = integration.current_model ?? '';
     modalApiKeyConfigured = integration.api_key_configured;
@@ -149,7 +165,7 @@
       testStates = nextStates;
       testSummary = null;
       await invalidateAll();
-      toastState.success('Provider disconnected and credentials removed.');
+      toastState.success('Provider disconnected and saved settings removed.');
     } catch {
       toastState.error('Failed to disconnect provider.');
     } finally {
@@ -309,12 +325,15 @@
                       {#if !provider?.local}<span class="rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">{credentialStrategyLabel(integration.credential_strategy)}</span>{/if}
                     </div>
                     <code class="mt-1 block break-all text-sm font-medium text-foreground">{integration.current_model ?? 'No model selected'}</code>
+                    {#if integration.id === 'ollama' && integration.base_url}
+                      <code class="mt-1 block break-all text-xs text-muted-foreground">{integration.base_url}</code>
+                    {/if}
                     {#if modelKind === 'unavailable'}
                       <p class="mt-1 flex items-start gap-1.5 text-xs text-yellow-700 dark:text-yellow-300"><CircleAlert class="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>Model is no longer in the catalog — edit this provider to replace it.</span></p>
                     {/if}
                     <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                       <span class="inline-flex min-w-0 items-center gap-1.5">
-                        {#if provider?.local}<CircleCheck class="h-3.5 w-3.5 shrink-0 text-blue-500" />Local · ready on this device{:else}<KeyRound class="h-3.5 w-3.5 shrink-0 text-green-500" />{integration.credential_count} credential{integration.credential_count === 1 ? '' : 's'} · Active key: {integration.active_credential_label ?? 'None'}{/if}
+                        {#if provider?.local}<CircleCheck class="h-3.5 w-3.5 shrink-0 text-blue-500" />Local or self-hosted endpoint{:else}<KeyRound class="h-3.5 w-3.5 shrink-0 text-green-500" />{integration.credential_count} credential{integration.credential_count === 1 ? '' : 's'} · Active key: {integration.active_credential_label ?? 'None'}{/if}
                       </span>
                       {#if testState}
                         <span class="inline-flex items-center gap-1.5 {testState.status === 'success' ? 'text-green-700 dark:text-green-300' : testState.status === 'failure' ? 'text-red-700 dark:text-red-300' : 'text-muted-foreground'}">
@@ -341,19 +360,27 @@
                     {#if testState?.status === 'testing'}<Loader2 class="h-3.5 w-3.5 animate-spin" />Testing…{:else}<Activity class="h-3.5 w-3.5" />Test{/if}
                   </button>
                   <button data-provider-settings-trigger={integration.id} onclick={() => openEdit(integration)} class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex-none"><Pencil class="h-3.5 w-3.5" />Edit</button>
-                  {#if integration.api_key_configured && !integration.is_active && integration.id !== 'ollama'}
+                  {#if canDisconnectIntegration(integration)}
                     <details class="relative shrink-0">
                       <summary class="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&::-webkit-details-marker]:hidden" aria-label={`More actions for ${integration.label}`}><MoreHorizontal class="h-4 w-4" /></summary>
-                      <div class="absolute right-0 z-20 mt-2 w-64 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg">
+                      <div class="absolute right-0 z-20 mt-2 w-72 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg">
                         {#if confirmingDisconnect === integration.id}
                           <p class="text-sm font-medium">Disconnect {integration.label}?</p>
-                          <p class="mt-1 text-xs text-muted-foreground">All {integration.credential_count} saved credentials for this provider will be permanently removed.</p>
+                          <p class="mt-1 text-xs text-muted-foreground">
+                            {#if integration.is_active}
+                              Its credentials and saved settings will be removed. AI features will remain inactive until another provider is set as active.
+                            {:else if integration.credential_count > 0}
+                              All {integration.credential_count} saved credential{integration.credential_count === 1 ? '' : 's'}, the selected model, and provider settings will be permanently removed.
+                            {:else}
+                              The selected model and provider settings will be permanently removed.
+                            {/if}
+                          </p>
                           <div class="mt-3 flex gap-2">
                             <button onclick={() => handleDisconnect(integration.id)} disabled={disconnecting === integration.id} class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md bg-destructive px-2.5 py-1.5 text-xs font-semibold text-destructive-foreground disabled:opacity-50">{#if disconnecting === integration.id}<Loader2 class="h-3 w-3 animate-spin" />{:else}<Trash2 class="h-3 w-3" />{/if}Disconnect</button>
                             <button onclick={() => (confirmingDisconnect = '')} class="rounded-md border border-border px-2.5 py-1.5 text-xs hover:bg-accent">Cancel</button>
                           </div>
                         {:else}
-                          <button onclick={() => (confirmingDisconnect = integration.id)} class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10"><Trash2 class="h-4 w-4" />Disconnect and remove all keys</button>
+                          <button onclick={() => (confirmingDisconnect = integration.id)} class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10"><Trash2 class="h-4 w-4" />Disconnect provider</button>
                         {/if}
                       </div>
                     </details>
@@ -383,9 +410,9 @@
             <article class="flex flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30 hover:bg-accent/20">
               <div class="flex items-start gap-3">
                 <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold" style="background:{color}18; color:{color}" aria-hidden="true">{mark}</div>
-                <div class="min-w-0 flex-1"><h3 class="font-medium">{integration.label}</h3><p class="mt-0.5 text-xs text-muted-foreground">{#if provider?.local}Local · no API key{:else if provider?.auth_type === 'token'}Access token required{:else}API key required{/if}</p></div>
+                <div class="min-w-0 flex-1"><h3 class="font-medium">{integration.label}</h3><p class="mt-0.5 text-xs text-muted-foreground">{#if provider?.local}Local or self-hosted · no API key{:else if provider?.auth_type === 'token'}Access token required{:else}API key required{/if}</p></div>
               </div>
-              <p class="mt-4 flex-1 text-sm text-muted-foreground">{#if provider?.local}Run supported models locally without sending a credential to ApplyKit.{:else}Add one or more credentials and select the model ApplyKit should use.{/if}</p>
+              <p class="mt-4 flex-1 text-sm text-muted-foreground">{#if provider?.local}Connect to a local or remote Ollama server and select one of its supported models.{:else}Add one or more credentials and select the model ApplyKit should use.{/if}</p>
               <div class="mt-4 flex items-center justify-between gap-3">
                 {#if provider?.credential_url}<a href={provider.credential_url} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{credentialActionLabel(provider.auth_type)}<ExternalLink class="h-3 w-3" /></a>{:else}<span class="text-xs text-muted-foreground">Ready to configure</span>{/if}
                 <button data-provider-settings-trigger={integration.id} onclick={() => openEdit(integration)} class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"><Plus class="h-3.5 w-3.5" />Connect</button>
@@ -403,5 +430,14 @@
   initialProviderId={modalProviderId}
   initialModel={modalModel}
   initialApiKeyConfigured={modalApiKeyConfigured}
+  onsaved={handleProviderSaved}
+/>
+
+<OllamaSettingsModal
+  bind:open={ollamaModalOpen}
+  initialModel={ollamaModel}
+  initialBaseUrl={ollamaBaseUrl}
+  isActive={ollamaIsActive}
+  models={ollamaModels}
   onsaved={handleProviderSaved}
 />

@@ -13,6 +13,11 @@ from app.auth.cookies import CSRF_COOKIE_NAME, SESSION_COOKIE_NAME, clear_auth_c
 from app.auth.service import authenticate_session, validate_csrf_token
 from app.config import Settings, get_settings
 from app.database import SessionLocal
+from app.exceptions.auth import (
+    AuthenticationForbiddenError,
+    AuthenticationRequiredError,
+)
+from app.exceptions.base import AppError
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 PUBLIC_PATHS = {
@@ -21,6 +26,14 @@ PUBLIC_PATHS = {
     "/api/auth/login",
     "/api/auth/setup",
 }
+
+
+def _error_response(error: AppError) -> JSONResponse:
+    return JSONResponse(
+        status_code=error.status_code,
+        content=error.to_envelope().model_dump(mode="json"),
+        headers=error.headers or None,
+    )
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -71,10 +84,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return await call_next(request)
 
             if auth_session is None:
-                response = JSONResponse(
-                    status_code=401,
-                    content={"detail": "Authentication required."},
-                )
+                response = _error_response(AuthenticationRequiredError())
                 if session_token:
                     clear_auth_cookies(
                         response,
@@ -93,9 +103,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     or csrf_header != csrf_cookie
                     or not validate_csrf_token(auth_session, csrf_header)
                 ):
-                    return JSONResponse(
-                        status_code=403,
-                        content={"detail": "Request verification failed."},
-                    )
+                    return _error_response(AuthenticationForbiddenError())
 
         return await call_next(request)

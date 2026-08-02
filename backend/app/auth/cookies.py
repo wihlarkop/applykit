@@ -8,12 +8,18 @@ SESSION_COOKIE_NAME = "applykit_session"
 CSRF_COOKIE_NAME = "applykit_csrf"
 
 
+def _disable_caching(response: Response) -> None:
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+
+
 def set_auth_cookies(
     response: Response,
     issued: IssuedSession,
     *,
     secure: bool,
 ) -> None:
+    _disable_caching(response)
     max_age = 30 * 24 * 60 * 60 if issued.remember_device else 7 * 24 * 60 * 60
     response.set_cookie(
         SESSION_COOKIE_NAME,
@@ -38,6 +44,7 @@ def set_auth_cookies(
 
 
 def clear_auth_cookies(response: Response, *, secure: bool) -> None:
+    _disable_caching(response)
     response.delete_cookie(
         SESSION_COOKIE_NAME,
         path="/",

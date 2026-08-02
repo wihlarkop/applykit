@@ -55,7 +55,7 @@ def _settings(request: Request) -> Settings:
 def _origin_allowed(request: Request, settings: Settings) -> bool:
     origin = request.headers.get("origin")
     if not origin:
-        return True
+        return False
     return "*" in settings.cors_origins or origin in settings.cors_origins
 
 
@@ -171,7 +171,7 @@ def login(
             record_login_failure(db)
         except AuthenticationLocked as exc:
             raise _locked_error(exc) from exc
-        raise InvalidAuthenticationError("Invalid password.")
+        raise InvalidAuthenticationError()
 
     record_login_success(db)
     issued = create_auth_session(

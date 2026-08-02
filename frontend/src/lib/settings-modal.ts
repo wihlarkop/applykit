@@ -1,9 +1,38 @@
+export const DEFAULT_OLLAMA_BASE_URL = 'http://localhost:11434';
+
 export type SettingsModalMode = 'connect' | 'edit';
 export type ConnectionTestMode = 'draft' | 'stored' | 'disabled';
 export type SettingsSaveResult =
   | { status: 'saved' }
   | { status: 'save_failed'; error: unknown }
   | { status: 'refresh_failed'; error: unknown };
+
+export function normalizeOllamaBaseUrl(value: string): string {
+  return value.trim().replace(/\/+$/, '');
+}
+
+export function ollamaBaseUrlError(value: string): string | null {
+  const normalized = normalizeOllamaBaseUrl(value);
+  if (!normalized) return 'Enter the Ollama server URL.';
+
+  try {
+    const parsed = new URL(normalized);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return 'Base URL must start with http:// or https://.';
+    }
+    if (!parsed.hostname) return 'Base URL must include a valid host.';
+    if (parsed.username || parsed.password) {
+      return 'Base URL must not contain embedded credentials.';
+    }
+    if (parsed.search || parsed.hash) {
+      return 'Base URL must not include a query string or fragment.';
+    }
+  } catch {
+    return 'Enter a valid URL including http:// or https://.';
+  }
+
+  return null;
+}
 
 export function focusTrapTarget<T>(
   focusable: readonly T[],

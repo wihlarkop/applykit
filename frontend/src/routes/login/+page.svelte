@@ -100,7 +100,6 @@
             maxlength="128"
             class="w-full rounded-lg border border-input bg-background px-3 py-2.5 pr-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
             required
-            autofocus
           />
           <button
             type="button"

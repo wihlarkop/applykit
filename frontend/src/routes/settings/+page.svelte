@@ -102,6 +102,17 @@
     }
   }
 
+  async function handleProviderSaved() {
+    const [integrationsResponse, modelsResponse] = await Promise.all([
+      getIntegrations(),
+      getModels(),
+    ]);
+    integrations = integrationsResponse.integrations as CredentialIntegrationInfo[];
+    providers = modelsResponse.providers as CatalogProviderInfo[];
+    testStates = {};
+    testSummary = null;
+  }
+
   function providerFor(providerId: string): CatalogProviderInfo | undefined {
     return providers.find((provider) => provider.id === providerId);
   }
@@ -387,4 +398,10 @@
   {/if}
 </div>
 
-<SettingsModal bind:open={modalOpen} initialProviderId={modalProviderId} initialModel={modalModel} initialApiKeyConfigured={modalApiKeyConfigured} />
+<SettingsModal
+  bind:open={modalOpen}
+  initialProviderId={modalProviderId}
+  initialModel={modalModel}
+  initialApiKeyConfigured={modalApiKeyConfigured}
+  onsaved={handleProviderSaved}
+/>

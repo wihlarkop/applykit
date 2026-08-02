@@ -35,6 +35,7 @@
     modalMode,
     modalTitle,
     primaryActionLabel,
+    saveSettingsWithRefresh,
   } from '$lib/settings-modal';
   import { toastState } from '$lib/toast.svelte';
   import type { TestConnectionResponse } from '$lib/types';
@@ -61,11 +62,13 @@
     initialProviderId = '',
     initialModel = '',
     initialApiKeyConfigured = false,
+    onsaved = async () => undefined,
   }: {
     open: boolean;
     initialProviderId?: string;
     initialModel?: string;
     initialApiKeyConfigured?: boolean;
+    onsaved?: () => Promise<void> | void;
   } = $props();
 
   let providers: CatalogProviderInfo[] = $state([]);
@@ -331,11 +334,27 @@
     saving = activate ? 'activate' : 'only';
     saveError = '';
     try {
-      await updateSettings({
-        model: selectedModel.trim(),
-        api_key: keyToSave,
-        activate,
-      });
+      const result = await saveSettingsWithRefresh(
+        () =>
+          updateSettings({
+            model: selectedModel.trim(),
+            api_key: keyToSave,
+            activate,
+          }),
+        async () => {
+          await onsaved();
+        },
+      );
+
+      if (result.status === 'save_failed') {
+        saveError = errorMessage(result.error, 'Failed to save settings.');
+        return;
+      }
+      if (result.status === 'refresh_failed') {
+        saveError = 'Provider saved, but the settings list could not refresh. Try refreshing again.';
+        return;
+      }
+
       toastState.success(
         activate
           ? isActive
@@ -354,6 +373,15 @@
       apiKey = '';
       showApiKey = false;
       saving = null;
+    }
+  }
+
+  async function handleCredentialChanged() {
+    try {
+      await refreshCredentialState(selectedProviderId);
+      await onsaved();
+    } catch {
+      saveError = 'Credential saved, but the settings list could not refresh.';
     }
   }
 
@@ -739,7 +767,7 @@
               providerLabel={selectedProvider.label}
               credentialUrl={selectedProvider.credential_url}
               authType={selectedProvider.auth_type}
-              onChanged={() => refreshCredentialState(selectedProvider.id)}
+              onChanged={handleCredentialChanged}
             />
           {:else if activeTab === 'routing'}
             <div class="mx-auto max-w-2xl space-y-5">

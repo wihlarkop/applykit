@@ -7,6 +7,7 @@ services:
       - applykit-data:/data
     environment:
       DATABASE_URL: sqlite:////data/applykit.db
+      CREDENTIAL_KEY_FILE: /data/credential.key
       CORS_ORIGINS: '["http://localhost:3000"]'
     restart: unless-stopped
 
@@ -26,5 +27,5 @@ services:
 
 volumes:
   applykit-data:
-    # SQLite database is stored here and persists across container restarts and rebuilds.
-    # To back up your data: docker run --rm -v applykit_applykit-data:/data -v $(pwd):/backup alpine tar czf /backup/applykit-backup.tar.gz /data
+    # SQLite and the credential encryption key are stored here.
+    # Back up the whole volume so encrypted credentials remain recoverable.

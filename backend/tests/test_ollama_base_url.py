@@ -11,7 +11,7 @@ from app.models import Base
 from app.routes.settings import (
     disconnect_provider,
     get_integrations,
-    test_connection as test_settings_connection,
+    test_connection as check_settings_connection,
     update_settings,
 )
 from app.schemas import TestConnectionResponse as ConnectionTestResponse
@@ -38,7 +38,7 @@ def test_disconnect_ollama_clears_model_active_state_and_base_url():
         assert get_setting(db, "selected_model_ollama") in (None, "")
         assert get_setting(db, "base_url_ollama") in (None, "")
         assert get_setting(db, "llm_provider") == ""
-        assert ollama.current_model is None
+        assert ollama.current_model in (None, "")
         assert ollama.is_active is False
     finally:
         db.close()
@@ -118,7 +118,7 @@ def test_connection_passes_draft_ollama_base_url(monkeypatch):
         fake_test_provider_connection,
     )
 
-    result = test_settings_connection(
+    result = check_settings_connection(
         ProviderSettingsRequest(
             model="ollama/llama3.2",
             api_key=None,

@@ -39,12 +39,7 @@ def upgrade() -> None:
         sa.Column("revoked_at", sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("token_hash"),
-    )
-    op.create_index(
-        op.f("ix_auth_session_token_hash"),
-        "auth_session",
-        ["token_hash"],
-        unique=True,
+        sqlite_autoincrement=True,
     )
     op.create_index(
         op.f("ix_auth_session_expires_at"),
@@ -103,6 +98,5 @@ def downgrade() -> None:
     op.drop_table("auth_setup_token")
     op.drop_index(op.f("ix_auth_session_revoked_at"), table_name="auth_session")
     op.drop_index(op.f("ix_auth_session_expires_at"), table_name="auth_session")
-    op.drop_index(op.f("ix_auth_session_token_hash"), table_name="auth_session")
     op.drop_table("auth_session")
     op.drop_table("auth_owner")

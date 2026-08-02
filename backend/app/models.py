@@ -166,6 +166,58 @@ class ProviderCredentialPolicy(Base):
     )
 
 
+class AuthOwner(Base):
+    __tablename__ = "auth_owner"
+
+    id = Column(Integer, primary_key=True, default=1)
+    display_name = Column(String(80), nullable=True)
+    password_hash = Column(Text, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    password_changed_at = Column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_session"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    csrf_token_hash = Column(String(64), nullable=False)
+    remember_device = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    expires_at = Column(DateTime, nullable=False, index=True)
+    revoked_at = Column(DateTime, nullable=True, index=True)
+
+
+class AuthSetupToken(Base):
+    __tablename__ = "auth_setup_token"
+
+    id = Column(Integer, primary_key=True, default=1)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    expires_at = Column(DateTime, nullable=False)
+
+
+class AuthLoginState(Base):
+    __tablename__ = "auth_login_state"
+
+    id = Column(Integer, primary_key=True, default=1)
+    failed_count = Column(Integer, nullable=False, default=0)
+    window_started_at = Column(DateTime, nullable=True)
+    locked_until = Column(DateTime, nullable=True)
+
+
+class SecurityAuditEvent(Base):
+    __tablename__ = "security_audit_event"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_type = Column(String(64), nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+
+
 class LlmUsageLog(Base):
     __tablename__ = "llm_usage_log"
 

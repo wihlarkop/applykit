@@ -2,7 +2,10 @@
   import { invalidateAll } from '$app/navigation';
   import { testConnection, updateSettings } from '$lib/api';
   import ModelSelector from '$lib/components/ModelSelector.svelte';
-  import type { CatalogModelOption } from '$lib/llm-catalog';
+  import {
+    customModelValidationError,
+    type CatalogModelOption,
+  } from '$lib/llm-catalog';
   import {
     DEFAULT_OLLAMA_BASE_URL,
     normalizeOllamaBaseUrl,
@@ -29,6 +32,7 @@
   } = $props();
 
   let model = $state('');
+  let customMode = $state(false);
   let baseUrl = $state(DEFAULT_OLLAMA_BASE_URL);
   let testing = $state(false);
   let saving = $state<'only' | 'activate' | null>(null);
@@ -36,11 +40,19 @@
   let saveError = $state('');
 
   const baseUrlError = $derived(ollamaBaseUrlError(baseUrl));
-  const canSubmit = $derived(Boolean(model && !baseUrlError));
+  const customModelError = $derived(
+    customMode ? customModelValidationError('ollama', model) : null,
+  );
+  const canSubmit = $derived(
+    Boolean(model && !baseUrlError && !customModelError),
+  );
 
   $effect(() => {
     if (!open) return;
     model = initialModel || models[0]?.value || '';
+    customMode = Boolean(
+      initialModel && !models.some((option) => option.value === initialModel),
+    );
     baseUrl = initialBaseUrl || DEFAULT_OLLAMA_BASE_URL;
     testResult = null;
     saveError = '';
@@ -51,6 +63,13 @@
     open = false;
   }
 
+  function toggleCustomMode() {
+    customMode = !customMode;
+    model = customMode ? 'ollama/' : models[0]?.value || '';
+    testResult = null;
+    saveError = '';
+  }
+
   async function handleTest() {
     if (!canSubmit) return;
     testing = true;
@@ -58,7 +77,7 @@
     saveError = '';
     try {
       testResult = await testConnection({
-        model,
+        model: model.trim(),
         api_key: null,
         activate: false,
         base_url: normalizeOllamaBaseUrl(baseUrl),
@@ -76,7 +95,7 @@
     saveError = '';
     try {
       await updateSettings({
-        model,
+        model: model.trim(),
         api_key: null,
         activate,
         base_url: normalizeOllamaBaseUrl(baseUrl),
@@ -134,10 +153,37 @@
 
       <div class="space-y-6 px-5 py-5">
         <section>
-          <label class="text-sm font-semibold" for="ollama-model">Model</label>
-          <p class="mt-1 text-xs text-muted-foreground">The model must already be available on the configured Ollama server.</p>
-          <div class="mt-3" id="ollama-model">
-            <ModelSelector {models} bind:value={model} />
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold">Model</p>
+              <p class="mt-1 text-xs text-muted-foreground">The model must already be available on the configured Ollama server.</p>
+            </div>
+            <button
+              type="button"
+              onclick={toggleCustomMode}
+              class="text-xs font-medium text-primary hover:underline"
+            >
+              {customMode ? 'Choose from catalog' : 'Use custom model ID'}
+            </button>
+          </div>
+
+          <div class="mt-3">
+            {#if customMode}
+              <input
+                bind:value={model}
+                placeholder="ollama/model-name"
+                maxlength="200"
+                spellcheck="false"
+                autocomplete="off"
+                aria-label="Custom Ollama model ID"
+                class="w-full rounded-xl border border-border bg-background px-3 py-3 font-mono text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              {#if customModelError}
+                <p class="mt-2 text-xs text-red-600 dark:text-red-400">{customModelError}</p>
+              {/if}
+            {:else}
+              <ModelSelector {models} bind:value={model} />
+            {/if}
           </div>
         </section>
 

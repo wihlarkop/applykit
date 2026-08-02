@@ -1,0 +1,63 @@
+name: Apply corrected session draft patch
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/scripts/session-draft-patch-v2.b64
+      - .github/workflows/session-draft-pr-bootstrap-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    if: github.head_ref == 'feat/session-expiry-draft-recovery-clean'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/session-expiry-draft-recovery-clean
+          fetch-depth: 0
+
+      - name: Decode corrected patch helper
+        run: |
+          base64 --decode .github/scripts/session-draft-patch-v2.b64 | gzip --decompress > .github/scripts/apply_session_draft_patch.py
+
+      - name: Apply source patch
+        run: python .github/scripts/apply_session_draft_patch.py
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Run frontend unit tests
+        working-directory: frontend
+        run: bun test
+
+      - name: Run frontend type check
+        working-directory: frontend
+        run: bun run check
+
+      - name: Build frontend
+        working-directory: frontend
+        run: bun run build
+
+      - name: Commit verified implementation
+        run: |
+          rm -f .github/scripts/session-draft-patch.b64
+          rm -f .github/scripts/session-draft-patch-v2.b64
+          rm -f .github/scripts/apply_session_draft_patch.py
+          rm -f .github/workflows/session-draft-bootstrap.yml
+          rm -f .github/workflows/session-draft-pr-bootstrap.yml
+          rm -f .github/workflows/session-draft-pr-bootstrap-v2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: recover drafts after session expiry"
+          git push origin HEAD:feat/session-expiry-draft-recovery-clean

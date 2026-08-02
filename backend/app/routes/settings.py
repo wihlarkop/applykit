@@ -169,7 +169,7 @@ def get_integrations(db: Session = Depends(get_db)):
             active_model
             if is_active
             else get_setting(db, f"selected_model_{provider.id}")
-        )
+        ) or None
 
         integrations.append(
             CredentialIntegrationInfo(
@@ -213,7 +213,10 @@ def update_settings(req: ProviderSettingsRequest, db: Session = Depends(get_db))
         else:
             clear_provider_api_key(db, provider_id)
         if provider_id == "ollama":
-            base_url = _normalize_base_url_or_422(provider_id, req.base_url)
+            base_url = _normalize_base_url_or_422(
+                provider_id,
+                getattr(req, "base_url", None),
+            )
             set_provider_base_url(db, provider_id, base_url)
         set_setting(db, f"selected_model_{provider_id}", model_id)
 
@@ -257,7 +260,10 @@ def test_connection(req: ProviderSettingsRequest):
             message="API key is required for this provider.",
         )
 
-    api_base = _normalize_base_url_or_422(provider_id, req.base_url)
+    api_base = _normalize_base_url_or_422(
+        provider_id,
+        getattr(req, "base_url", None),
+    )
     return test_provider_connection(
         model_id,
         api_key or None,

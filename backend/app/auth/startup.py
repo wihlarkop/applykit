@@ -2,8 +2,6 @@
 
 import logging
 
-from sqlalchemy import select
-
 from app.auth.service import issue_setup_token, owner_exists, record_security_event
 from app.config import Settings
 from app.database import SessionLocal

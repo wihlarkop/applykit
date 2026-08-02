@@ -21,6 +21,10 @@ export function isConfiguredIntegration(integration: IntegrationInfo): boolean {
   );
 }
 
+export function canDisconnectIntegration(integration: IntegrationInfo): boolean {
+  return isConfiguredIntegration(integration);
+}
+
 export function groupIntegrations(
   integrations: IntegrationInfo[],
 ): IntegrationGroups {

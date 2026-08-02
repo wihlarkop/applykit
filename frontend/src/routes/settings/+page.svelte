@@ -222,7 +222,7 @@
 <div class="mx-auto max-w-5xl space-y-8">
   <header class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
     <div>
-      <h1 class="flex items-center gap-2 text-2xl font-bold tracking-tight">
+      <h1 id="ai-settings-heading" tabindex="-1" class="flex items-center gap-2 text-2xl font-bold tracking-tight outline-none">
         <Settings class="h-6 w-6 text-primary" />AI Settings
       </h1>
       <p class="mt-1 max-w-2xl text-sm text-muted-foreground">
@@ -340,7 +340,7 @@
                   <button onclick={() => handleTestIntegration(integration.id)} disabled={testingAll || testState?.status === 'testing'} class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none">
                     {#if testState?.status === 'testing'}<Loader2 class="h-3.5 w-3.5 animate-spin" />Testing…{:else}<Activity class="h-3.5 w-3.5" />Test{/if}
                   </button>
-                  <button onclick={() => openEdit(integration)} class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex-none"><Pencil class="h-3.5 w-3.5" />Edit</button>
+                  <button data-provider-settings-trigger={integration.id} onclick={() => openEdit(integration)} class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex-none"><Pencil class="h-3.5 w-3.5" />Edit</button>
                   {#if integration.api_key_configured && !integration.is_active && integration.id !== 'ollama'}
                     <details class="relative shrink-0">
                       <summary class="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&::-webkit-details-marker]:hidden" aria-label={`More actions for ${integration.label}`}><MoreHorizontal class="h-4 w-4" /></summary>
@@ -388,7 +388,7 @@
               <p class="mt-4 flex-1 text-sm text-muted-foreground">{#if provider?.local}Run supported models locally without sending a credential to ApplyKit.{:else}Add one or more credentials and select the model ApplyKit should use.{/if}</p>
               <div class="mt-4 flex items-center justify-between gap-3">
                 {#if provider?.credential_url}<a href={provider.credential_url} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">{credentialActionLabel(provider.auth_type)}<ExternalLink class="h-3 w-3" /></a>{:else}<span class="text-xs text-muted-foreground">Ready to configure</span>{/if}
-                <button onclick={() => openEdit(integration)} class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"><Plus class="h-3.5 w-3.5" />Connect</button>
+                <button data-provider-settings-trigger={integration.id} onclick={() => openEdit(integration)} class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"><Plus class="h-3.5 w-3.5" />Connect</button>
               </div>
             </article>
           {/each}

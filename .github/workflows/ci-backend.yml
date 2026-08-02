@@ -41,3 +41,12 @@ jobs:
 
       - name: Run tests
         run: uv run --frozen pytest
+
+  container-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build backend container
+        run: docker build --tag applykit-backend:ci ./backend

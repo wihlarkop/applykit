@@ -2,12 +2,56 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   connectionTestMode,
+  focusRestorationTarget,
+  focusTrapTarget,
   modalMode,
   modalTitle,
   primaryActionLabel,
   saveSettingsWithRefresh,
   type SettingsSaveResult,
 } from '$lib/settings-modal';
+
+describe('settings modal focus management', () => {
+  test('wraps Shift+Tab from the initially focused panel to the last control', () => {
+    const panel = { id: 'panel' };
+    const closeButton = { id: 'close' };
+    const saveButton = { id: 'save' };
+
+    expect(
+      focusTrapTarget(
+        [closeButton, saveButton],
+        panel,
+        panel,
+        true,
+      ),
+    ).toBe(saveButton);
+    expect(
+      focusTrapTarget(
+        [closeButton, saveButton],
+        saveButton,
+        panel,
+        false,
+      ),
+    ).toBe(closeButton);
+  });
+
+  test('uses a live replacement trigger when the original trigger was removed', () => {
+    const removedTrigger = { id: 'connect', isConnected: false };
+    const replacementTrigger = { id: 'edit', isConnected: true };
+    const pageFallback = { id: 'heading', isConnected: true };
+
+    expect(
+      focusRestorationTarget([
+        removedTrigger,
+        replacementTrigger,
+        pageFallback,
+      ]),
+    ).toBe(replacementTrigger);
+    expect(focusRestorationTarget([removedTrigger, null, pageFallback])).toBe(
+      pageFallback,
+    );
+  });
+});
 
 describe('settings modal presentation', () => {
   test('distinguishes connect and edit flows', () => {

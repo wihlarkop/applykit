@@ -5,6 +5,29 @@ export type SettingsSaveResult =
   | { status: 'save_failed'; error: unknown }
   | { status: 'refresh_failed'; error: unknown };
 
+export function focusTrapTarget<T>(
+  focusable: readonly T[],
+  activeElement: T | null,
+  panelElement: T,
+  shiftKey: boolean,
+): T | null {
+  if (focusable.length === 0) return null;
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (shiftKey && (activeElement === panelElement || activeElement === first)) {
+    return last;
+  }
+  if (!shiftKey && activeElement === last) return first;
+  return null;
+}
+
+export function focusRestorationTarget<T extends { isConnected: boolean }>(
+  candidates: readonly (T | null)[],
+): T | null {
+  return candidates.find((candidate): candidate is T => Boolean(candidate?.isConnected)) ?? null;
+}
+
 export async function saveSettingsWithRefresh(
   persist: () => Promise<unknown>,
   refresh: () => Promise<void>,

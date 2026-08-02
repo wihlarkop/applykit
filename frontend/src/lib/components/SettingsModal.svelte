@@ -33,6 +33,8 @@
   } from '$lib/settings-modal-tabs';
   import {
     connectionTestMode,
+    focusRestorationTarget,
+    focusTrapTarget,
     modalMode,
     modalTitle,
     primaryActionLabel,
@@ -200,7 +202,16 @@
       document.body.style.top = previousBodyTop;
       document.body.style.left = previousBodyLeft;
       document.body.style.width = previousBodyWidth;
-      previouslyFocused?.focus({ preventScroll: true });
+      const replacementTrigger = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-provider-settings-trigger]'),
+      ).find(
+        (element) => element.dataset.providerSettingsTrigger === initialProviderId,
+      ) ?? null;
+      focusRestorationTarget([
+        previouslyFocused,
+        replacementTrigger,
+        document.getElementById('ai-settings-heading'),
+      ])?.focus({ preventScroll: true });
       window.scrollTo(lockedScrollX, lockedScrollY);
     };
   });
@@ -520,14 +531,17 @@
     ).filter((element) => !element.hasAttribute('hidden'));
     if (focusable.length === 0) return;
 
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
+    const target = focusTrapTarget(
+      focusable,
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null,
+      panelElement,
+      event.shiftKey,
+    );
+    if (target) {
       event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
+      target.focus();
     }
   }
 </script>

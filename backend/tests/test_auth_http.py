@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.auth.middleware import AuthMiddleware
 from app.auth.service import issue_setup_token
@@ -17,6 +18,7 @@ def _make_app(auth_mode: str = "password") -> tuple[FastAPI, sessionmaker, str |
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
     )
     Base.metadata.create_all(engine)
     factory = sessionmaker(bind=engine)

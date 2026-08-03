@@ -23,6 +23,7 @@ from app.routes import (
     usage,
 )
 from app.security.deployment import manual_bind_host, validate_deployment_security
+from app.services.credential_vault_startup import initialize_credential_vault
 from app.services.usage_logging import stop_usage_logger
 
 _settings = get_settings()
@@ -31,6 +32,7 @@ validate_deployment_security(_settings)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    initialize_credential_vault(_settings)
     initialize_auth(_settings)
     await start_http_client()
     try:

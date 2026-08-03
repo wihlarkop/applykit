@@ -5,9 +5,12 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - applykit-data:/data
+      - applykit-secrets:/run/applykit-secrets
     environment:
+      DEPLOYMENT_MODE: local
       DATABASE_URL: sqlite:////data/applykit.db
-      CREDENTIAL_KEY_FILE: /data/credential.key
+      CREDENTIAL_KEY_FILE: /run/applykit-secrets/credential.key
+      CREDENTIAL_LEGACY_KEY_FILE: /data/credential.key
       AUTH_MODE: ${AUTH_MODE:-disabled}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       CORS_ORIGINS: '["http://localhost:3000"]'
@@ -29,5 +32,6 @@ services:
 
 volumes:
   applykit-data:
-    # SQLite and the credential encryption key are stored here.
-    # Back up the whole volume so encrypted credentials remain recoverable.
+    # SQLite, profiles, generated documents, and usage data.
+  applykit-secrets:
+    # Local credential encryption key only. Back up separately from app data.

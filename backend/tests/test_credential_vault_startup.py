@@ -49,6 +49,11 @@ def _add_credential(factory, key: bytes, secret: str = "stored-secret") -> str:
         return credential.encrypted_secret
 
 
+def _drop_credential_version_column(tmp_path: Path) -> None:
+    with sqlite3.connect(tmp_path / "applykit.db") as db:
+        db.execute("ALTER TABLE provider_credential DROP COLUMN version")
+
+
 def test_fresh_local_install_creates_active_key_only(tmp_path: Path) -> None:
     factory = _factory(tmp_path)
     settings = _settings(tmp_path)
@@ -195,10 +200,7 @@ def test_remote_external_key_must_decrypt_every_credential(tmp_path: Path) -> No
 
 def test_outdated_database_schema_reports_migration_guidance(tmp_path: Path) -> None:
     factory = _factory(tmp_path)
-    database_path = tmp_path / "applykit.db"
-    with sqlite3.connect(database_path) as db:
-        db.execute("ALTER TABLE provider_credential DROP COLUMN version")
-
+    _drop_credential_version_column(tmp_path)
     settings = _settings(tmp_path)
     active = Path(settings.credential_key_file)
     active.parent.mkdir(parents=True)
@@ -211,6 +213,25 @@ def test_outdated_database_schema_reports_migration_guidance(tmp_path: Path) -> 
     assert "make migrate" in message
     assert "encryption key cannot decrypt" not in message
     assert active.exists()
+
+
+def test_schema_failure_keeps_legacy_and_removes_unverified_copy(
+    tmp_path: Path,
+) -> None:
+    factory = _factory(tmp_path)
+    _drop_credential_version_column(tmp_path)
+    settings = _settings(tmp_path)
+    active = Path(settings.credential_key_file)
+    legacy = Path(settings.credential_legacy_key_file or "")
+    legacy.parent.mkdir(parents=True)
+    legacy.write_bytes(Fernet.generate_key() + b"\n")
+
+    with pytest.raises(CredentialVaultStartupError) as exc_info:
+        initialize_credential_vault(settings, session_factory=factory)
+
+    assert "make migrate" in str(exc_info.value)
+    assert legacy.exists()
+    assert not active.exists()
 
 
 def test_startup_error_never_contains_sensitive_values(tmp_path: Path) -> None:

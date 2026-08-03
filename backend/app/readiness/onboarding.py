@@ -16,9 +16,12 @@ from app.readiness.profile import parse_list
 from app.readiness.schemas import OnboardingState
 from app.services.settings import get_setting, set_setting
 
+InstallationState = Literal["fresh", "existing"]
+
 ONBOARDING_VERSION = "1"
 ONBOARDING_VERSION_KEY = "onboarding_version_seen"
 ONBOARDING_SKIPPED_KEY = "onboarding_skipped"
+ONBOARDING_INSTALLATION_KEY = "onboarding_installation_state"
 CHECKLIST_DISMISSED_KEY = "readiness_checklist_dismissed_fingerprint"
 
 
@@ -51,7 +54,7 @@ def _profile_is_meaningful(profile: Profile) -> bool:
     )
 
 
-def infer_installation_state(db: Session) -> Literal["fresh", "existing"]:
+def infer_installation_state(db: Session) -> InstallationState:
     if any(_profile_is_meaningful(profile) for profile in db.query(Profile).all()):
         return "existing"
     if db.query(GeneratedCV.id).first() is not None:
@@ -72,6 +75,16 @@ def infer_installation_state(db: Session) -> Literal["fresh", "existing"]:
     return "fresh"
 
 
+def get_or_initialize_installation_state(db: Session) -> InstallationState:
+    stored = (get_setting(db, ONBOARDING_INSTALLATION_KEY) or "").strip().lower()
+    if stored in {"fresh", "existing"}:
+        return stored  # type: ignore[return-value]
+
+    inferred = infer_installation_state(db)
+    set_setting(db, ONBOARDING_INSTALLATION_KEY, inferred)
+    return inferred
+
+
 def get_or_initialize_onboarding_state(db: Session) -> OnboardingState:
     seen = get_setting(db, ONBOARDING_VERSION_KEY) == ONBOARDING_VERSION
     skipped = _truthy_setting(get_setting(db, ONBOARDING_SKIPPED_KEY))
@@ -83,7 +96,8 @@ def get_or_initialize_onboarding_state(db: Session) -> OnboardingState:
             should_redirect=False,
         )
 
-    if infer_installation_state(db) == "existing":
+    installation_state = get_or_initialize_installation_state(db)
+    if installation_state == "existing":
         set_setting(db, ONBOARDING_VERSION_KEY, ONBOARDING_VERSION)
         set_setting(db, ONBOARDING_SKIPPED_KEY, "false")
         return OnboardingState(
@@ -102,10 +116,12 @@ def get_or_initialize_onboarding_state(db: Session) -> OnboardingState:
 
 
 def mark_onboarding_skipped(db: Session) -> None:
+    get_or_initialize_installation_state(db)
     set_setting(db, ONBOARDING_VERSION_KEY, ONBOARDING_VERSION)
     set_setting(db, ONBOARDING_SKIPPED_KEY, "true")
 
 
 def mark_onboarding_completed(db: Session) -> None:
+    get_or_initialize_installation_state(db)
     set_setting(db, ONBOARDING_VERSION_KEY, ONBOARDING_VERSION)
     set_setting(db, ONBOARDING_SKIPPED_KEY, "false")

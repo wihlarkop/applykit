@@ -7,6 +7,7 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -14,6 +15,7 @@ from app.database import SessionLocal
 from app.models import ProviderCredential
 from app.services.credential_crypto import (
     CredentialCipher,
+    CredentialDecryptionError,
     CredentialKeyMaterial,
     get_credential_cipher,
     load_external_credential_key,
@@ -82,6 +84,21 @@ def _validation_failure() -> CredentialVaultStartupError:
     )
 
 
+def _database_validation_failure() -> CredentialVaultStartupError:
+    return CredentialVaultStartupError(
+        "Credential vault database validation failed.\n"
+        "The database schema may be out of date or the database may be "
+        "unavailable.\n"
+        "Run `make migrate` from the repository root, then retry startup."
+    )
+
+
+def _remove_unverified_copy(path: Path | None) -> None:
+    if path is not None and path.exists():
+        path.unlink()
+        get_credential_cipher.cache_clear()
+
+
 def _select_local_key(
     settings: Settings,
     session_factory: SessionFactory,
@@ -133,31 +150,32 @@ def initialize_credential_vault(
 ) -> None:
     """Select, migrate, and validate the vault key before serving requests."""
     get_credential_cipher.cache_clear()
-    external = load_external_credential_key(settings)
     copied_active_path: Path | None = None
     legacy_to_remove: Path | None = None
 
-    if external is not None:
-        material = external
-    else:
-        if settings.deployment_mode == "remote":
-            raise CredentialVaultStartupError(
-                "Remote mode requires an external credential encryption key."
-            )
-        material, legacy_to_remove, copied = _select_local_key(
-            settings,
-            session_factory,
-        )
-        if copied:
-            copied_active_path = Path(settings.credential_key_file).expanduser()
-
     try:
+        external = load_external_credential_key(settings)
+        if external is not None:
+            material = external
+        else:
+            if settings.deployment_mode == "remote":
+                raise CredentialVaultStartupError(
+                    "Remote mode requires an external credential encryption key."
+                )
+            material, legacy_to_remove, copied = _select_local_key(
+                settings,
+                session_factory,
+            )
+            if copied:
+                copied_active_path = Path(settings.credential_key_file).expanduser()
+
         _validate_credentials(session_factory, CredentialCipher(material.key))
-    except Exception:
-        if copied_active_path is not None and copied_active_path.exists():
-            copied_active_path.unlink()
-            get_credential_cipher.cache_clear()
+    except CredentialDecryptionError:
+        _remove_unverified_copy(copied_active_path)
         raise _validation_failure() from None
+    except SQLAlchemyError:
+        _remove_unverified_copy(copied_active_path)
+        raise _database_validation_failure() from None
 
     if legacy_to_remove is not None and legacy_to_remove.exists():
         legacy_to_remove.unlink()

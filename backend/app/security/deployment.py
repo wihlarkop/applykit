@@ -6,6 +6,7 @@ from ipaddress import ip_address
 from urllib.parse import urlsplit
 
 from app.config import Settings
+from app.security.secrets import reveal_secret
 
 
 class DeploymentSecurityError(RuntimeError):
@@ -49,7 +50,7 @@ def validate_deployment_security(settings: Settings) -> None:
     """Reject unsafe local or remote deployment combinations."""
     violations: list[str] = []
 
-    has_direct_key = bool(settings.credential_encryption_key)
+    has_direct_key = bool(reveal_secret(settings.credential_encryption_key).strip())
     has_external_key_file = bool(settings.credential_encryption_key_file)
     if has_direct_key and has_external_key_file:
         violations.append(

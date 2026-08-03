@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from cryptography.fernet import Fernet
 
@@ -77,6 +79,25 @@ def test_remote_mode_reports_all_unsafe_settings_together() -> None:
     assert "wildcard CORS" in message
     assert "must use HTTPS" in message
     assert "external credential encryption key" in message
+
+
+def test_remote_mode_rejects_key_file_beside_sqlite_database(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        deployment_mode="remote",
+        auth_mode="password",
+        cookie_secure=True,
+        debug=False,
+        cors_origins=["https://applykit.example.com"],
+        database_url=f"sqlite:///{tmp_path / 'applykit.db'}",
+        credential_encryption_key_file=str(tmp_path / "credential.key"),
+    )
+
+    with pytest.raises(DeploymentSecurityError) as exc_info:
+        validate_deployment_security(settings)
+
+    assert "separate storage location" in str(exc_info.value)
 
 
 def test_remote_mode_accepts_hardened_configuration() -> None:

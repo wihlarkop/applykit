@@ -31,4 +31,14 @@ describe('credential secret policy', () => {
     expect(credentialsPanel).toContain("newSecret = ''");
     expect(credentialsPanel).toContain("editValue = ''");
   });
+
+  test('cancelling or changing providers clears the add-credential draft', () => {
+    expect(credentialsPanel).toContain('function closeAddForm()');
+    expect(credentialsPanel).toContain('function toggleAddForm()');
+    expect(credentialsPanel).toContain('onclick={toggleAddForm}');
+    expect(credentialsPanel).not.toContain('onclick={() => (addOpen = !addOpen)}');
+    expect(credentialsPanel).toMatch(
+      /async function loadData\(\)[\s\S]*?closeAddForm\(\);[\s\S]*?closeEditor\(\);/,
+    );
+  });
 });

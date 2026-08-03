@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - 'backend/**'
+      - 'docker-compose.yml'
       - '.github/workflows/ci-backend.yml'
   pull_request:
     paths:
       - 'backend/**'
+      - 'docker-compose.yml'
       - '.github/workflows/ci-backend.yml'
 
 jobs:
@@ -50,3 +52,62 @@ jobs:
 
       - name: Build backend container
         run: docker build --tag applykit-backend:ci ./backend
+
+      - name: Create split storage volumes
+        run: |
+          docker volume create applykit-ci-data
+          docker volume create applykit-ci-secrets
+
+      - name: Seed legacy credential key
+        run: |
+          docker run --rm \
+            --entrypoint /bin/sh \
+            --volume applykit-ci-data:/data \
+            applykit-backend:ci \
+            -c "uv run python -c \"from cryptography.fernet import Fernet; open('/data/credential.key','wb').write(Fernet.generate_key()+b'\\n')\""
+
+      - name: Start backend container with split storage
+        run: |
+          docker run --detach \
+            --name applykit-backend-ci \
+            --publish 127.0.0.1:8000:8000 \
+            --volume applykit-ci-data:/data \
+            --volume applykit-ci-secrets:/run/applykit-secrets \
+            --env DEPLOYMENT_MODE=local \
+            --env DATABASE_URL=sqlite:////data/applykit.db \
+            --env CREDENTIAL_KEY_FILE=/run/applykit-secrets/credential.key \
+            --env CREDENTIAL_LEGACY_KEY_FILE=/data/credential.key \
+            --env 'CORS_ORIGINS=["http://localhost:3000"]' \
+            applykit-backend:ci
+
+      - name: Wait for backend
+        run: |
+          for attempt in {1..30}; do
+            if ! docker ps --filter name=applykit-backend-ci --filter status=running --quiet | grep --quiet .; then
+              docker logs applykit-backend-ci
+              exit 1
+            fi
+
+            if curl --fail --silent --show-error http://localhost:8000/health > /dev/null; then
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          docker logs applykit-backend-ci
+          exit 1
+
+      - name: Verify key moved outside data volume
+        run: |
+          docker exec applykit-backend-ci test -f /run/applykit-secrets/credential.key
+          if docker exec applykit-backend-ci test -e /data/credential.key; then
+            echo "Legacy key still exists in data volume"
+            exit 1
+          fi
+
+      - name: Stop backend container
+        if: always()
+        run: |
+          docker rm --force applykit-backend-ci || true
+          docker volume rm applykit-ci-data applykit-ci-secrets || true

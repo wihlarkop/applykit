@@ -1,8 +1,9 @@
+import pytest
 from cryptography.fernet import Fernet
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from app.models import Base, ProviderCredential
+from app.models import AppSetting, Base, ProviderCredential
 from app.services.credential_crypto import CredentialCipher
 from app.services.provider_credential_vault import (
     CredentialLimitError,
@@ -161,5 +162,29 @@ def test_legacy_plaintext_key_migrates_once_and_is_cleared():
 
         assert migrate_legacy_provider_credentials(db, cipher=cipher) == 0
         assert db.query(ProviderCredential).count() == 1
+    finally:
+        db.close()
+
+
+def test_legacy_migration_rolls_back_ciphertext_and_plaintext_together():
+    db = _make_session()
+    cipher = _cipher()
+    plaintext = "applykit-secret-canary-atomic-migration"
+    try:
+        set_setting(db, "api_key_gemini", plaintext)
+
+        def fail_when_plaintext_is_being_cleared(session) -> None:
+            row = session.query(AppSetting).filter_by(key="api_key_gemini").one()
+            if row.value == "":
+                raise RuntimeError("simulated commit failure")
+
+        event.listen(db, "before_commit", fail_when_plaintext_is_being_cleared)
+        with pytest.raises(RuntimeError, match="simulated commit failure"):
+            migrate_legacy_provider_credentials(db, cipher=cipher)
+        event.remove(db, "before_commit", fail_when_plaintext_is_being_cleared)
+        db.rollback()
+
+        assert db.query(ProviderCredential).count() == 0
+        assert get_setting(db, "api_key_gemini") == plaintext
     finally:
         db.close()

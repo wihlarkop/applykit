@@ -3,6 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -26,7 +27,7 @@ class Settings(BaseSettings):
     # Credential vault
     # Managed deployments may provide a Fernet key directly or through an
     # externally mounted file. Local installs use the writable fallback path.
-    credential_encryption_key: str | None = None
+    credential_encryption_key: SecretStr | None = None
     credential_encryption_key_file: str | None = None
     credential_key_file: str = ".applykit/credential.key"
     credential_legacy_key_file: str | None = None

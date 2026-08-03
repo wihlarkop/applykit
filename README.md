@@ -10,7 +10,7 @@
 
 ApplyKit stores profiles, generated documents, application history, and provider credentials on infrastructure you control. No subscription is required.
 
-> ApplyKit defaults to local mode without login. Keep that mode on localhost. Remote deployments should enable protected mode and use HTTPS, or be placed behind an authentication proxy.
+> ApplyKit defaults to `DEPLOYMENT_MODE=local`, binds the manual backend to loopback, and rejects non-loopback browser origins. Remote deployments fail startup unless the required authentication, HTTPS, cookie, CORS, and credential-key protections are configured.
 
 ## Highlights
 
@@ -36,7 +36,12 @@ cd applykit
 docker compose up --build
 ```
 
-Open `http://localhost:3000`. The backend is available at `http://localhost:8000`, and persistent data is stored in the Docker volume `applykit_applykit-data`.
+Open `http://localhost:3000`. The backend is available at `http://localhost:8000`.
+
+Docker uses two persistent volumes:
+
+- `applykit_applykit-data` for SQLite and application data;
+- `applykit_applykit-secrets` for the local credential encryption key.
 
 ### Manual development setup
 
@@ -57,18 +62,37 @@ make backend     # http://localhost:8000
 make frontend    # http://localhost:5173
 ```
 
-## Optional Protected Mode
+The manual backend binds to `127.0.0.1` in local mode.
 
-ApplyKit supports two startup modes:
+## Deployment Modes
+
+ApplyKit has an explicit deployment boundary:
 
 ```env
-AUTH_MODE=disabled  # default; localhost only
+DEPLOYMENT_MODE=local   # default; loopback-only browser origins
+DEPLOYMENT_MODE=remote  # protected HTTPS deployment
+```
+
+Local mode allows:
+
+```env
+AUTH_MODE=disabled
+COOKIE_SECURE=false
+CORS_ORIGINS=["http://localhost:5173"]
+```
+
+Local mode rejects LAN addresses, public domains, wildcard origins, credential-bearing URLs, and origins containing paths, queries, or fragments. Switch deliberately to remote mode before exposing ApplyKit beyond loopback.
+
+### Optional protected mode
+
+```env
+AUTH_MODE=disabled  # local mode only
 AUTH_MODE=password  # single-owner protected mode
 ```
 
 Protected mode secures the whole installation and every career profile with one owner password. It does not create separate accounts for individual profiles.
 
-When password mode is enabled, the browser redirects an unclaimed installation to `/setup` and an existing protected installation to `/login`. The normal local flow remains unchanged when authentication is disabled.
+When password mode is enabled, the browser redirects an unclaimed installation to `/setup` and an existing protected installation to `/login`.
 
 ### First owner setup
 
@@ -111,27 +135,36 @@ Password changes and signing out other devices are available under **Settings �
 
 ### Remote HTTPS deployment
 
-For localhost over HTTP:
+Remote mode is fail-closed. The backend will not start unless all required protections are present:
 
 ```env
-COOKIE_SECURE=false
-```
-
-For remote protected mode, serve the frontend and API from the same hostname. A reverse proxy can expose the frontend at `/` and forward `/api` to the backend. This is required so the browser can read the CSRF cookie and send it with mutation requests.
-
-```env
+DEPLOYMENT_MODE=remote
 AUTH_MODE=password
 COOKIE_SECURE=true
+DEBUG=false
 CORS_ORIGINS=["https://applykit.example.com"]
+CREDENTIAL_ENCRYPTION_KEY_FILE=/run/secrets/applykit_credential_key
 ```
 
-Build the frontend with the same-origin API path:
+You may provide `CREDENTIAL_ENCRYPTION_KEY` directly instead of a mounted key file, but configure exactly one source. Prefer a platform-managed secret file where available.
+
+Serve the frontend and API from the same hostname. A reverse proxy can expose the frontend at `/` and forward `/api` to the backend. Build the frontend with the browser-reachable same-origin API path:
 
 ```bash
 VITE_API_BASE_URL=https://applykit.example.com/api docker compose up --build
 ```
 
-Do not place the browser UI at `app.example.com` while using a host-only API cookie from `api.example.com`. Do not expose protected mode through public plain HTTP. ApplyKit logs a warning when password mode starts with `COOKIE_SECURE=false`.
+Remote startup is rejected when:
+
+- authentication is disabled;
+- secure cookies are disabled;
+- debug mode is enabled;
+- a CORS origin uses HTTP or a wildcard;
+- an origin contains credentials, paths, queries, or fragments;
+- no external credential encryption key is configured;
+- two encryption-key sources are configured at the same time.
+
+Do not place the browser UI at `app.example.com` while using a host-only API cookie from `api.example.com`. Do not expose ApplyKit through public plain HTTP.
 
 ### Forgotten password
 
@@ -154,11 +187,11 @@ The reset command asks for the new password twice, clears login lockout, and sig
 DEBUG=false
 → /docs, /redoc, and /openapi.json are disabled
 
-DEBUG=true + AUTH_MODE=disabled
-→ API documentation is public
+DEBUG=true + DEPLOYMENT_MODE=local + AUTH_MODE=disabled
+→ API documentation is public on loopback
 
-DEBUG=true + AUTH_MODE=password
-→ API documentation requires a valid session
+DEPLOYMENT_MODE=remote
+→ DEBUG=true is rejected at startup
 ```
 
 ## AI Providers and Credentials
@@ -175,41 +208,92 @@ Manual routing is the default. Automatic modes require at least two enabled cred
 
 Ollama does not require an API key. Some non-AI features remain usable without configuring a provider.
 
-## Credential Security and Backups
+### Provider-key precautions
 
-Provider secrets are encrypted before being stored. The API and frontend receive masked values only.
+Use a dedicated API key for ApplyKit rather than reusing an administrator key. Where the provider supports them, apply:
 
-Local installations create:
+- the minimum required permissions;
+- spending and rate limits;
+- separate keys for personal and work environments;
+- periodic rotation;
+- immediate revocation after suspected exposure.
+
+## Credential Security
+
+Provider secrets are encrypted with Fernet before database persistence. The database stores encrypted ciphertext, a masked display value, a keyed duplicate-detection fingerprint, and operational metadata. API responses and the frontend receive masked values only.
+
+Credential input remains in component-local browser state and is not written to `localStorage` or `sessionStorage`. Provider failures return fixed public messages, and credential-bearing exception text is excluded from application logs and usage records.
+
+Local installations create a persistent fallback key at:
 
 ```text
 backend/.applykit/credential.key
 ```
 
-Back up this file together with `backend/applykit.db`. Encrypted credentials cannot be recovered without the same key.
+Docker stores the active key separately at:
 
-Docker stores both the SQLite database and encryption key in `/data`. Back up the complete volume:
+```text
+/run/applykit-secrets/credential.key
+```
+
+During an upgrade, ApplyKit can migrate the old Docker key from `/data/credential.key`. It copies the key atomically, verifies every encrypted credential, and removes the old key only after successful validation. If validation fails, startup stops and the old key is preserved.
+
+ApplyKit will not create a replacement key when encrypted credentials already exist. A missing, wrong, or corrupted key causes startup to fail rather than silently making stored credentials unreadable.
+
+Generate a Fernet key with:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Never commit an encryption key, bake it into a container image, or print it in CI logs.
+
+## Backup and Restore
+
+Treat the database and encryption key as separate sensitive assets. Both are needed to restore encrypted provider credentials, but they should not be kept in the same unrestricted backup location.
+
+Back up Docker application data:
+
+```bash
+mkdir -p backups/data backups/secrets
+
+docker run --rm \
+  -v applykit_applykit-data:/source:ro \
+  -v "$(pwd)/backups/data":/backup \
+  alpine tar czf /backup/applykit-data.tar.gz -C /source .
+```
+
+Back up the local Docker encryption key separately:
 
 ```bash
 docker run --rm \
-  -v applykit_applykit-data:/data \
-  -v "$(pwd)":/backup \
-  alpine tar czf /backup/applykit-backup.tar.gz /data
+  -v applykit_applykit-secrets:/source:ro \
+  -v "$(pwd)/backups/secrets":/backup \
+  alpine tar czf /backup/applykit-secrets.tar.gz -C /source .
 ```
 
-For managed deployments, set a persistent Fernet key:
+Store and access-control these archives separately. A database backup alone cannot decrypt provider credentials. A key alone does not contain the credentials. Anyone who obtains both may be able to decrypt them.
 
-```env
-CREDENTIAL_ENCRYPTION_KEY=<persistent-fernet-key>
-MAX_PROVIDER_CREDENTIALS=20
-```
+Losing the encryption key makes existing encrypted credentials unrecoverable. Revoke and replace the affected keys at each provider.
 
-Never rotate or delete the encryption key without first migrating stored credentials.
+Do not change or delete the encryption key without a supported credential-rotation procedure. ApplyKit does not yet provide encryption-key rotation or a rotation UI.
+
+## Security Boundaries
+
+Credential encryption materially reduces exposure from a database-only leak, but it cannot protect against every threat. ApplyKit does not claim protection from:
+
+- an administrator or attacker with access to both the database and encryption key;
+- malware or a malicious browser extension observing a key while it is entered;
+- memory inspection by a privileged attacker during a provider request;
+- a compromised AI provider account;
+- secrets already copied into historical backups or external logs before an upgrade.
 
 ## Configuration
 
-Common backend variables in `backend/.env`:
+Common local backend variables in `backend/.env`:
 
 ```env
+DEPLOYMENT_MODE=local
 DATABASE_URL=sqlite:///./applykit.db
 AUTH_MODE=disabled
 COOKIE_SECURE=false
@@ -219,7 +303,19 @@ CREDENTIAL_KEY_FILE=.applykit/credential.key
 MAX_PROVIDER_CREDENTIALS=20
 ```
 
-For a remote frontend build, use the browser-reachable same-host API URL described under protected mode.
+Managed remote deployments must configure either:
+
+```env
+CREDENTIAL_ENCRYPTION_KEY=<persistent-fernet-key>
+```
+
+or:
+
+```env
+CREDENTIAL_ENCRYPTION_KEY_FILE=/run/secrets/applykit_credential_key
+```
+
+For a remote frontend build, use the browser-reachable same-host API URL described under remote HTTPS deployment.
 
 ## Stack
 
@@ -227,6 +323,7 @@ For a remote frontend build, use the browser-reachable same-host API URL describ
 - **Backend:** FastAPI, Python 3.12, SQLAlchemy, Alembic
 - **Database:** SQLite by default
 - **Authentication:** optional Argon2id owner password and opaque database sessions
+- **Credential encryption:** Fernet authenticated encryption
 - **AI:** LiteLLM
 - **PDF:** WeasyPrint
 - **Scraping:** direct ATS APIs, Jina Reader, and Crawl4AI fallback

@@ -90,7 +90,7 @@ async def generic_exception_handler(
     method = getattr(request, "method", "UNKNOWN")
     path = getattr(getattr(request, "url", None), "path", "unknown")
     logger.error(
-        "Unhandled exception method=%s path=%s error_type=%s locations=%s",
+        "Unhandled exception for %s %s error_type=%s locations=%s",
         method,
         path,
         safe_exception_type(exc),

@@ -4,6 +4,7 @@ from fastapi.sse import ServerSentEvent
 
 from app.exceptions.base import AppError
 from app.exceptions.infrastructure import InternalApplicationError, RateLimitError
+from app.security.secrets import safe_exception_type, safe_traceback_locations
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,9 @@ def stream_error_event(exc: Exception) -> ServerSentEvent:
         event = "error"
     else:
         logger.error(
-            "Unhandled streaming exception",
-            exc_info=(type(exc), exc, exc.__traceback__),
+            "Unhandled streaming exception error_type=%s locations=%s",
+            safe_exception_type(exc),
+            safe_traceback_locations(exc),
         )
         public_error = InternalApplicationError()
         event = "error"

@@ -15,14 +15,21 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    # Deployment boundary
+    # local: loopback-only access, no login required by default
+    # remote: fail-closed protected mode for HTTPS deployments
+    deployment_mode: Literal["local", "remote"] = "local"
+
     # Database
     database_url: str = "sqlite:///./applykit.db"
 
     # Credential vault
-    # Supply a Fernet key through CREDENTIAL_ENCRYPTION_KEY in managed
-    # deployments. Local installs automatically create the fallback key file.
+    # Managed deployments may provide a Fernet key directly or through an
+    # externally mounted file. Local installs use the writable fallback path.
     credential_encryption_key: str | None = None
+    credential_encryption_key_file: str | None = None
     credential_key_file: str = ".applykit/credential.key"
+    credential_legacy_key_file: str | None = None
     max_provider_credentials: int = 20
 
     # Community authentication

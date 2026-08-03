@@ -103,7 +103,7 @@ def _deactivate_provider_credentials(db: Session, provider_id: str) -> None:
     ).update({"is_active": False}, synchronize_session=False)
 
 
-def create_provider_credential(
+def _create_provider_credential_pending(
     db: Session,
     *,
     provider_id: str,
@@ -113,6 +113,7 @@ def create_provider_credential(
     activate: bool | None = None,
     max_credentials: int = DEFAULT_MAX_PROVIDER_CREDENTIALS,
 ) -> ProviderCredential:
+    """Stage an encrypted credential without committing the transaction."""
     provider_id = provider_id.strip()
     label = label.strip()
     secret = secret.strip()
@@ -159,6 +160,28 @@ def create_provider_credential(
         health_status="unknown",
     )
     db.add(credential)
+    return credential
+
+
+def create_provider_credential(
+    db: Session,
+    *,
+    provider_id: str,
+    label: str,
+    secret: str,
+    cipher: CredentialCipher | None = None,
+    activate: bool | None = None,
+    max_credentials: int = DEFAULT_MAX_PROVIDER_CREDENTIALS,
+) -> ProviderCredential:
+    credential = _create_provider_credential_pending(
+        db,
+        provider_id=provider_id,
+        label=label,
+        secret=secret,
+        cipher=cipher,
+        activate=activate,
+        max_credentials=max_credentials,
+    )
     db.commit()
     db.refresh(credential)
     return credential
@@ -355,20 +378,28 @@ def migrate_legacy_provider_credentials(
             .filter_by(provider_id=provider.id)
             .first()
         )
-        if not existing:
-            create_provider_credential(
-                db,
-                provider_id=provider.id,
-                label="Default",
-                secret=plaintext,
-                cipher=selected_cipher,
-                activate=True,
-            )
-            migrated += 1
+        created = False
+        try:
+            if not existing:
+                _create_provider_credential_pending(
+                    db,
+                    provider_id=provider.id,
+                    label="Default",
+                    secret=plaintext,
+                    cipher=selected_cipher,
+                    activate=True,
+                )
+                created = True
 
-        _clear_plain_setting(db, provider_key_name)
-        if used_legacy_global:
-            _clear_plain_setting(db, "llm_api_key")
-        db.commit()
+            _clear_plain_setting(db, provider_key_name)
+            if used_legacy_global:
+                _clear_plain_setting(db, "llm_api_key")
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+
+        if created:
+            migrated += 1
 
     return migrated

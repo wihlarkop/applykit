@@ -1,16 +1,38 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 CredentialStrategyName = Literal["manual", "failover", "round_robin"]
 
 
+class CredentialSecret(SecretStr):
+    """Secret string compatible with existing narrow `.strip()` boundaries."""
+
+    def strip(self) -> str:
+        return self.get_secret_value().strip()
+
+
+def _validate_secret_length(
+    value: CredentialSecret | None,
+) -> CredentialSecret | None:
+    if value is None:
+        return None
+    length = len(value.get_secret_value())
+    if length < 1:
+        raise ValueError("Credential secret is required.")
+    if length > 4096:
+        raise ValueError("Credential secret must be 4096 characters or fewer.")
+    return value
+
+
 class ProviderSettingsRequest(BaseModel):
     model: str
-    api_key: str | None = None
+    api_key: CredentialSecret | None = None
     activate: bool = True
     base_url: str | None = None
+
+    _validate_api_key = field_validator("api_key")(_validate_secret_length)
 
 
 class CredentialIntegrationInfo(BaseModel):
@@ -57,13 +79,17 @@ class ProviderCredentialsResponse(BaseModel):
 
 class CreateProviderCredentialRequest(BaseModel):
     label: str = Field(min_length=1, max_length=80)
-    secret: str = Field(min_length=1, max_length=4096)
+    secret: CredentialSecret
     activate: bool = False
+
+    _validate_secret = field_validator("secret")(_validate_secret_length)
 
 
 class UpdateProviderCredentialRequest(BaseModel):
     label: str | None = Field(default=None, min_length=1, max_length=80)
-    secret: str | None = Field(default=None, min_length=1, max_length=4096)
+    secret: CredentialSecret | None = None
+
+    _validate_secret = field_validator("secret")(_validate_secret_length)
 
 
 class CredentialPolicyResponse(BaseModel):

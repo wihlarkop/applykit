@@ -72,6 +72,7 @@ def test_save_replace_migrate_and_disconnect_leave_no_plaintext_canary(
             )
             clear_provider_credentials(db, "openai")
 
+        with factory() as db:
             set_setting(db, "api_key_gemini", legacy_secret)
             assert migrate_legacy_provider_credentials(db, cipher=cipher) == 1
             clear_provider_credentials(db, "gemini")

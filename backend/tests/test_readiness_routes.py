@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.exceptions import ProfileNotFoundError
-from app.models import AppSetting, Base, Profile, ProviderCredential
+from app.models import AppSetting, Base, Profile
 from app.readiness.ai import record_active_connection_result, resolve_active_ai_configuration
 from app.readiness.schemas import ReadinessProfileRequest
 from app.routes.readiness import (

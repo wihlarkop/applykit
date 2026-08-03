@@ -11,6 +11,7 @@ from app.models import (
     ProviderCredential,
 )
 from app.readiness.onboarding import (
+    ONBOARDING_INSTALLATION_KEY,
     ONBOARDING_VERSION_KEY,
     get_or_initialize_onboarding_state,
     infer_installation_state,
@@ -50,6 +51,33 @@ def test_auto_created_empty_default_profile_is_still_fresh() -> None:
         state = get_or_initialize_onboarding_state(db)
         assert state.seen is False
         assert state.should_redirect is True
+        assert get_setting(db, ONBOARDING_VERSION_KEY) is None
+    finally:
+        db.close()
+
+
+def test_fresh_classification_is_persisted_before_setup_data_changes() -> None:
+    db = make_session()
+    try:
+        profile = empty_profile()
+        db.add(profile)
+        db.commit()
+
+        first = get_or_initialize_onboarding_state(db)
+        assert first.seen is False
+        assert first.should_redirect is True
+        assert get_setting(db, ONBOARDING_INSTALLATION_KEY) == "fresh"
+
+        profile.name = "Wihlarko"
+        profile.email = "w@example.com"
+        profile.skills = '["Python"]'
+        profile.work_experience = '[{"company":"Example","role":"Engineer"}]'
+        db.add(AppSetting(key="llm_provider", value="ollama/llama3.2"))
+        db.commit()
+
+        second = get_or_initialize_onboarding_state(db)
+        assert second.seen is False
+        assert second.should_redirect is True
         assert get_setting(db, ONBOARDING_VERSION_KEY) is None
     finally:
         db.close()
@@ -151,6 +179,7 @@ def test_existing_installation_is_initialized_once_without_redirect() -> None:
         assert first.skipped is False
         assert first.should_redirect is False
         assert second == first
+        assert get_setting(db, ONBOARDING_INSTALLATION_KEY) == "existing"
         assert get_setting(db, ONBOARDING_VERSION_KEY) == "1"
     finally:
         db.close()

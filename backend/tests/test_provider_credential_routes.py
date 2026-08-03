@@ -1,7 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.credential_schemas import CreateProviderCredentialRequest
+from app.credential_schemas import (
+    CreateProviderCredentialRequest,
+    ProviderSettingsRequest,
+    UpdateProviderCredentialRequest,
+)
 from app.models import Base
 from app.routes.settings import (
     activate_credential,
@@ -17,6 +21,23 @@ def _make_session():
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)()
+
+
+def test_credential_request_models_hide_secret_in_repr_and_json() -> None:
+    canary = "applykit-secret-canary-schema-1f25"
+    requests = [
+        ProviderSettingsRequest(model="openai/gpt-5-mini", api_key=canary),
+        CreateProviderCredentialRequest(
+            label="Personal",
+            secret=canary,
+            activate=True,
+        ),
+        UpdateProviderCredentialRequest(secret=canary),
+    ]
+
+    for request in requests:
+        assert canary not in repr(request)
+        assert canary not in request.model_dump_json()
 
 
 def test_credentials_api_never_returns_raw_secret():

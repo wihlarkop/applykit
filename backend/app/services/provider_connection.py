@@ -4,6 +4,7 @@ import litellm
 
 from app.public_errors import PROVIDER_CONNECTION_ERROR_MESSAGE
 from app.schemas import TestConnectionResponse
+from app.security.secrets import safe_exception_type
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +35,9 @@ def test_provider_connection(
         return TestConnectionResponse(ok=False, message="LLM returned empty response.")
     except Exception as exc:
         logger.warning(
-            "LLM connection test failed for model %s",
+            "LLM connection test failed model=%s error_type=%s",
             model_id,
-            exc_info=(type(exc), exc, exc.__traceback__),
+            safe_exception_type(exc),
         )
         return TestConnectionResponse(
             ok=False,

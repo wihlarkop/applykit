@@ -26,8 +26,9 @@ RUN uv sync --frozen --no-dev
 # Copy application code
 COPY . .
 
-# Directory for persistent SQLite database (mount a volume here)
-RUN mkdir -p /data
+# Persistent application data and the local credential key use separate mounts.
+RUN mkdir -p /data /run/applykit-secrets \
+    && chmod 700 /run/applykit-secrets
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

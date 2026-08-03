@@ -1,3 +1,4 @@
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -186,6 +187,22 @@ def test_remote_external_key_must_decrypt_every_credential(tmp_path: Path) -> No
     )
     with pytest.raises(CredentialVaultStartupError):
         initialize_credential_vault(invalid, session_factory=factory)
+
+
+def test_outdated_database_schema_reports_migration_guidance(tmp_path: Path) -> None:
+    factory = _factory(tmp_path)
+    database_path = tmp_path / "applykit.db"
+    with sqlite3.connect(database_path) as db:
+        db.execute("ALTER TABLE provider_credential DROP COLUMN version")
+
+    settings = _settings(tmp_path)
+
+    with pytest.raises(CredentialVaultStartupError) as exc_info:
+        initialize_credential_vault(settings, session_factory=factory)
+
+    message = str(exc_info.value)
+    assert "make migrate" in message
+    assert "encryption key cannot decrypt" not in message
 
 
 def test_startup_error_never_contains_sensitive_values(tmp_path: Path) -> None:

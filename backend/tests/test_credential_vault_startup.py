@@ -185,8 +185,12 @@ def test_remote_external_key_must_decrypt_every_credential(tmp_path: Path) -> No
         deployment_mode="remote",
         credential_encryption_key=Fernet.generate_key().decode(),
     )
-    with pytest.raises(CredentialVaultStartupError):
+    with pytest.raises(CredentialVaultStartupError) as exc_info:
         initialize_credential_vault(invalid, session_factory=factory)
+
+    message = str(exc_info.value)
+    assert "encryption key cannot decrypt" in message
+    assert "make migrate" not in message
 
 
 def test_outdated_database_schema_reports_migration_guidance(tmp_path: Path) -> None:
@@ -196,6 +200,9 @@ def test_outdated_database_schema_reports_migration_guidance(tmp_path: Path) -> 
         db.execute("ALTER TABLE provider_credential DROP COLUMN version")
 
     settings = _settings(tmp_path)
+    active = Path(settings.credential_key_file)
+    active.parent.mkdir(parents=True)
+    active.write_bytes(Fernet.generate_key() + b"\n")
 
     with pytest.raises(CredentialVaultStartupError) as exc_info:
         initialize_credential_vault(settings, session_factory=factory)
@@ -203,6 +210,7 @@ def test_outdated_database_schema_reports_migration_guidance(tmp_path: Path) -> 
     message = str(exc_info.value)
     assert "make migrate" in message
     assert "encryption key cannot decrypt" not in message
+    assert active.exists()
 
 
 def test_startup_error_never_contains_sensitive_values(tmp_path: Path) -> None:

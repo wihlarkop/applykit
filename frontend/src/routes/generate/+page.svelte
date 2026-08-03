@@ -3,6 +3,7 @@
   import { generateCvPdf, generateCvStream, getProfile } from '$lib/api';
   import { authState } from '$lib/auth-state.svelte';
   import AiReadinessNotice from '$lib/components/AiReadinessNotice.svelte';
+  import type { ReadinessResponse } from '$lib/readiness-types';
   import CvPreview from '$lib/components/CvPreview.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
@@ -26,11 +27,13 @@
   }
 
   let { data } = $props();
-  let readiness = $state(data.readiness);
+  let readinessOverride = $state<ReadinessResponse | null>(null);
+  const readiness = $derived(readinessOverride ?? data.readiness);
   const aiReady = $derived(readiness?.ai.ready ?? false);
 
   $effect(() => {
-    readiness = data.readiness;
+    data.readiness;
+    readinessOverride = null;
   });
 
   let profile: ProfileData | null = $state(null);
@@ -166,7 +169,7 @@
       <AiReadinessNotice
         ai={readiness.ai}
         profileId={data.activeProfileId}
-        onrefreshed={(next) => (readiness = next)}
+        onrefreshed={(next) => (readinessOverride = next)}
       />
     </div>
   {/if}

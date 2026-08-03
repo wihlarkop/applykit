@@ -24,7 +24,8 @@
   } from '@lucide/svelte';
 
   let { data } = $props();
-  let readiness = $state<ReadinessResponse | null>(data.readiness);
+  let readinessOverride = $state<ReadinessResponse | null>(null);
+  const readiness = $derived(readinessOverride ?? data.readiness);
   let testing = $state(false);
   let skipping = $state(false);
   let completing = $state(false);
@@ -34,6 +35,11 @@
   const profile = $derived(readiness?.profile ?? null);
   const ai = $derived(readiness?.ai ?? null);
   const isReady = $derived(readiness?.applykit_ready ?? false);
+
+  $effect(() => {
+    data.readiness;
+    readinessOverride = null;
+  });
 
   const requirementLabels: Record<string, string> = {
     name: 'Add your name',
@@ -45,7 +51,7 @@
   async function refreshReadiness(): Promise<ReadinessResponse | null> {
     if (profileId == null) return null;
     const next = await getReadiness(profileId);
-    readiness = next;
+    readinessOverride = next;
     return next;
   }
 
@@ -53,7 +59,7 @@
     if (!next?.applykit_ready || next.onboarding.seen || profileId == null || completing) return;
     completing = true;
     try {
-      readiness = await completeOnboarding(profileId);
+      readinessOverride = await completeOnboarding(profileId);
     } catch {
       publicError = 'ApplyKit is ready, but setup could not be finalized. Try refreshing the page.';
     } finally {

@@ -9,6 +9,7 @@
   } from '$lib/api';
   import { authState } from '$lib/auth-state.svelte';
   import AiReadinessNotice from '$lib/components/AiReadinessNotice.svelte';
+  import type { ReadinessResponse } from '$lib/readiness-types';
   import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
   import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
   import { Button } from '$lib/components/ui/button';
@@ -46,11 +47,13 @@
   }
 
   let { data } = $props();
-  let readiness = $state(data.readiness);
+  let readinessOverride = $state<ReadinessResponse | null>(null);
+  const readiness = $derived(readinessOverride ?? data.readiness);
   const aiReady = $derived(readiness?.ai.ready ?? false);
 
   $effect(() => {
-    readiness = data.readiness;
+    data.readiness;
+    readinessOverride = null;
   });
 
   // --- Form state ---
@@ -361,7 +364,7 @@
       <AiReadinessNotice
         ai={readiness.ai}
         profileId={data.activeProfileId}
-        onrefreshed={(next) => (readiness = next)}
+        onrefreshed={(next) => (readinessOverride = next)}
       />
     </div>
   {/if}

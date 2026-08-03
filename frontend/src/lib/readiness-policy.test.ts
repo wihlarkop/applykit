@@ -70,6 +70,14 @@ describe('readiness UX policy', () => {
     expect(smartApply).toContain('bind:value={jobUrl}');
   });
 
+  test('readiness state does not capture only the initial prop value', () => {
+    const checklist = source('./components/ReadinessChecklist.svelte');
+    expect(checklist).not.toMatch(/\$state(?:<[^>]+>)?\(readiness\)/);
+    for (const pageSource of [onboarding, generate, coverLetter, smartApply]) {
+      expect(pageSource).not.toMatch(/\$state(?:<[^>]+>)?\(data\.readiness\)/);
+    }
+  });
+
   test('policy inputs remain tracked while later tasks migrate dashboard and AI pages', () => {
     expect(dashboard.length).toBeGreaterThan(0);
     expect(generate.length).toBeGreaterThan(0);

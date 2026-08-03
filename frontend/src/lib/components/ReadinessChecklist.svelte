@@ -26,13 +26,15 @@
     readiness: ReadinessResponse;
   } = $props();
 
-  let current = $state(readiness);
+  let currentOverride = $state<ReadinessResponse | null>(null);
+  const current = $derived(currentOverride ?? readiness);
   let testing = $state(false);
   let dismissing = $state(false);
   let publicError = $state('');
 
   $effect(() => {
-    current = readiness;
+    readiness;
+    currentOverride = null;
     publicError = '';
   });
 
@@ -41,7 +43,7 @@
   );
 
   async function refresh() {
-    current = await getReadiness(current.profile.profile_id);
+    currentOverride = await getReadiness(current.profile.profile_id);
   }
 
   async function testConnection() {
@@ -63,7 +65,7 @@
     dismissing = true;
     publicError = '';
     try {
-      current = await dismissReadinessChecklist(current.profile.profile_id);
+      currentOverride = await dismissReadinessChecklist(current.profile.profile_id);
     } catch {
       publicError = 'The readiness summary could not be dismissed. Please try again.';
     } finally {

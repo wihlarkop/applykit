@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from ipaddress import ip_address
+from pathlib import Path
 from urllib.parse import urlsplit
+
+from sqlalchemy.engine import make_url
 
 from app.config import Settings
 from app.security.secrets import reveal_secret
@@ -44,6 +47,18 @@ def is_loopback_origin(origin: str) -> bool:
         return ip_address(hostname or "").is_loopback
     except ValueError:
         return False
+
+
+def _sqlite_database_parent(database_url: str) -> Path | None:
+    try:
+        url = make_url(database_url)
+    except Exception:
+        return None
+    if not url.drivername.startswith("sqlite"):
+        return None
+    if not url.database or url.database == ":memory:":
+        return None
+    return Path(url.database).expanduser().resolve().parent
 
 
 def validate_deployment_security(settings: Settings) -> None:
@@ -88,6 +103,20 @@ def validate_deployment_security(settings: Settings) -> None:
             violations.append(
                 "Remote mode requires an external credential encryption key."
             )
+
+        if settings.credential_encryption_key_file:
+            database_parent = _sqlite_database_parent(settings.database_url)
+            key_parent = (
+                Path(settings.credential_encryption_key_file)
+                .expanduser()
+                .resolve()
+                .parent
+            )
+            if database_parent is not None and database_parent == key_parent:
+                violations.append(
+                    "Remote SQLite deployments must keep the credential key file "
+                    "in a separate storage location from the database."
+                )
 
     if violations:
         details = "\n".join(f"- {violation}" for violation in violations)

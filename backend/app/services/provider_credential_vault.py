@@ -221,6 +221,7 @@ def replace_provider_credential_secret(
     credential.encrypted_secret = selected_cipher.encrypt(secret)
     credential.masked_secret = mask_credential(secret)
     credential.fingerprint = fingerprint
+    credential.version = int(credential.version or 1) + 1
     credential.health_status = "unknown"
     credential.consecutive_failures = 0
     credential.cooldown_until = None

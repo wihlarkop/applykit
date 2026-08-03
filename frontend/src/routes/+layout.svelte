@@ -15,7 +15,6 @@
   import '../app.css';
 
   let { data, children } = $props();
-  const isOnboarded = $derived(data.isOnboarded);
   const isAuthRoute = $derived(data.isAuthRoute);
   const onSettings = $derived(page.url.pathname.startsWith('/settings'));
   let mobileMenuOpen = $state(false);
@@ -84,12 +83,11 @@
       <div class="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between gap-3">
         <div class="flex items-center gap-4 min-w-0">
           <a
-            href={isOnboarded ? '/' : '/onboarding'}
+            href="/"
             class="font-bold text-lg tracking-tight hover:text-primary transition-colors shrink-0"
           >ApplyKit</a>
 
-          {#if isOnboarded}
-            <nav class="hidden md:flex items-center gap-1 animate-in fade-in slide-in-from-left-2 duration-500">
+          <nav class="hidden md:flex items-center gap-1 animate-in fade-in slide-in-from-left-2 duration-500">
               <a href="/" class={navClass('/')}>Dashboard</a>
               <span class="w-px h-4 bg-border mx-2 shrink-0"></span>
               <a href="/cover-letter" class={navClass('/cover-letter')}>Cover Letter</a>
@@ -101,12 +99,10 @@
               <span class="w-px h-4 bg-border mx-2 shrink-0"></span>
               <a href="/history" class={navClass('/history')}>History</a>
               <a href="/tracker" class={navClass('/tracker')}>Tracker</a>
-            </nav>
-          {/if}
+          </nav>
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-          {#if isOnboarded}
             <ProfileSwitcher />
             <ThemeToggle />
             <SettingsButton />
@@ -131,23 +127,10 @@
                 <Menu class="w-4.5 h-4.5" />
               {/if}
             </button>
-          {:else}
-            <ThemeToggle />
-            {#if authState.authMode === 'password'}
-              <button
-                type="button"
-                onclick={signOut}
-                disabled={signingOut}
-                class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
-              >
-                <LogOut class="h-4 w-4" />Sign out
-              </button>
-            {/if}
-          {/if}
         </div>
       </div>
 
-      {#if isOnboarded && mobileMenuOpen}
+      {#if mobileMenuOpen}
         <div class="md:hidden border-t border-border bg-card animate-in slide-in-from-top-2 duration-200">
           <nav class="mx-auto max-w-5xl">
             <a href="/" class={mobileNavClass('/')}>Dashboard</a>

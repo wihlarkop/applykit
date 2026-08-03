@@ -13,6 +13,8 @@ from app.services.provider_credential_vault import (
     get_active_provider_credential,
     list_provider_credentials,
     migrate_legacy_provider_credentials,
+    rename_provider_credential,
+    replace_provider_credential_secret,
 )
 from app.services.settings import get_setting, set_setting
 
@@ -186,5 +188,33 @@ def test_legacy_migration_rolls_back_ciphertext_and_plaintext_together():
 
         assert db.query(ProviderCredential).count() == 0
         assert get_setting(db, "api_key_gemini") == plaintext
+    finally:
+        db.close()
+
+
+def test_secret_replacement_increments_version_but_rename_does_not():
+    db = _make_session()
+    cipher = _cipher()
+    try:
+        credential = create_provider_credential(
+            db,
+            provider_id="openai",
+            label="Primary",
+            secret="sk-original-secret",
+            cipher=cipher,
+        )
+        assert credential.version == 1
+
+        renamed = rename_provider_credential(db, "openai", credential.id, "Renamed")
+        assert renamed.version == 1
+
+        replaced = replace_provider_credential_secret(
+            db,
+            "openai",
+            credential.id,
+            "sk-replacement-secret",
+            cipher=cipher,
+        )
+        assert replaced.version == 2
     finally:
         db.close()

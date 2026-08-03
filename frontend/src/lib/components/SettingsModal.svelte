@@ -1,7 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { goto, invalidateAll } from '$app/navigation';
-  import { page } from '$app/state';
+  import { invalidateAll } from '$app/navigation';
   import { getModels, getSettings, testConnection, updateSettings } from '$lib/api';
   import ModelSelector from '$lib/components/ModelSelector.svelte';
   import ProviderCredentialsPanel from '$lib/components/ProviderCredentialsPanel.svelte';
@@ -441,9 +440,6 @@
       );
       open = false;
       await invalidateAll();
-      if (!page.data.isOnboarded) {
-        await goto('/onboarding');
-      }
     } catch (error) {
       saveError = errorMessage(error, 'Failed to save settings.');
     } finally {

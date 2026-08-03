@@ -21,6 +21,11 @@ from app.llm.catalog import CATALOG, get_provider
 from app.llm.model_selection import supports_custom_models, validate_model_id
 from app.llm.provider_credentials import credential_url_for_provider
 from app.llm.schemas import ModelOption, ModelsResponse, ProviderInfo
+from app.readiness.ai import (
+    ActiveAiConfiguration,
+    record_active_connection_result,
+)
+from app.readiness.schemas import ConnectionFailureCategory
 from app.schemas import (
     ActivateProviderRequest,
     SettingsResponse,
@@ -38,6 +43,7 @@ from app.services.provider_credential_vault import (
     create_provider_credential,
     decrypt_provider_credential,
     delete_provider_credential,
+    get_active_provider_credential,
     get_provider_credential,
     list_provider_credentials,
     migrate_legacy_provider_credentials,
@@ -124,6 +130,39 @@ def _policy_response(provider_id: str, db: Session) -> CredentialPolicyResponse:
         provider_id=provider_id,
         strategy=policy.strategy,
         max_attempts=policy.max_attempts,
+    )
+
+
+def _persist_active_test_result(
+    db: Session,
+    *,
+    provider_id: str,
+    model_id: str,
+    base_url: str | None,
+    credential_id: int | None,
+    credential_version: int | None,
+    result: TestConnectionResponse,
+) -> None:
+    category = None
+    if result.failure_category:
+        try:
+            category = ConnectionFailureCategory(result.failure_category)
+        except ValueError:
+            category = ConnectionFailureCategory.UNKNOWN_FAILURE
+    record_active_connection_result(
+        db,
+        tested_config=ActiveAiConfiguration(
+            provider_id=provider_id,
+            model_id=model_id,
+            base_url=base_url,
+            credential_id=credential_id,
+            credential_version=credential_version,
+        ),
+        ok=result.ok,
+        failure_category=category,
+        public_message=(
+            "Connection verified." if result.ok else result.message
+        ),
     )
 
 
@@ -299,12 +338,28 @@ def test_configured_integration(
                 message="Credential is not configured.",
             )
 
-    return test_provider_connection(
+    base_url = get_provider_base_url(db, provider_id)
+    credential = (
+        get_active_provider_credential(db, provider_id)
+        if provider_requires_api_key(provider_id)
+        else None
+    )
+    result = test_provider_connection(
         model_id,
         api_key or None,
-        api_base=get_provider_base_url(db, provider_id),
+        api_base=base_url,
         failure_message="Provider connection failed.",
     )
+    _persist_active_test_result(
+        db,
+        provider_id=provider_id,
+        model_id=model_id,
+        base_url=base_url,
+        credential_id=credential.id if credential else None,
+        credential_version=credential.version if credential else None,
+        result=result,
+    )
+    return result
 
 
 @router.get(
@@ -455,10 +510,21 @@ def test_credential(
         else get_setting(db, f"selected_model_{provider_id}")
     )
     model_id = saved_model or provider.models[0].id
+    base_url = get_provider_base_url(db, provider_id)
     result = test_provider_connection(
         model_id,
         decrypt_provider_credential(credential),
+        api_base=base_url,
         failure_message="Provider connection failed.",
+    )
+    _persist_active_test_result(
+        db,
+        provider_id=provider_id,
+        model_id=model_id,
+        base_url=base_url,
+        credential_id=credential.id,
+        credential_version=credential.version,
+        result=result,
     )
     credential.last_tested_at = datetime.now(UTC)
     credential.health_status = "healthy" if result.ok else "unhealthy"

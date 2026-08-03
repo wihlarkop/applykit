@@ -183,7 +183,7 @@
   <div class="sticky top-0 z-50 bg-background/60 backdrop-blur-xl border-b border-border/50 -mx-4 px-4 py-4 mb-8 transition-all duration-300">
     <div class="flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4 max-w-6xl mx-auto">
       <div>
-        {#if !page.data.isOnboarded}
+        {#if page.data.readiness?.onboarding.should_redirect}
           <a href="/onboarding" class="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary mb-1.5 transition-colors">
             ← Back to setup
           </a>

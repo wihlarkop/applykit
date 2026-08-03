@@ -9,6 +9,7 @@
       scrapeAnalyze,
   } from '$lib/api';
   import { authState } from '$lib/auth-state.svelte';
+  import AiReadinessNotice from '$lib/components/AiReadinessNotice.svelte';
   import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
@@ -27,6 +28,15 @@
       MapPin,
       Zap,
   } from '@lucide/svelte';
+
+
+  let { data } = $props();
+  let readiness = $state(data.readiness);
+  const aiReady = $derived(readiness?.ai.ready ?? false);
+
+  $effect(() => {
+    readiness = data.readiness;
+  });
 
   interface SmartApplyDraft {
     inputMode: 'url' | 'paste';
@@ -181,6 +191,7 @@
   async function analyze() {
     const ap = activeProfile.current;
     if (!ap) { toastState.error('Select a profile first.'); return; }
+    if (!aiReady) { toastState.error('Verify the active AI connection before analyzing a job.'); return; }
 
     const rawText = inputMode === 'paste' ? jobText.trim() : '';
     const url = inputMode === 'url' ? jobUrl.trim() : '';
@@ -219,6 +230,7 @@
   async function runFitAnalysis() {
     const ap = activeProfile.current;
     if (!ap || !scrapeResult) return;
+    if (!aiReady) { toastState.error('Verify the active AI connection before analyzing fit.'); return; }
     analysisError = '';
     fitResult = null;
     fitLoading = true;
@@ -238,6 +250,7 @@
   async function generateAndTrack() {
     const ap = activeProfile.current;
     if (!ap || !scrapeResult) return;
+    if (!aiReady) { toastState.error('Verify the active AI connection before generating documents.'); return; }
     generating = true;
 
     try {
@@ -313,6 +326,14 @@
     <p class="text-sm text-muted-foreground">Paste a job URL, tailor your documents, and track your application — in one flow.</p>
   </div>
 
+  {#if readiness && data.activeProfileId != null}
+    <AiReadinessNotice
+      ai={readiness.ai}
+      profileId={data.activeProfileId}
+      onrefreshed={(next) => (readiness = next)}
+    />
+  {/if}
+
   <!-- Step indicator -->
   <div class="flex items-center gap-2">
     <div class="flex items-center gap-1.5">
@@ -374,7 +395,7 @@
         </div>
       {/if}
 
-      <Button onclick={analyze} disabled={analysisLoading} class="w-full">
+      <Button onclick={analyze} disabled={analysisLoading || !aiReady} class="w-full">
         {#if analysisLoading}
           <Loader2 class="w-4 h-4 mr-2 animate-spin" />
           Analyzing…
@@ -448,7 +469,7 @@
         </div>
         <button
           onclick={runFitAnalysis}
-          disabled={fitLoading}
+          disabled={fitLoading || !aiReady}
           class="text-xs font-semibold underline shrink-0 disabled:opacity-50"
         >
           {fitLoading ? 'Retrying\u2026' : 'Retry'}
@@ -541,7 +562,7 @@
     <!-- Action button -->
     <Button
       onclick={generateAndTrack}
-      disabled={generating || !canGenerate}
+      disabled={generating || !canGenerate || !aiReady}
       size="lg"
       class="w-full h-12 text-base font-semibold"
     >

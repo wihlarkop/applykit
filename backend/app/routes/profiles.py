@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.dependencies import get_profile_or_404
 from app.models import Profile
+from app.readiness.profile import evaluate_profile, parse_list
 from app.schemas import (
     CreateProfileRequest,
     ProfileData,
@@ -20,30 +21,20 @@ JSON_FIELDS = {"work_experience", "education", "skills", "projects", "certificat
 
 
 def _profile_list_item(p: Profile) -> ProfileListItem:
-    we = json.loads(p.work_experience or "[]")
-    sk = json.loads(p.skills or "[]")
-    ed = json.loads(p.education or "[]")
-    score = 0
-    if p.name:
-        score += 15
-    if p.email:
-        score += 10
-    if p.summary:
-        score += 10
-    if we:
-        score += 30
-    if ed:
-        score += 20
-    if sk:
-        score += 15
+    readiness = evaluate_profile(p)
+    has_content = bool(
+        parse_list(p.work_experience)
+        or parse_list(p.education)
+        or parse_list(p.skills)
+    )
     return ProfileListItem(
         id=p.id,
         label=p.label,
         color=p.color,
         icon=p.icon,
         name=p.name,
-        has_content=bool(we or sk or ed),
-        completeness=score,
+        has_content=has_content,
+        completeness=readiness.completeness,
     )
 
 

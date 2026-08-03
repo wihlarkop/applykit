@@ -2,7 +2,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class WorkExperience(BaseModel):
@@ -232,6 +232,9 @@ class UpdateSettingsRequest(BaseModel):
 class TestConnectionResponse(BaseModel):
     ok: bool
     message: str
+    # Internal-only classification used by readiness persistence. FastAPI and
+    # model serialization continue exposing the legacy {ok, message} contract.
+    failure_category: str | None = Field(default=None, exclude=True)
 
 
 class ModelOption(BaseModel):

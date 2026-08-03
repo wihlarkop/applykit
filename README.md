@@ -28,13 +28,34 @@ ApplyKit stores profiles, generated documents, application history, and provider
 
 ## Quick Start
 
-### Docker
+> **Stable installations:** `main` contains ongoing development. For normal use,
+> check out the latest published Git tag. Contributors who want the newest
+> development changes may use `main`.
+
+### Docker from the latest stable tag
+
+POSIX shells (Linux, macOS, Git Bash, or WSL):
 
 ```bash
 git clone https://github.com/wihlarkop/applykit.git
 cd applykit
+git fetch --tags
+git checkout "$(git describe --tags --abbrev=0)"
 docker compose up --build
 ```
+
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/wihlarkop/applykit.git
+cd applykit
+git fetch --tags
+$tag = git describe --tags --abbrev=0
+git checkout $tag
+docker compose up --build
+```
+
+A detached `HEAD` is expected when running a stable tag. When intentionally upgrading, back up ApplyKit first, stop the containers, run `git fetch --tags`, check out the newer tag, and rebuild. Do not switch a production installation to `main` merely to receive unreleased changes.
 
 Open `http://localhost:3000`. The backend is available at `http://localhost:8000`.
 
@@ -43,13 +64,15 @@ Docker uses two persistent volumes:
 - `applykit_applykit-data` for SQLite and application data;
 - `applykit_applykit-secrets` for the local credential encryption key.
 
-### Manual development setup
+### Manual development setup from `main`
 
-Requirements: [uv](https://docs.astral.sh/uv/) and [Bun](https://bun.sh/).
+This path is intended for contributors and development testing. Requirements: [uv](https://docs.astral.sh/uv/) and [Bun](https://bun.sh/).
 
 ```bash
 git clone https://github.com/wihlarkop/applykit.git
 cd applykit
+git switch main
+git pull --ff-only
 cp backend/.env.example backend/.env
 make install
 make migrate
@@ -63,6 +86,25 @@ make frontend    # http://localhost:5173
 ```
 
 The manual backend binds to `127.0.0.1` in local mode.
+
+## Guided Setup and Readiness
+
+A fresh installation opens the guided setup once. **Skip for now** records that the setup was seen and opens the dashboard without locking Profile, Tracker, history, or other non-AI features. The dashboard keeps a readiness checklist available until the active profile and AI connection are ready.
+
+Existing installations are detected from meaningful profile data, generated documents, applications, selected models, or saved provider credentials. Upgrading does not force those installations through onboarding and does not alter existing profile or provider configuration.
+
+**Profile Ready** follows the profile currently selected in the UI. It requires:
+
+- a name;
+- an email address;
+- at least one work-experience or education entry;
+- at least one skill.
+
+The separate 0–100% completeness score is advisory. Optional recommendations such as a professional summary, projects, or certifications do not block readiness and do not guarantee hiring outcomes.
+
+**AI Ready** requires an active provider and model, an active credential when the provider needs one, and a successful connection test for that exact configuration. Existing provider configurations require one connection retest after upgrading so ApplyKit can establish the new trusted fingerprint. Ollama remains supported without an API key.
+
+A successful result becomes stale when the provider, model, normalized Base URL, active credential, or credential secret version changes. The checklist can be dismissed globally, but it reappears automatically when its readiness fingerprint changes. Readiness responses contain only identifiers, status, timestamps, and sanitized public messages; they never return provider secrets or raw provider exceptions.
 
 ## Deployment Modes
 

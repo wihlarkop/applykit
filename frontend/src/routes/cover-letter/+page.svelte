@@ -8,6 +8,7 @@
       scrapeAnalyze,
   } from '$lib/api';
   import { authState } from '$lib/auth-state.svelte';
+  import AiReadinessNotice from '$lib/components/AiReadinessNotice.svelte';
   import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
   import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
   import { Button } from '$lib/components/ui/button';
@@ -22,7 +23,7 @@
   import type { FitAnalysisResponse, ProfileData, Tone } from '$lib/types';
   import { errorMessage } from '$lib/utils';
   import {
-      ArrowRight, Check, ChevronDown, Copy, Download, Link, Loader2, Lock, Mail,
+      ArrowRight, Check, ChevronDown, Copy, Download, Link, Loader2, Mail,
       MapPin, Pencil, Sparkles, TrendingUp, UserRoundPen,
   } from '@lucide/svelte';
 
@@ -45,7 +46,12 @@
   }
 
   let { data } = $props();
-  const isOnboarded = $derived(data.isOnboarded);
+  let readiness = $state(data.readiness);
+  const aiReady = $derived(readiness?.ai.ready ?? false);
+
+  $effect(() => {
+    readiness = data.readiness;
+  });
 
   // --- Form state ---
   let inputTab = $state<'paste' | 'url'>('paste');
@@ -242,6 +248,10 @@
 
   async function handleParsePasted() {
     if (!jobDescription.trim()) return;
+    if (!aiReady) {
+      toastState.error('Verify the active AI connection before extracting job details.');
+      return;
+    }
     scraping = true;
     try {
       const analyzed = await scrapeAnalyze({ text: jobDescription });
@@ -260,6 +270,10 @@
   async function handleAnalyzeFit() {
     const ap = activeProfile.current;
     if (!ap || !jobDescription.trim()) return;
+    if (!aiReady) {
+      toastState.error('Verify the active AI connection before analyzing fit.');
+      return;
+    }
     analyzing = true;
     fitResult = null;
     try {
@@ -278,6 +292,10 @@
   async function handleGenerate() {
     const ap = activeProfile.current;
     if (!ap || !jobDescription.trim()) return;
+    if (!aiReady) {
+      toastState.error('Verify the active AI connection before generating a cover letter.');
+      return;
+    }
     loading = true;
     coverLetterText = '';
     try {
@@ -337,6 +355,16 @@
 </script>
 
 <div class="max-w-5xl pb-10">
+
+  {#if readiness && data.activeProfileId != null}
+    <div class="mb-6">
+      <AiReadinessNotice
+        ai={readiness.ai}
+        profileId={data.activeProfileId}
+        onrefreshed={(next) => (readiness = next)}
+      />
+    </div>
+  {/if}
 
   <!-- Workflow steps header -->
   <div class="flex items-center justify-between mb-6">
@@ -542,7 +570,7 @@
                 size="sm"
                 class="w-full"
                 onclick={handleAnalyzeFit}
-                disabled={analyzing || loading}
+                disabled={analyzing || loading || !aiReady}
               >
                 {#if analyzing}
                   <Loader2 class="w-3.5 h-3.5 mr-2 animate-spin" /> Analyzing…
@@ -553,13 +581,11 @@
             {/if}
             <Button
               onclick={handleGenerate}
-              disabled={loading || !jobDescription.trim() || !isOnboarded || isProfileEmpty || profileLoading}
+              disabled={loading || !jobDescription.trim() || !aiReady || isProfileEmpty || profileLoading}
               class="w-full"
               size="lg"
             >
-              {#if !isOnboarded}
-                <Lock class="w-4 h-4 mr-2" /> Locked
-              {:else if loading}
+              {#if loading}
                 <Loader2 class="w-4 h-4 mr-2 animate-spin" /> Generating…
               {:else}
                 <Sparkles class="w-4 h-4 mr-2" /> Generate Cover Letter
@@ -614,11 +640,11 @@
               Run <strong class="font-semibold text-foreground">Analyze Fit</strong> first to see your match score and get a more personalized letter, or generate directly.
             </p>
             <div class="flex gap-2">
-              <Button variant="outline" size="sm" onclick={handleAnalyzeFit} disabled={analyzing}>
+              <Button variant="outline" size="sm" onclick={handleAnalyzeFit} disabled={analyzing || !aiReady}>
                 {#if analyzing}<Loader2 class="w-3.5 h-3.5 animate-spin" />{:else}<TrendingUp class="w-3.5 h-3.5" />{/if}
                 Analyze Fit
               </Button>
-              <Button size="sm" onclick={handleGenerate} disabled={loading || !isOnboarded}>
+              <Button size="sm" onclick={handleGenerate} disabled={loading || !aiReady}>
                 <Sparkles class="w-3.5 h-3.5" /> Generate Now
               </Button>
             </div>
@@ -671,7 +697,7 @@
               <p class="text-sm font-semibold text-foreground">Ready to generate</p>
               <p class="text-xs text-muted-foreground">{fitResult.match_score}% match · {tone} tone{activeProfile.current ? ` · ${activeProfile.current.label}` : ''}</p>
             </div>
-            <Button onclick={handleGenerate} disabled={loading || !isOnboarded} size="sm" class="shrink-0">
+            <Button onclick={handleGenerate} disabled={loading || !aiReady} size="sm" class="shrink-0">
               Generate <ArrowRight class="w-3.5 h-3.5 ml-1" />
             </Button>
           </div>

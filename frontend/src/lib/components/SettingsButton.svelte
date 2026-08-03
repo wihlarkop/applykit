@@ -2,7 +2,7 @@
   import { page } from '$app/state';
   import { Settings } from '@lucide/svelte';
 
-  const dotColor = $derived(page.data.isApiKeyConfigured ? null : 'bg-yellow-500');
+  const dotColor = $derived(page.data.readiness?.ai.ready === false ? 'bg-yellow-500' : null);
 </script>
 
 <a

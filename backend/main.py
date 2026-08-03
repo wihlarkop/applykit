@@ -18,6 +18,7 @@ from app.routes import (
     import_cv,
     profile,
     profiles,
+    readiness,
     scrape,
     settings,
     usage,
@@ -70,6 +71,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(applications.router, prefix="/api")
 app.include_router(profile.router, prefix="/api")
 app.include_router(profiles.router, prefix="/api")
+app.include_router(readiness.router, prefix="/api", tags=["readiness"])
 app.include_router(generate.router, prefix="/api")
 app.include_router(analyze.router, prefix="/api")
 app.include_router(history.router, prefix="/api")

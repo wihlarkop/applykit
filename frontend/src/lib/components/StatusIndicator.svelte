@@ -1,34 +1,21 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { getStatus } from '$lib/api';
-  import type { StatusResponse } from '$lib/types';
 
-  let status: StatusResponse | null = $state(null);
-  let error = $state(false);
-
-  // Re-fetch whenever the layout re-runs (e.g. after invalidateAll() from settings save)
-  $effect(() => {
-    page.data.isApiKeyConfigured;
-    getStatus()
-      .then((s) => { status = s; error = false; })
-      .catch(() => { error = true; });
-  });
+  const readiness = $derived(page.data.readiness);
 </script>
 
 <div class="flex items-center gap-2 text-sm">
-  {#if error}
-    <span class="size-2 rounded-full bg-red-500"></span>
-    <span class="text-muted-foreground">Backend unreachable</span>
-  {:else if status === null}
+  {#if readiness === null || readiness === undefined}
     <span class="size-2 rounded-full bg-muted animate-pulse"></span>
-    <span class="text-muted-foreground">Connecting…</span>
-  {:else if status.api_key_configured}
+    <span class="text-muted-foreground">Checking readiness…</span>
+  {:else if readiness.ai.ready}
     <span class="size-2 rounded-full bg-green-500"></span>
-    <span class="text-muted-foreground">
-      {status.provider ?? 'LLM'} connected
-    </span>
+    <span class="text-muted-foreground">{readiness.ai.provider ?? 'AI'} verified</span>
+  {:else if readiness.ai.status === 'not_configured'}
+    <span class="size-2 rounded-full bg-yellow-500"></span>
+    <span class="text-muted-foreground">AI not configured — open Settings</span>
   {:else}
     <span class="size-2 rounded-full bg-yellow-500"></span>
-    <span class="text-muted-foreground">API key not set — click ⚙ to configure</span>
+    <span class="text-muted-foreground">AI connection needs attention</span>
   {/if}
 </div>

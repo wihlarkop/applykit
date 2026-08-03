@@ -2,6 +2,7 @@
   import { activeProfile } from '$lib/activeProfile.svelte';
   import { generateCvPdf, generateCvStream, getProfile } from '$lib/api';
   import { authState } from '$lib/auth-state.svelte';
+  import AiReadinessNotice from '$lib/components/AiReadinessNotice.svelte';
   import CvPreview from '$lib/components/CvPreview.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
@@ -15,7 +16,7 @@
   import { toastState } from '$lib/toast.svelte';
   import type { ProfileData } from '$lib/types';
   import { errorMessage } from '$lib/utils';
-  import { Download, FileText, Lock, Sparkles, UserRoundPen } from '@lucide/svelte';
+  import { Download, FileText, Sparkles, UserRoundPen } from '@lucide/svelte';
   import confetti from 'canvas-confetti';
 
   interface GenerateDraft {
@@ -25,7 +26,12 @@
   }
 
   let { data } = $props();
-  const isOnboarded = $derived(data.isOnboarded);
+  let readiness = $state(data.readiness);
+  const aiReady = $derived(readiness?.ai.ready ?? false);
+
+  $effect(() => {
+    readiness = data.readiness;
+  });
 
   let profile: ProfileData | null = $state(null);
   let enhanced = $state(false);
@@ -88,6 +94,10 @@
   async function handleGenerate() {
     const ap = activeProfile.current;
     if (!ap) return;
+    if (!aiReady) {
+      toastState.error('Verify the active AI connection before generating a CV.');
+      return;
+    }
     loading = true;
     profile = null;
     enhanced = false;
@@ -151,6 +161,16 @@
     subtitle="Create an ATS-optimized CV tailored from your profile."
   />
 
+  {#if readiness && data.activeProfileId != null}
+    <div class="mt-6">
+      <AiReadinessNotice
+        ai={readiness.ai}
+        profileId={data.activeProfileId}
+        onrefreshed={(next) => (readiness = next)}
+      />
+    </div>
+  {/if}
+
   <div class="mt-6 lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
 
     <!-- Left panel: controls (sticky on desktop) -->
@@ -180,15 +200,11 @@
       <div class="flex flex-wrap gap-3">
         <Button
           onclick={handleGenerate}
-          disabled={loading || !isOnboarded || isProfileEmpty || profileLoading}
+          disabled={loading || !aiReady || isProfileEmpty || profileLoading}
           class="shadow-md"
         >
-          {#if !isOnboarded}
-            <Lock class="w-4 h-4 mr-2" /> Locked
-          {:else}
-            <Sparkles class="w-4 h-4 mr-2 {loading ? 'animate-pulse' : ''}" />
-            {loading ? 'Generating…' : 'Generate ATS CV'}
-          {/if}
+          <Sparkles class="w-4 h-4 mr-2 {loading ? 'animate-pulse' : ''}" />
+          {loading ? 'Generating…' : 'Generate ATS CV'}
         </Button>
 
         {#if profile}

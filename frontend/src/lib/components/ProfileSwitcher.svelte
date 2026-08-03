@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
   import { activeProfile } from '$lib/activeProfile.svelte';
   import { getProfile } from '$lib/api';
   import { profiles } from '$lib/profiles.svelte';
@@ -11,9 +11,10 @@
   const ap = $derived(activeProfile.current);
   const allProfiles = $derived(profiles.all);
 
-  function switchProfile(p: { id: number; label: string; color: string; icon: string; name: string }) {
+  async function switchProfile(p: { id: number; label: string; color: string; icon: string; name: string }) {
     activeProfile.set(p);
     dropdownOpen = false;
+    await invalidateAll();
   }
 
   function openEdit() {

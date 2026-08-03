@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Profile
+from app.readiness.onboarding import get_or_initialize_onboarding_state
 from app.schemas import OnboardingStatusResponse, StatusResponse
 from app.services.settings import get_llm_config, is_llm_configured
 
@@ -11,8 +11,10 @@ router = APIRouter()
 
 @router.get("/onboarding", response_model=OnboardingStatusResponse)
 def get_onboarding_status(db: Session = Depends(get_db)):
-    profile = db.query(Profile).filter(Profile.name.is_not(None), Profile.name != "").first()
-    return OnboardingStatusResponse(is_onboarded=profile is not None)
+    # Legacy projection: "onboarded" now means the guided setup has been seen
+    # (or an existing installation was detected), not merely that a name exists.
+    state = get_or_initialize_onboarding_state(db)
+    return OnboardingStatusResponse(is_onboarded=state.seen)
 
 
 @router.get("/status", response_model=StatusResponse)

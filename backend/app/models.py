@@ -134,6 +134,7 @@ class ProviderCredential(Base):
     encrypted_secret = Column(Text, nullable=False)
     masked_secret = Column(String(64), nullable=False)
     fingerprint = Column(String(64), nullable=False)
+    version = Column(Integer, nullable=False, default=1)
     is_active = Column(Boolean, nullable=False, default=False, index=True)
     is_enabled = Column(Boolean, nullable=False, default=True)
     priority = Column(Integer, nullable=False, default=1)
@@ -149,6 +150,26 @@ class ProviderCredential(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+
+
+class AiReadinessTest(Base):
+    __tablename__ = "ai_readiness_test"
+
+    id = Column(Integer, primary_key=True, default=1)
+    provider_id = Column(String(64), nullable=False)
+    model_id = Column(String(255), nullable=False)
+    base_url = Column(Text, nullable=True)
+    credential_id = Column(
+        Integer,
+        ForeignKey("provider_credential.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    credential_version = Column(Integer, nullable=True)
+    configuration_fingerprint = Column(String(64), nullable=False, index=True)
+    status = Column(String(32), nullable=False)
+    tested_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC))
+    failure_category = Column(String(64), nullable=True)
+    public_message = Column(Text, nullable=False)
 
 
 class ProviderCredentialPolicy(Base):

@@ -32,6 +32,8 @@ def _copy_key_atomically(source: Path, destination: Path) -> None:
     CredentialCipher(key)
     destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     temporary = destination.with_name(f".{destination.name}.tmp")
+    if temporary.exists():
+        temporary.unlink()
     descriptor: int | None = None
     try:
         descriptor = os.open(

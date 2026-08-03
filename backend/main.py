@@ -22,9 +22,11 @@ from app.routes import (
     settings,
     usage,
 )
+from app.security.deployment import manual_bind_host, validate_deployment_security
 from app.services.usage_logging import stop_usage_logger
 
 _settings = get_settings()
+validate_deployment_security(_settings)
 
 
 @asynccontextmanager
@@ -76,4 +78,9 @@ app.include_router(usage.router, prefix="/api")
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        "main:app",
+        host=manual_bind_host(_settings),
+        port=8000,
+        reload=True,
+    )

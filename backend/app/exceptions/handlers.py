@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.exceptions.base import AppError, ErrorBody, ErrorCode, ErrorEnvelope
 from app.exceptions.infrastructure import InternalApplicationError
 from app.exceptions.request import ValidationAppError
+from app.security.secrets import safe_exception_type, safe_traceback_locations
 
 logger = logging.getLogger(__name__)
 
@@ -89,10 +90,11 @@ async def generic_exception_handler(
     method = getattr(request, "method", "UNKNOWN")
     path = getattr(getattr(request, "url", None), "path", "unknown")
     logger.error(
-        "Unhandled exception for %s %s",
+        "Unhandled exception method=%s path=%s error_type=%s locations=%s",
         method,
         path,
-        exc_info=(type(exc), exc, exc.__traceback__),
+        safe_exception_type(exc),
+        safe_traceback_locations(exc),
     )
     return _response_for(InternalApplicationError())
 

@@ -6,6 +6,7 @@ import pytest
 
 from app.exceptions.handlers import generic_exception_handler
 from app.exceptions.llm import LLMCallError
+from app.exceptions.stream import stream_error_event
 from app.routes.settings import test_connection as check_connection
 from app.schemas import UpdateSettingsRequest
 from app.services import llm as llm_service
@@ -36,6 +37,17 @@ def test_generic_exception_log_omits_exception_message_and_canary(caplog):
     )
 
     assert response.status_code == 500
+    assert canary not in caplog.text
+    assert "RuntimeError" in caplog.text
+
+
+def test_stream_exception_log_omits_exception_message_and_canary(caplog):
+    canary = "applykit-secret-canary-stream-log-384c"
+
+    event = stream_error_event(RuntimeError(f"Authorization: Bearer {canary}"))
+
+    assert event.event == "error"
+    assert canary not in json.dumps(event.data)
     assert canary not in caplog.text
     assert "RuntimeError" in caplog.text
 

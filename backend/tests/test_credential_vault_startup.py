@@ -93,6 +93,26 @@ def test_legacy_key_moves_atomically_and_credentials_remain_decryptable(
     assert CredentialCipher(active.read_bytes().strip()).decrypt(ciphertext) == "stored-secret"
 
 
+def test_stale_temporary_copy_is_cleaned_before_retry(tmp_path: Path) -> None:
+    factory = _factory(tmp_path)
+    key = Fernet.generate_key()
+    _add_credential(factory, key)
+    settings = _settings(tmp_path)
+    active = Path(settings.credential_key_file)
+    legacy = Path(settings.credential_legacy_key_file or "")
+    legacy.parent.mkdir(parents=True)
+    legacy.write_bytes(key + b"\n")
+    active.parent.mkdir(parents=True)
+    stale = active.with_name(f".{active.name}.tmp")
+    stale.write_text("interrupted-copy")
+
+    initialize_credential_vault(settings, session_factory=factory)
+
+    assert active.read_bytes().strip() == key
+    assert not stale.exists()
+    assert not legacy.exists()
+
+
 def test_failed_validation_keeps_legacy_and_removes_unverified_copy(
     tmp_path: Path,
 ) -> None:

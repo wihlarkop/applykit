@@ -20,10 +20,14 @@ logger = logging.getLogger(__name__)
 def initialize_auth(settings: Settings) -> None:
     """Record auth mode and issue a one-time setup token when required."""
     logger.info("ApplyKit authentication mode: %s", settings.auth_mode)
-    if settings.auth_mode == "password" and not settings.cookie_secure:
+    if (
+        settings.deployment_mode == "local"
+        and settings.auth_mode == "password"
+        and not settings.cookie_secure
+    ):
         logger.warning(
-            "Protected mode is using COOKIE_SECURE=false. "
-            "Use HTTPS and COOKIE_SECURE=true for remote deployments."
+            "Local protected mode is using COOKIE_SECURE=false. "
+            "This is acceptable only on loopback HTTP."
         )
 
     with SessionLocal() as db:

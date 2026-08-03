@@ -10,6 +10,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.database import SessionLocal
 from app.models import ProviderCredential
 from app.services.credential_crypto import (
     CredentialCipher,
@@ -126,7 +127,7 @@ def _select_local_key(
 def initialize_credential_vault(
     settings: Settings,
     *,
-    session_factory: SessionFactory,
+    session_factory: SessionFactory = SessionLocal,
 ) -> None:
     """Select, migrate, and validate the vault key before serving requests."""
     get_credential_cipher.cache_clear()

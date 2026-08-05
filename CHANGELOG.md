@@ -2,9 +2,9 @@
 
 All notable changes to ApplyKit are documented here.
 
-The project follows Semantic Versioning while it remains pre-1.0. Minor releases may introduce substantial features or configuration changes; upgrade notes call out required operator actions.
+The project follows Semantic Versioning. Minor releases add backward-compatible features, while major releases are reserved for breaking changes.
 
-## [0.2.0] - 2026-08-04
+## [1.2.0] - 2026-08-04
 
 ### Added
 
@@ -38,4 +38,4 @@ The project follows Semantic Versioning while it remains pre-1.0. Minor releases
 - Do not replace or delete the credential encryption key. Existing encrypted provider credentials require the original key.
 - Existing AI configurations require one successful connection retest after upgrading so ApplyKit can establish the new readiness fingerprint.
 
-[0.2.0]: https://github.com/wihlarkop/applykit/releases/tag/v0.2.0
+[1.2.0]: https://github.com/wihlarkop/applykit/releases/tag/v1.2.0

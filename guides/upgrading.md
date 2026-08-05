@@ -16,7 +16,7 @@ See [Backup and restore](backup-and-restore.md) for commands.
 
 ```bash
 git fetch --tags
-git checkout v0.2.0
+git checkout v1.2.0
 docker compose up --build
 ```
 

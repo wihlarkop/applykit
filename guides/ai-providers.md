@@ -45,6 +45,6 @@ AI Ready requires:
 - an active credential when the provider requires one;
 - a successful connection test for that exact configuration.
 
-The trusted fingerprint includes provider, model, normalized Base URL, and active credential ID/version. Changing any of them invalidates the prior result. Existing installations need one successful retest after upgrading to v0.2.0.
+The trusted fingerprint includes provider, model, normalized Base URL, and active credential ID/version. Changing any of them invalidates the prior result. Existing installations need one successful retest after upgrading to v1.2.0.
 
 Connection failures are exposed through sanitized public categories such as authentication failure, endpoint unreachable, unavailable model, rate limit, or configuration changed. Raw provider exceptions and secrets are not returned.

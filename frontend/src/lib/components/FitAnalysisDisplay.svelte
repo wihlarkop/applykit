@@ -13,6 +13,7 @@
 		onAcceptEmphasis?: () => void;
 		showInterviewPrep?: boolean;
 		compact?: boolean;
+		embedded?: boolean;
 	}
 
 	let {
@@ -22,7 +23,8 @@
 		analyzing = false,
 		onAcceptEmphasis,
 		showInterviewPrep = $bindable(false),
-		compact = false
+		compact = false,
+		embedded = false
 	}: Props = $props();
 
 	const scoreColor = $derived(getScoreColor(fitResult.match_score));
@@ -31,55 +33,49 @@
 	const fitTitle = $derived(getFitTitle(fitResult.match_score));
 </script>
 
-<Card class="shadow-sm">
-  <CardContent class="p-6 space-y-5">
-    <!-- Header -->
+<Card class={embedded ? 'border-0 shadow-none' : 'shadow-sm'}>
+  <CardContent class={embedded ? 'space-y-5 p-0' : 'space-y-5 p-6'}>
     {#if onReanalyze}
-      <div class="flex items-center justify-between">
-        <h2 class="font-semibold text-sm flex items-center gap-2">
-          <TrendingUp class="w-4 h-4 text-primary" />
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="flex items-center gap-2 text-sm font-semibold">
+          <TrendingUp class="h-4 w-4 text-primary" />
           Fit Analysis{companyName ? ` · ${companyName}` : ''}
         </h2>
         <button
           onclick={onReanalyze}
           disabled={analyzing}
-          class="text-xs text-muted-foreground hover:text-foreground transition-colors underline cursor-pointer disabled:opacity-50"
+          class="cursor-pointer text-xs text-muted-foreground underline transition-colors hover:text-foreground disabled:opacity-50"
         >
           Re-analyze
         </button>
       </div>
     {/if}
 
-    <!-- Score ring + summary -->
-    <div class="flex items-center gap-5 p-4 rounded-xl {scoreColor.bg} ring-1 {scoreColor.ring}">
+    <div class="flex items-center gap-5 rounded-xl p-4 {scoreColor.bg} ring-1 {scoreColor.ring}">
       <ScoreRing score={fitResult.match_score} size={compact ? 64 : 80} />
 
-      <!-- Summary -->
-      <div class="flex-1 min-w-0">
-        <span class="inline-flex items-center gap-1.5 text-[10.5px] font-bold {scoreColor.text} uppercase tracking-wide mb-1.5
-          px-2 py-0.5 rounded-full {scoreColor.bg} ring-1 {scoreColor.ring}">
-          <Check class="w-3 h-3" /> {scoreLabel}
+      <div class="min-w-0 flex-1">
+        <span class="mb-1.5 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide {scoreColor.text} {scoreColor.bg} ring-1 {scoreColor.ring}">
+          <Check class="h-3 w-3" /> {scoreLabel}
         </span>
-        <p class="text-sm font-semibold text-foreground mb-0.5">
+        <p class="mb-0.5 text-sm font-semibold text-foreground">
           {fitTitle}
         </p>
-        <p class="text-xs text-muted-foreground">{scoreSummary}</p>
+        <p class="text-xs leading-5 text-muted-foreground">{scoreSummary}</p>
       </div>
     </div>
 
-    <!-- Strengths & Gaps side by side -->
     {#if fitResult.pros.length > 0 || fitResult.cons.length > 0}
-      <div class="grid grid-cols-2 gap-3">
-        <!-- Strengths -->
+      <div class="grid gap-4 2xl:grid-cols-2">
         {#if fitResult.pros.length > 0}
-          <div class="rounded-lg p-3 bg-green-500/8 dark:bg-green-500/10 border border-green-500/20 space-y-2">
-            <p class="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase tracking-wide flex items-center gap-1.5">
-              <Check class="w-3 h-3" /> Strengths
+          <div class="space-y-3 rounded-xl border border-green-500/20 bg-green-500/8 p-4 dark:bg-green-500/10">
+            <p class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-green-600 dark:text-green-400">
+              <Check class="h-3.5 w-3.5" /> Strengths
             </p>
-            <ul class="space-y-1.5">
+            <ul class="space-y-3">
               {#each fitResult.pros as pro}
-                <li class="text-xs text-foreground/85 flex gap-1.5 leading-relaxed">
-                  <span class="text-green-500 shrink-0 mt-0.5 font-bold">·</span>
+                <li class="flex gap-2 text-sm leading-6 text-foreground/85">
+                  <span class="mt-0.5 shrink-0 font-bold text-green-500">·</span>
                   <span>{pro}</span>
                 </li>
               {/each}
@@ -87,16 +83,15 @@
           </div>
         {/if}
 
-        <!-- Gaps -->
         {#if fitResult.cons.length > 0}
-          <div class="rounded-lg p-3 bg-red-500/8 dark:bg-red-500/10 border border-red-500/20 space-y-2">
-            <p class="text-[10px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wide flex items-center gap-1.5">
-              <AlertTriangle class="w-3 h-3" /> Gaps
+          <div class="space-y-3 rounded-xl border border-red-500/20 bg-red-500/8 p-4 dark:bg-red-500/10">
+            <p class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400">
+              <AlertTriangle class="h-3.5 w-3.5" /> Gaps
             </p>
-            <ul class="space-y-1.5">
+            <ul class="space-y-3">
               {#each fitResult.cons as con}
-                <li class="text-xs text-foreground/85 flex gap-1.5 leading-relaxed">
-                  <span class="text-red-500 shrink-0 mt-0.5 font-bold">·</span>
+                <li class="flex gap-2 text-sm leading-6 text-foreground/85">
+                  <span class="mt-0.5 shrink-0 font-bold text-red-500">·</span>
                   <span>{con}</span>
                 </li>
               {/each}
@@ -106,17 +101,16 @@
       </div>
     {/if}
 
-    <!-- Red Flags -->
     {#if fitResult.red_flags && fitResult.red_flags.length > 0}
-      <div class="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 p-3 space-y-1.5">
-        <div class="flex items-center gap-1.5 mb-2">
-          <AlertTriangle class="w-3.5 h-3.5 text-red-500 shrink-0" />
-          <span class="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wide">Red Flags</span>
+      <div class="space-y-1.5 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
+        <div class="mb-2 flex items-center gap-1.5">
+          <AlertTriangle class="h-3.5 w-3.5 shrink-0 text-red-500" />
+          <span class="text-xs font-bold uppercase tracking-wide text-red-600 dark:text-red-400">Red Flags</span>
         </div>
-        <ul class="space-y-1">
+        <ul class="space-y-2">
           {#each fitResult.red_flags as flag}
-            <li class="text-xs text-red-700 dark:text-red-300 flex gap-1.5 leading-relaxed">
-              <span class="shrink-0 mt-0.5">⚠</span>
+            <li class="flex gap-2 text-sm leading-6 text-red-700 dark:text-red-300">
+              <span class="mt-0.5 shrink-0">⚠</span>
               <span>{flag}</span>
             </li>
           {/each}
@@ -124,13 +118,12 @@
       </div>
     {/if}
 
-    <!-- Missing keywords -->
     {#if fitResult.missing_keywords.length > 0}
       <div class="space-y-2">
-        <p class="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Missing Keywords</p>
+        <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Missing Keywords</p>
         <div class="flex flex-wrap gap-1.5">
           {#each fitResult.missing_keywords as kw}
-            <span class="inline-block bg-red-500/8 dark:bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 rounded-full px-2.5 py-0.5 text-[11px] font-medium font-mono">{kw}</span>
+            <span class="inline-block rounded-full border border-red-500/20 bg-red-500/8 px-2.5 py-0.5 font-mono text-[11px] font-medium text-red-600 dark:bg-red-500/10 dark:text-red-400">{kw}</span>
           {/each}
         </div>
       </div>
@@ -138,51 +131,50 @@
 
     <div class="border-t border-border"></div>
 
-    <!-- Suggested emphasis -->
     {#if onAcceptEmphasis}
-      <div class="rounded-lg border border-primary/20 bg-primary/5 dark:bg-primary/10 p-4 space-y-2.5">
-        <p class="text-[10px] font-bold text-primary uppercase tracking-wide flex items-center gap-1.5">
-          <Sparkles class="w-3 h-3" /> AI Suggested Emphasis
+      <div class="space-y-2.5 rounded-xl border border-primary/20 bg-primary/5 p-4 dark:bg-primary/10">
+        <p class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+          <Sparkles class="h-3 w-3" /> AI Suggested Emphasis
         </p>
-        <p class="text-sm text-foreground/80 leading-relaxed">{fitResult.suggested_emphasis}</p>
+        <p class="text-sm leading-6 text-foreground/80">{fitResult.suggested_emphasis}</p>
         <button
           onclick={onAcceptEmphasis}
-          class="inline-flex items-center gap-1.5 text-xs text-primary font-semibold hover:underline cursor-pointer transition-colors"
+          class="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-primary transition-colors hover:underline"
         >
-          <Check class="w-3 h-3" /> Use this suggestion
+          <Check class="h-3 w-3" /> Use this suggestion
         </button>
       </div>
     {:else if fitResult.suggested_emphasis}
-      <div class="rounded-lg border border-primary/20 bg-primary/5 dark:bg-primary/10 p-4 space-y-2">
-        <p class="text-[10px] font-bold text-primary uppercase tracking-wide flex items-center gap-1.5">
-          <Sparkles class="w-3 h-3" /> AI Suggested Emphasis
+      <div class="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-4 dark:bg-primary/10">
+        <p class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+          <Sparkles class="h-3 w-3" /> AI Suggested Emphasis
         </p>
-        <p class="text-sm text-foreground/80 leading-relaxed">{fitResult.suggested_emphasis}</p>
+        <p class="text-sm leading-6 text-foreground/80">{fitResult.suggested_emphasis}</p>
       </div>
     {/if}
 
-    <!-- Interview prep collapsible -->
     {#if fitResult.interview_questions.length > 0}
-      <div class="border border-border rounded-lg overflow-hidden">
+      <div class="overflow-hidden rounded-lg border border-border">
         <button
-          class="flex items-center justify-between w-full text-sm font-semibold cursor-pointer px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+          class="flex w-full cursor-pointer items-center justify-between bg-muted/30 px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted/50"
           onclick={() => showInterviewPrep = !showInterviewPrep}
+          aria-expanded={showInterviewPrep}
         >
           <span class="flex items-center gap-2">
             Interview Prep Questions
-            <span class="text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{fitResult.interview_questions.length}</span>
+            <span class="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">{fitResult.interview_questions.length}</span>
           </span>
           {#if showInterviewPrep}
-            <ChevronUp class="w-4 h-4 text-muted-foreground" />
+            <ChevronUp class="h-4 w-4 text-muted-foreground" />
           {:else}
-            <ChevronDown class="w-4 h-4 text-muted-foreground" />
+            <ChevronDown class="h-4 w-4 text-muted-foreground" />
           {/if}
         </button>
         {#if showInterviewPrep}
           <ul class="divide-y divide-border">
             {#each fitResult.interview_questions as q, i}
-              <li class="px-4 py-3 text-sm text-muted-foreground flex gap-3">
-                <span class="shrink-0 font-bold text-primary font-mono text-xs mt-0.5">Q{i + 1}</span>
+              <li class="flex gap-3 px-4 py-4 text-sm leading-6 text-muted-foreground">
+                <span class="mt-0.5 shrink-0 font-mono text-xs font-bold text-primary">Q{i + 1}</span>
                 <span>{q}</span>
               </li>
             {/each}

@@ -72,6 +72,23 @@ class ExcludedAnalysisItemResponse(BaseModel):
     reason: str
 
 
+class RoleMatchOverrideResponse(BaseModel):
+    id: int
+    requirement_key: str
+    field_name: str
+    extracted_value: Any
+    effective_value: Any
+    reason: str
+    source: str
+    carry_status: Literal[
+        "carried_forward",
+        "needs_review",
+        "not_applicable",
+    ]
+    source_override_id: int | None
+    created_at: datetime
+
+
 class RoleMatchAnalysisResponse(BaseModel):
     id: int
     parent_analysis_id: int | None
@@ -92,6 +109,7 @@ class RoleMatchAnalysisResponse(BaseModel):
     category_breakdown: list[RoleMatchCategoryResponse]
     requirements: list[RoleMatchRequirementResponse]
     excluded_items: list[ExcludedAnalysisItemResponse]
+    overrides: list[RoleMatchOverrideResponse] = []
     override_review_count: int
     rules_version: str
     prompt_version: str

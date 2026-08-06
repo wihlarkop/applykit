@@ -11,6 +11,7 @@ from app.role_match.api_schemas import (
     RoleMatchCategoryResponse,
     RoleMatchComparisonResponse,
     RoleMatchEvidenceResponse,
+    RoleMatchOverrideResponse,
     RoleMatchRequirementResponse,
     RoleMatchSummaryResponse,
     RoleMatchVersionItem,
@@ -105,10 +106,29 @@ def serialize_analysis(
         RoleMatchCategoryResponse(**item)
         for item in (scoring.get("score") or {}).get("category_assessments", [])
     ]
-    review_count = (
+    override_rows = (
         db.query(RoleMatchOverride)
-        .filter_by(analysis_id=analysis.id, carry_status="needs_review")
-        .count()
+        .filter_by(analysis_id=analysis.id)
+        .order_by(RoleMatchOverride.created_at.asc(), RoleMatchOverride.id.asc())
+        .all()
+    )
+    override_payload = [
+        RoleMatchOverrideResponse(
+            id=item.id,
+            requirement_key=item.requirement_key,
+            field_name=item.field_name,
+            extracted_value=_loads(item.extracted_value, None),
+            effective_value=_loads(item.effective_value, None),
+            reason=item.reason,
+            source=item.source,
+            carry_status=item.carry_status,
+            source_override_id=item.source_override_id,
+            created_at=item.created_at,
+        )
+        for item in override_rows
+    ]
+    review_count = sum(
+        item.carry_status == "needs_review" for item in override_rows
     )
     return RoleMatchAnalysisResponse(
         id=analysis.id,
@@ -124,6 +144,7 @@ def serialize_analysis(
         category_breakdown=category_breakdown,
         requirements=requirement_payload,
         excluded_items=_loads(analysis.excluded_items, []),
+        overrides=override_payload,
         override_review_count=review_count,
         rules_version=analysis.rules_version,
         prompt_version=analysis.prompt_version,

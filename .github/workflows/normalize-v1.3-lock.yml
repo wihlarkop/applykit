@@ -1,0 +1,45 @@
+name: Normalize v1.3 lockfile
+
+on:
+  push:
+    branches:
+      - docs/role-match-v1.3.0
+    paths:
+      - .github/workflows/normalize-v1.3-lock.yml
+
+permissions:
+  contents: write
+
+jobs:
+  normalize-lock:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: docs/role-match-v1.3.0
+          fetch-depth: 0
+
+      - name: Restore locked dependencies and update root metadata only
+        run: |
+          git fetch origin feat/role-match-product-ui-v1.3.0
+          git show origin/feat/role-match-product-ui-v1.3.0:backend/uv.lock > backend/uv.lock
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/uv.lock')
+          source = path.read_text(encoding='utf-8')
+          old = 'name = "backend"\nversion = "1.2.0"'
+          new = 'name = "backend"\nversion = "1.3.0"'
+          count = source.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one backend package version, found {count}')
+          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Commit normalized lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/uv.lock
+          git commit -m "chore: avoid unrelated dependency lock churn"
+          git push origin HEAD:docs/role-match-v1.3.0

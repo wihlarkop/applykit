@@ -92,6 +92,11 @@ def round_to_nearest_five(value: float) -> int:
     return int(max(Decimal("0"), min(rounded, Decimal("100"))))
 
 
+def _display_cap(cap: int) -> int:
+    """Convert an internal cap to the highest allowed five-point display value."""
+    return max(0, min(100, (cap // 5) * 5))
+
+
 def score_band(display_score: int) -> str:
     if display_score >= 85:
         return "exceptional_evidence_match"
@@ -126,7 +131,7 @@ def score_role_match(assessments: list[RequirementAssessment]) -> ScoreResult:
     capped_score = min(raw_score, float(cap)) if cap is not None else raw_score
     display_score = round_to_nearest_five(capped_score)
     if cap is not None:
-        display_score = min(display_score, cap)
+        display_score = min(display_score, _display_cap(cap))
     return ScoreResult(
         category_assessments=category_assessments,
         raw_score=raw_score,

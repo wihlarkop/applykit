@@ -48,27 +48,6 @@ def _is_authoritative(analysis: RoleMatchAnalysis | None) -> bool:
     )
 
 
-def compact_role_match_analysis(
-    analysis: RoleMatchAnalysis | None,
-) -> dict[str, Any] | None:
-    if analysis is None:
-        return None
-    normalized = _loads(analysis.normalized_payload, {})
-    summary = normalized.get("summary")
-    return {
-        "id": analysis.id,
-        "state": analysis.state,
-        "score": analysis.display_score if _is_authoritative(analysis) else None,
-        "score_band": analysis.score_band if _is_authoritative(analysis) else None,
-        "confidence": analysis.confidence_band,
-        "eligibility": analysis.eligibility_status,
-        "show_authoritative_score": _is_authoritative(analysis),
-        "summary": summary,
-        "failure_code": analysis.failure_code,
-        "rules_version": analysis.rules_version,
-    }
-
-
 def _summary_to_fit_context(summary: dict[str, Any] | None) -> str | None:
     if not summary:
         return None
@@ -138,6 +117,39 @@ def build_cover_letter_role_match_context(
     )
 
 
+def _legacy_compatible_fit_analysis(
+    analysis_payload: dict[str, Any],
+) -> dict[str, Any]:
+    summary = analysis_payload.get("summary") or {}
+    strengths = summary.get("strengths") or []
+    concerns = summary.get("concerns") or []
+    requirements = analysis_payload.get("requirements") or []
+    missing = [
+        item.get("canonical_text")
+        for item in requirements
+        if item.get("match_level") in {"no_evidence", "unknown"}
+        and item.get("canonical_text")
+    ]
+    eligibility = analysis_payload.get("eligibility")
+    red_flags = (
+        [f"Eligibility status: {str(eligibility).replace('_', ' ')}"]
+        if eligibility in {"likely_ineligible", "ineligible"}
+        else []
+    )
+    return {
+        "match_score": analysis_payload.get("score") or 0,
+        "pros": [item.get("title") for item in strengths if item.get("title")],
+        "cons": [item.get("title") for item in concerns if item.get("title")],
+        "missing_keywords": missing,
+        "red_flags": red_flags,
+        "suggested_emphasis": summary.get("next_step")
+        or "Review the evidence details before tailoring this application.",
+        "interview_questions": [],
+        "role_match_analysis_id": analysis_payload["id"],
+        "role_match_analysis": analysis_payload,
+    }
+
+
 def enrich_cover_letter_role_match(
     db: Session,
     entry: GeneratedCoverLetter,
@@ -157,11 +169,20 @@ def enrich_cover_letter_role_match(
         score = None
         source = "none"
 
+    analysis_payload = None
+    compatibility_payload = None
+    if analysis is not None:
+        from app.role_match.repository import serialize_analysis
+
+        analysis_payload = serialize_analysis(db, analysis).model_dump(mode="json")
+        compatibility_payload = _legacy_compatible_fit_analysis(analysis_payload)
+
     return {
         "match_score": score,
         "match_score_source": source,
         "role_match_analysis_id": analysis.id if analysis is not None else None,
-        "role_match_analysis": compact_role_match_analysis(analysis),
+        "role_match_analysis": analysis_payload,
+        "fit_analysis": compatibility_payload,
     }
 
 

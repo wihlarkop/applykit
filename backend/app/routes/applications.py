@@ -6,12 +6,12 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.exceptions import ApplicationNotFoundError
 from app.models import Application, GeneratedCoverLetter, GeneratedCV
-from app.schemas import (
-    ApplicationEntry,
-    ApplicationListResponse,
-    CreateApplicationRequest,
-    UpdateApplicationRequest,
+from app.role_match.integration import resolve_application_match_scores
+from app.role_match.product_schemas import (
+    RoleMatchApplicationEntry,
+    RoleMatchApplicationListResponse,
 )
+from app.schemas import CreateApplicationRequest, UpdateApplicationRequest
 from app.utils import batch_load_profiles
 
 router = APIRouter()
@@ -25,8 +25,8 @@ def _get_application_or_404(db: Session, application_id: int) -> Application:
 
 
 def _enrich_app(app: Application, profiles: dict) -> dict:
-    """Build ApplicationEntry dict from ORM object + profile map."""
-    p = profiles.get(app.profile_id) if app.profile_id else None
+    """Build an application response from the ORM object and profile map."""
+    profile = profiles.get(app.profile_id) if app.profile_id else None
     return {
         "id": app.id,
         "company_name": app.company_name,
@@ -37,10 +37,12 @@ def _enrich_app(app: Application, profiles: dict) -> dict:
         "applied_date": app.applied_date,
         "created_at": app.created_at,
         "profile_id": app.profile_id,
-        "profile_label": p.label if p else None,
-        "profile_color": p.color if p else None,
-        "profile_icon": p.icon if p else None,
+        "profile_label": profile.label if profile else None,
+        "profile_color": profile.color if profile else None,
+        "profile_icon": profile.icon if profile else None,
         "match_score": None,
+        "match_score_source": "none",
+        "role_match_analysis_id": None,
         "linked_cover_letter_id": None,
         "linked_cv_id": None,
         "location": app.location,
@@ -49,63 +51,61 @@ def _enrich_app(app: Application, profiles: dict) -> dict:
     }
 
 
-def _resolve_docs(app_ids: list[int], db: Session) -> tuple[dict, dict, dict]:
-    """
-    Returns three dicts keyed by application_id:
-      - cl_id: most recent cover letter id per application
-      - cv_id: most recent cv id per application
-      - match_score: match_score from most recent cover letter with a score
-    """
+def _resolve_docs(
+    app_ids: list[int],
+    db: Session,
+) -> tuple[dict[int, int], dict[int, int], dict]:
+    """Resolve latest documents and the preferred score source per application."""
     if not app_ids:
         return {}, {}, {}
 
-    cls = (
+    cover_letters = (
         db.query(GeneratedCoverLetter)
         .filter(GeneratedCoverLetter.application_id.in_(app_ids))
-        .order_by(GeneratedCoverLetter.created_at.desc())
+        .order_by(
+            GeneratedCoverLetter.created_at.desc(),
+            GeneratedCoverLetter.id.desc(),
+        )
         .all()
     )
     cvs = (
         db.query(GeneratedCV)
         .filter(GeneratedCV.application_id.in_(app_ids))
-        .order_by(GeneratedCV.created_at.desc())
+        .order_by(GeneratedCV.created_at.desc(), GeneratedCV.id.desc())
         .all()
     )
 
-    cl_id: dict = {}
-    match_scores: dict = {}
-    for cl in cls:
-        aid = cl.application_id
-        if aid not in cl_id:
-            cl_id[aid] = cl.id
-        score = getattr(cl, "match_score", None)
-        if aid not in match_scores and score is not None:
-            match_scores[aid] = score
+    cover_letter_ids: dict[int, int] = {}
+    for cover_letter in cover_letters:
+        application_id = cover_letter.application_id
+        if application_id is not None and application_id not in cover_letter_ids:
+            cover_letter_ids[application_id] = cover_letter.id
 
-    cv_id: dict = {}
+    cv_ids: dict[int, int] = {}
     for cv in cvs:
-        aid = cv.application_id
-        if aid not in cv_id:
-            cv_id[aid] = cv.id
+        application_id = cv.application_id
+        if application_id is not None and application_id not in cv_ids:
+            cv_ids[application_id] = cv.id
 
-    return cl_id, cv_id, match_scores
-
-
-def _build_app_entry(app: Application, db: Session) -> ApplicationEntry:
-    """Fully enrich a single Application into an ApplicationEntry."""
-    pm = batch_load_profiles([app], db)
-    entry = _enrich_app(app, pm)
-    cl_id, cv_id, scores = _resolve_docs([app.id], db)
-    entry["linked_cover_letter_id"] = cl_id.get(app.id)
-    entry["linked_cv_id"] = cv_id.get(app.id)
-    entry["match_score"] = scores.get(app.id)
-    return ApplicationEntry(**entry)
+    matches = resolve_application_match_scores(db, app_ids)
+    return cover_letter_ids, cv_ids, matches
 
 
-# --- Endpoints ---
+def _build_app_entry(app: Application, db: Session) -> RoleMatchApplicationEntry:
+    profiles = batch_load_profiles([app], db)
+    entry = _enrich_app(app, profiles)
+    cover_letter_ids, cv_ids, matches = _resolve_docs([app.id], db)
+    entry["linked_cover_letter_id"] = cover_letter_ids.get(app.id)
+    entry["linked_cv_id"] = cv_ids.get(app.id)
+    match = matches.get(app.id)
+    if match is not None:
+        entry["match_score"] = match.score
+        entry["match_score_source"] = match.source
+        entry["role_match_analysis_id"] = match.analysis_id
+    return RoleMatchApplicationEntry(**entry)
 
 
-@router.post("/applications", response_model=ApplicationEntry)
+@router.post("/applications", response_model=RoleMatchApplicationEntry)
 def create_application(body: CreateApplicationRequest, db: Session = Depends(get_db)):
     app = Application(
         company_name=body.company_name,
@@ -125,7 +125,7 @@ def create_application(body: CreateApplicationRequest, db: Session = Depends(get
     return _build_app_entry(app, db)
 
 
-@router.get("/applications", response_model=ApplicationListResponse)
+@router.get("/applications", response_model=RoleMatchApplicationListResponse)
 def list_applications(
     db: Session = Depends(get_db),
     profile_id: int | None = Query(default=None),
@@ -137,59 +137,63 @@ def list_applications(
     match_max: int | None = Query(default=None),
     sort: str = Query(default="date_desc"),
 ):
-    q = db.query(Application)
+    query = db.query(Application)
     if profile_id is not None:
-        q = q.filter(Application.profile_id == profile_id)
+        query = query.filter(Application.profile_id == profile_id)
     if status:
-        q = q.filter(Application.status == status)
+        query = query.filter(Application.status == status)
     if search:
         term = f"%{search}%"
-        q = q.filter(
+        query = query.filter(
             Application.company_name.ilike(term) | Application.role_title.ilike(term)
         )
     if date_from:
-        q = q.filter(Application.applied_date >= date_from)
+        query = query.filter(Application.applied_date >= date_from)
     if date_to:
-        q = q.filter(Application.applied_date <= date_to)
+        query = query.filter(Application.applied_date <= date_to)
     if sort == "date_asc":
-        q = q.order_by(
-            Application.applied_date.asc().nullslast(), Application.created_at.asc()
+        query = query.order_by(
+            Application.applied_date.asc().nullslast(),
+            Application.created_at.asc(),
         )
     else:
-        q = q.order_by(
-            Application.applied_date.desc().nullslast(), Application.created_at.desc()
+        query = query.order_by(
+            Application.applied_date.desc().nullslast(),
+            Application.created_at.desc(),
         )
 
-    apps = q.all()
-    pm = batch_load_profiles(apps, db)
-    app_ids = [a.id for a in apps]
-    cl_id, cv_id, scores = _resolve_docs(app_ids, db)
+    apps = query.all()
+    profiles = batch_load_profiles(apps, db)
+    app_ids = [app.id for app in apps]
+    cover_letter_ids, cv_ids, matches = _resolve_docs(app_ids, db)
 
-    items = []
-    for a in apps:
-        entry = _enrich_app(a, pm)
-        entry["linked_cover_letter_id"] = cl_id.get(a.id)
-        entry["linked_cv_id"] = cv_id.get(a.id)
-        entry["match_score"] = scores.get(a.id)
+    items: list[RoleMatchApplicationEntry] = []
+    for app in apps:
+        entry = _enrich_app(app, profiles)
+        entry["linked_cover_letter_id"] = cover_letter_ids.get(app.id)
+        entry["linked_cv_id"] = cv_ids.get(app.id)
+        match = matches.get(app.id)
+        if match is not None:
+            entry["match_score"] = match.score
+            entry["match_score_source"] = match.source
+            entry["role_match_analysis_id"] = match.analysis_id
 
-        # Apply match_min / match_max filter (post-query since score is derived)
         score = entry["match_score"]
         if match_min is not None and (score is None or score < match_min):
             continue
         if match_max is not None and (score is None or score > match_max):
             continue
+        items.append(RoleMatchApplicationEntry(**entry))
 
-        items.append(ApplicationEntry(**entry))
-
-    return ApplicationListResponse(items=items, total=len(items))
+    return RoleMatchApplicationListResponse(items=items, total=len(items))
 
 
-@router.get("/applications/{app_id}", response_model=ApplicationEntry)
+@router.get("/applications/{app_id}", response_model=RoleMatchApplicationEntry)
 def get_application(app_id: int, db: Session = Depends(get_db)):
     return _build_app_entry(_get_application_or_404(db, app_id), db)
 
 
-@router.patch("/applications/{app_id}", response_model=ApplicationEntry)
+@router.patch("/applications/{app_id}", response_model=RoleMatchApplicationEntry)
 def update_application(
     app_id: int, body: UpdateApplicationRequest, db: Session = Depends(get_db)
 ):
@@ -207,7 +211,6 @@ def update_application(
 @router.delete("/applications/{app_id}")
 def delete_application(app_id: int, db: Session = Depends(get_db)):
     app = _get_application_or_404(db, app_id)
-    # Nullify FKs on linked documents before deleting
     db.query(GeneratedCoverLetter).filter_by(application_id=app_id).update(
         {"application_id": None}
     )

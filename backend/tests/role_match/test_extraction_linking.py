@@ -3,8 +3,6 @@ import json
 from app.role_match.domain import (
     AnalysisState,
     EvidenceCatalogItem,
-    EvidenceDepth,
-    EvidenceRelationship,
     EvidenceSource,
     RequirementCategory,
     RequirementCluster,

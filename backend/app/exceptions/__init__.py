@@ -25,6 +25,10 @@ from app.exceptions.resource import (
     ProfileNotFoundError,
     ProviderNotFoundError,
 )
+from app.exceptions.role_match import (
+    RoleMatchAnalysisNotFoundError,
+    RoleMatchProfileRequiredError,
+)
 from app.exceptions.stream import stream_error_event
 
 __all__ = [
@@ -36,6 +40,8 @@ __all__ = [
     "ApplicationNotFoundError",
     "HistoryEntryNotFoundError",
     "ProviderNotFoundError",
+    "RoleMatchAnalysisNotFoundError",
+    "RoleMatchProfileRequiredError",
     "ValidationAppError",
     "InvalidRequestError",
     "ScrapeValueError",

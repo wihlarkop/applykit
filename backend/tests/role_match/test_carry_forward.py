@@ -1,3 +1,7 @@
+from app.role_match.carry_forward import (
+    apply_carried_experience_overrides,
+    apply_carried_overrides_to_clusters,
+)
 from app.role_match.domain import (
     MatchLevel,
     RequirementAssessment,
@@ -5,10 +9,6 @@ from app.role_match.domain import (
     RequirementCluster,
     RequirementImportance,
     TechnologyVolatility,
-)
-from app.role_match.overrides import (
-    apply_carried_experience_overrides,
-    apply_carried_overrides_to_clusters,
 )
 from app.role_match.snapshots import SnapshotOverride
 

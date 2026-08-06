@@ -9,10 +9,11 @@ _settings = get_settings()
 
 
 def configure_sqlite_security(dbapi_connection, _connection_record) -> None:
-    """Enable SQLite deletion hardening for every application connection."""
+    """Enable SQLite deletion hardening and declared foreign-key actions."""
     cursor = dbapi_connection.cursor()
     try:
         cursor.execute("PRAGMA secure_delete=ON")
+        cursor.execute("PRAGMA foreign_keys=ON")
     finally:
         cursor.close()
 

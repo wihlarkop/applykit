@@ -9,31 +9,44 @@
   import SettingsNav from '$lib/components/SettingsNav.svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import Toaster from '$lib/components/Toaster.svelte';
+  import {
+    NAVIGATION_ITEMS,
+    isNavigationItemActive,
+    type NavigationItem,
+  } from '$lib/navigation';
   import { themeState } from '$lib/theme.svelte';
   import { toastState } from '$lib/toast.svelte';
   import { LogOut, Menu, X, Zap } from '@lucide/svelte';
   import '../app.css';
 
+  const WIDE_WORKSPACE_PATHS = new Set([
+    '/cover-letter',
+    '/resume',
+    '/generate',
+    '/applications',
+    '/tracker',
+  ]);
+
   let { data, children } = $props();
   const isAuthRoute = $derived(data.isAuthRoute);
   const onSettings = $derived(page.url.pathname.startsWith('/settings'));
   const shellWidth = $derived(
-    page.url.pathname === '/cover-letter' ? 'max-w-[80rem]' : 'max-w-5xl',
+    WIDE_WORKSPACE_PATHS.has(page.url.pathname) ? 'max-w-[80rem]' : 'max-w-5xl',
   );
   let mobileMenuOpen = $state(false);
   let signingOut = $state(false);
 
-  function navClass(href: string) {
+  function navClass(item: NavigationItem) {
     return `px-3 py-1.5 rounded-md text-sm transition-colors ${
-      page.url.pathname === href
+      isNavigationItemActive(page.url.pathname, item)
         ? 'bg-accent text-accent-foreground font-medium'
         : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
     }`;
   }
 
-  function mobileNavClass(href: string) {
+  function mobileNavClass(item: NavigationItem) {
     return `flex items-center gap-2 px-4 py-3 text-sm transition-colors border-b border-border/50 last:border-0 ${
-      page.url.pathname === href
+      isNavigationItemActive(page.url.pathname, item)
         ? 'bg-accent text-accent-foreground font-medium'
         : 'text-foreground hover:bg-accent/50'
     }`;
@@ -90,61 +103,60 @@
             class="font-bold text-lg tracking-tight hover:text-primary transition-colors shrink-0"
           >ApplyKit</a>
 
-          <nav class="hidden md:flex items-center gap-1 animate-in fade-in slide-in-from-left-2 duration-500">
-              <a href="/" class={navClass('/')}>Dashboard</a>
-              <span class="w-px h-4 bg-border mx-2 shrink-0"></span>
-              <a href="/cover-letter" class={navClass('/cover-letter')}>Cover Letter</a>
-              <a href="/generate" class={navClass('/generate')}>Generate CV</a>
-              <a href="/smart-apply" class="{navClass('/smart-apply')} flex items-center gap-1.5">
-                <Zap class="w-3.5 h-3.5" />
-                Smart Apply
+          <nav class="hidden lg:flex items-center gap-1 animate-in fade-in slide-in-from-left-2 duration-500">
+            {#each NAVIGATION_ITEMS as item, index}
+              {#if index > 0 && NAVIGATION_ITEMS[index - 1].group !== item.group}
+                <span class="w-px h-4 bg-border mx-2 shrink-0"></span>
+              {/if}
+              <a href={item.href} class="{navClass(item)} {item.id === 'prepare' ? 'flex items-center gap-1.5' : ''}">
+                {#if item.id === 'prepare'}
+                  <Zap class="w-3.5 h-3.5" />
+                {/if}
+                {item.label}
               </a>
-              <span class="w-px h-4 bg-border mx-2 shrink-0"></span>
-              <a href="/history" class={navClass('/history')}>History</a>
-              <a href="/tracker" class={navClass('/tracker')}>Tracker</a>
+            {/each}
           </nav>
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-            <ProfileSwitcher />
-            <ThemeToggle />
-            <SettingsButton />
-            {#if authState.authMode === 'password'}
-              <button
-                type="button"
-                onclick={signOut}
-                disabled={signingOut}
-                class="hidden md:inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
-              >
-                <LogOut class="h-4 w-4" />Sign out
-              </button>
-            {/if}
+          <ProfileSwitcher />
+          <ThemeToggle />
+          <SettingsButton />
+          {#if authState.authMode === 'password'}
             <button
-              onclick={() => mobileMenuOpen = !mobileMenuOpen}
-              class="md:hidden flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent transition-colors"
-              aria-label="Toggle menu"
+              type="button"
+              onclick={signOut}
+              disabled={signingOut}
+              class="hidden lg:inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
             >
-              {#if mobileMenuOpen}
-                <X class="w-4.5 h-4.5" />
-              {:else}
-                <Menu class="w-4.5 h-4.5" />
-              {/if}
+              <LogOut class="h-4 w-4" />Sign out
             </button>
+          {/if}
+          <button
+            onclick={() => mobileMenuOpen = !mobileMenuOpen}
+            class="lg:hidden flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent transition-colors"
+            aria-label="Toggle menu"
+          >
+            {#if mobileMenuOpen}
+              <X class="w-4.5 h-4.5" />
+            {:else}
+              <Menu class="w-4.5 h-4.5" />
+            {/if}
+          </button>
         </div>
       </div>
 
       {#if mobileMenuOpen}
-        <div class="md:hidden border-t border-border bg-card animate-in slide-in-from-top-2 duration-200">
+        <div class="lg:hidden border-t border-border bg-card animate-in slide-in-from-top-2 duration-200">
           <nav class="mx-auto {shellWidth}">
-            <a href="/" class={mobileNavClass('/')}>Dashboard</a>
-            <a href="/cover-letter" class={mobileNavClass('/cover-letter')}>Cover Letter</a>
-            <a href="/generate" class={mobileNavClass('/generate')}>Generate CV</a>
-            <a href="/smart-apply" class="{mobileNavClass('/smart-apply')} gap-2">
-              <Zap class="w-3.5 h-3.5 text-primary" />
-              Smart Apply
-            </a>
-            <a href="/history" class={mobileNavClass('/history')}>History</a>
-            <a href="/tracker" class={mobileNavClass('/tracker')}>Tracker</a>
+            {#each NAVIGATION_ITEMS as item}
+              <a href={item.href} class="{mobileNavClass(item)} {item.id === 'prepare' ? 'gap-2' : ''}">
+                {#if item.id === 'prepare'}
+                  <Zap class="w-3.5 h-3.5 text-primary" />
+                {/if}
+                {item.label}
+              </a>
+            {/each}
             {#if authState.authMode === 'password'}
               <button
                 type="button"

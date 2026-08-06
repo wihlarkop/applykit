@@ -7,6 +7,8 @@ from sqlalchemy import engine_from_config, pool
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from app.models import Base
+from app.resume_readiness import models as _resume_readiness_models  # noqa: E402,F401
+from app.role_match import models as _role_match_models  # noqa: E402,F401
 
 config = context.config
 

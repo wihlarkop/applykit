@@ -14,10 +14,11 @@ ApplyKit keeps profiles, generated documents, application history, and provider 
 
 - Multiple role-specific career profiles
 - Resume import from PDF, DOCX, or pasted text
-- ATS-focused CV enhancement with live preview and PDF export
+- Role-specific resume generation with live preview and PDF export
+- Explainable Resume Readiness for PDF parseability, content quality, and supported job tailoring
 - Evidence-based Role Evidence Match with separate confidence and eligibility
-- Tailored cover letters and Smart Apply workflows
-- Application tracker, history, and AI usage reporting
+- Tailored cover letters and guided application preparation
+- Application tracking, document history, and AI usage reporting
 - Curated and custom AI models across hosted and local providers
 - Encrypted multi-credential storage with manual, failover, and round-robin routing
 - Optional single-owner password protection for self-hosted deployments
@@ -38,6 +39,20 @@ When the evidence is too incomplete or inconsistent, ApplyKit shows **Analysis n
 Role Evidence Match is application guidance. It is **not a hiring probability**, an ATS pass probability, or an automated hiring decision.
 
 See [Role Evidence Match](guides/role-evidence-match.md) for category weights, evidence multipliers, recency rules, score limits, confidence, fairness guardrails, versioned overrides, and the golden evaluation suite.
+
+## Resume Readiness
+
+Resume Readiness validates a saved ApplyKit resume after rendering it to PDF and extracting the PDF text again.
+
+It keeps three document questions separate:
+
+- **ATS Parseability** — whether software can reliably extract essential resume information.
+- **Resume Quality** — whether the content is clear, consistent, concise, and evidence-based.
+- **Job Tailoring** — whether a job-specific resume surfaces supported profile evidence without adding unsupported keywords.
+
+Fixed rules calculate category and overall results. Critical extraction failures can cap the result or produce **Analysis needs review**. Operational failures have no score rather than being represented as a low-quality resume.
+
+Resume Readiness does **not** claim a probability of passing an employer's ATS. See [Resume Readiness](guides/resume-readiness.md) for categories, score bands, hard gates, limitations, and route compatibility.
 
 ## Stable installation with Docker
 
@@ -91,6 +106,7 @@ Read [Upgrading](guides/upgrading.md) before changing tags or restoring data.
 - [Installation](guides/installation.md) — Docker, manual development, first launch, and storage
 - [Upgrading](guides/upgrading.md) — backups, migrations, tag upgrades, and rollback cautions
 - [Role Evidence Match](guides/role-evidence-match.md) — evidence-based scoring, confidence, eligibility, fairness, audit history, and limitations
+- [Resume Readiness](guides/resume-readiness.md) — PDF parseability, resume quality, supported tailoring, hard gates, and limitations
 - [Configuration](guides/configuration.md) — environment variables, local mode, remote mode, and CORS
 - [Authentication](guides/authentication.md) — owner setup, sessions, lockout, and password recovery
 - [AI providers](guides/ai-providers.md) — models, credentials, routing, Ollama, and readiness
@@ -144,7 +160,7 @@ docker compose exec backend uv run python -m app.cli auth reset-password
 - **Authentication:** optional Argon2id owner password and opaque database sessions
 - **Credential encryption:** Fernet authenticated encryption
 - **AI:** LiteLLM with hosted providers and Ollama support
-- **PDF:** WeasyPrint
+- **PDF:** WeasyPrint and pdfplumber
 
 ## Contributing
 

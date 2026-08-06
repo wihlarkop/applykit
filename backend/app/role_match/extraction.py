@@ -39,12 +39,12 @@ def extract_atomic_requirements(
     user_prompt = "\n".join(
         [
             format_untrusted_input("job_description", job_description),
-            "Extract atomic requirements and return JSON with a requirements array.",
+            "Extract atomic requirements from job_description and return JSON with a requirements array.",
         ]
     )
     for _ in range(EXTRACTION_ATTEMPTS):
         raw = _call_llm(
-            user_prompt=user_prompt,
+            prompt=user_prompt,
             system=REQUIREMENT_EXTRACTION_SYSTEM_PROMPT,
             provider=provider,
             api_key=api_key,

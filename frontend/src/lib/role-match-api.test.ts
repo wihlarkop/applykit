@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 
-const source = readFileSync(new URL('./api.ts', import.meta.url), 'utf8');
+const source = readFileSync(new URL('./role-match-api.ts', import.meta.url), 'utf8');
 
 describe('role match API contract', () => {
   test('exposes all versioned analysis operations', () => {

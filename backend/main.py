@@ -19,6 +19,7 @@ from app.routes import (
     profile,
     profiles,
     readiness,
+    role_match_generate,
     scrape,
     settings,
     usage,
@@ -73,6 +74,7 @@ app.include_router(profile.router, prefix="/api")
 app.include_router(profiles.router, prefix="/api")
 app.include_router(readiness.router, prefix="/api", tags=["readiness"])
 app.include_router(generate.router, prefix="/api")
+app.include_router(role_match_generate.router, prefix="/api")
 app.include_router(analyze.router, prefix="/api")
 app.include_router(history.router, prefix="/api")
 app.include_router(import_cv.router, prefix="/api")

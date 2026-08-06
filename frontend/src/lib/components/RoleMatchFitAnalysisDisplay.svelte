@@ -32,6 +32,7 @@
     onAcceptEmphasis?: () => void;
     showInterviewPrep?: boolean;
     compact?: boolean;
+    embedded?: boolean;
   }
 
   let {
@@ -42,6 +43,7 @@
     onAcceptEmphasis,
     showInterviewPrep = $bindable(false),
     compact = false,
+    embedded = false,
   }: Props = $props();
 
   let analysis = $state<RoleMatchAnalysisResponse | null>(null);
@@ -145,5 +147,6 @@
     {onAcceptEmphasis}
     bind:showInterviewPrep
     {compact}
+    {embedded}
   />
 {/if}

@@ -7,6 +7,12 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from app.role_match.carry_forward import (
+    apply_carried_experience_overrides,
+    apply_carried_overrides_to_clusters,
+    filter_carried_evidence_links,
+    prepare_parent_overrides,
+)
 from app.role_match.clustering import cluster_requirements
 from app.role_match.confidence import calculate_confidence, decide_authoritative_display
 from app.role_match.constants import IMPORTANCE_WEIGHTS, SOURCE_MULTIPLIERS
@@ -271,9 +277,18 @@ def analyze_role_match(
         requirements.append(requirement)
 
     clustering = cluster_requirements(requirements)
+    prepared_overrides = prepare_parent_overrides(
+        db,
+        parent_analysis_id,
+        clustering.clusters,
+    )
+    clusters = apply_carried_overrides_to_clusters(
+        clustering.clusters,
+        prepared_overrides,
+    )
     try:
         linking = link_candidate_evidence(
-            clustering.clusters,
+            clusters,
             catalog,
             provider,
             api_key,
@@ -294,11 +309,15 @@ def analyze_role_match(
         )
 
     links_by_requirement = defaultdict(list)
-    for link in linking.valid_links:
+    filtered_links = filter_carried_evidence_links(
+        linking.valid_links,
+        prepared_overrides,
+    )
+    for link in filtered_links:
         links_by_requirement[link.requirement_id].append(link)
 
     assessments = []
-    for cluster in clustering.clusters:
+    for cluster in clusters:
         if cluster.excluded or cluster.is_eligibility or cluster.is_trainable:
             continue
         if cluster.primary_category in {
@@ -324,10 +343,15 @@ def analyze_role_match(
             item = combine_evidence(links, cluster, analysis_date)
         assessments.append(item)
 
+    assessments = apply_carried_experience_overrides(
+        assessments,
+        clusters,
+        prepared_overrides,
+    )
     score = score_role_match(assessments)
     known_coverage = _known_coverage(assessments)
     consistency, conflict_rate = _consistency(
-        clustering.clusters,
+        clusters,
         len(clustering.unresolved_conflicts) + fairness_reviews,
         linking.invalid_link_count,
     )
@@ -338,20 +362,16 @@ def analyze_role_match(
             evidence_consistency=consistency,
         )
     )
-    eligibility = assess_eligibility(
-        _eligibility(clustering.clusters, links_by_requirement)
-    )
+    eligibility = assess_eligibility(_eligibility(clusters, links_by_requirement))
     display = decide_authoritative_display(
         known_coverage=known_coverage,
         confidence=confidence.score,
         conflict_rate=conflict_rate,
-        requirement_count=len(
-            [cluster for cluster in clustering.clusters if not cluster.excluded]
-        ),
+        requirement_count=len([cluster for cluster in clusters if not cluster.excluded]),
         scoring_succeeded=True,
     )
     state = AnalysisState.SUCCESS if display.show_score else AnalysisState.NEEDS_REVIEW
-    summary = _human_summary(clustering.clusters, assessments, score)
+    summary = _human_summary(clusters, assessments, score)
     return save_analysis_snapshot(
         db,
         SnapshotInput(
@@ -370,7 +390,7 @@ def analyze_role_match(
                 },
                 ensure_ascii=False,
             ),
-            clusters=clustering.clusters,
+            clusters=clusters,
             assessments=assessments,
             catalog=catalog,
             score=score,
@@ -381,5 +401,6 @@ def analyze_role_match(
             excluded_items=excluded_items,
             summary=summary,
             analysis_date=analysis_date,
+            overrides=prepared_overrides,
         ),
     )

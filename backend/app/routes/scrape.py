@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 import httpx
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -18,6 +20,18 @@ from app.services.parse_job_description import parse_job_description
 from app.services.scraper import scrape_job_url
 
 router = APIRouter()
+
+
+def _pasted_http_url(text: str | None) -> str | None:
+    if not text:
+        return None
+    candidate = text.strip()
+    if not candidate or any(character.isspace() for character in candidate):
+        return None
+    parsed = urlparse(candidate)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return None
+    return candidate
 
 
 @router.post("/scrape/job", response_model=ScrapeJobResponse)
@@ -59,24 +73,34 @@ async def scrape_analyze(
 
     provider, api_key = require_llm_config(db)
 
+    pasted_url = _pasted_http_url(body.text)
+    effective_url = body.url or pasted_url
     job_description = ""
     source = "jina"
 
     try:
-        if body.url:
-            scraped = await scrape_job_url(body.url, client)
+        if effective_url:
+            scraped = await scrape_job_url(effective_url, client)
             job_description = scraped.job_description
             source = scraped.source
             parsed = parse_job_description(job_description, provider, api_key)
+            company_name = scraped.company_name or parsed.company_name
+            role_title = scraped.role_title or parsed.role_title
+            location = scraped.location or parsed.location
+            salary = scraped.salary or parsed.salary
         else:
-            job_description = body.text
+            job_description = body.text or ""
             parsed = parse_job_description(job_description, provider, api_key)
+            company_name = parsed.company_name
+            role_title = parsed.role_title
+            location = parsed.location
+            salary = parsed.salary
 
         return ScrapeAnalyzeResponse(
-            company_name=parsed.company_name,
-            role_title=parsed.role_title,
-            location=parsed.location,
-            salary=parsed.salary,
+            company_name=company_name,
+            role_title=role_title,
+            location=location,
+            salary=salary,
             job_description=job_description,
             source=source,
         )

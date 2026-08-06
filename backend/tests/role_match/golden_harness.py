@@ -19,7 +19,10 @@ from app.role_match.domain import (
     EvidenceRelationship,
     MatchLevel,
     RequirementAssessment,
+    RequirementCategory,
     RequirementCluster,
+    RequirementImportance,
+    TechnologyVolatility,
 )
 from app.role_match.eligibility import assess_eligibility
 from app.role_match.evidence_catalog import build_evidence_catalog
@@ -35,22 +38,67 @@ GOLDEN_DIR = Path(__file__).parents[1] / "golden" / "role_match"
 class GoldenRequirement(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    cluster: RequirementCluster
+    key: str
+    text: str
+    category: RequirementCategory
+    importance: RequirementImportance = RequirementImportance.CRITICAL
+    volatility: TechnologyVolatility = TechnologyVolatility.EVOLVING
+    tool_specificity: str = "capability"
+    minimum_months: int | None = Field(default=None, ge=0)
     actual_months: int | None = Field(default=None, ge=0)
+    excluded: bool = False
+    exclusion_reason: str | None = None
+    is_eligibility: bool = False
+    is_trainable: bool = False
+    mention_count: int = Field(default=1, ge=1)
+    importance_conflict: bool = False
+
+    @property
+    def cluster_id(self) -> str:
+        return f"req:{self.key}"
+
+    def to_cluster(self) -> RequirementCluster:
+        importance_mentions = {
+            value: 0 for value in RequirementImportance
+        }
+        importance_mentions[self.importance] = self.mention_count
+        return RequirementCluster(
+            cluster_id=self.cluster_id,
+            canonical_requirement=self.text,
+            canonical_key=self.key,
+            primary_category=self.category,
+            importance=self.importance,
+            mention_count=self.mention_count,
+            importance_conflict=self.importance_conflict,
+            importance_mentions=importance_mentions,
+            source_quotes=[self.text],
+            source_ids=[f"jd:{self.key}"],
+            is_eligibility=self.is_eligibility,
+            is_trainable=self.is_trainable,
+            volatility=self.volatility,
+            minimum_months=self.minimum_months,
+            tool_specificity=self.tool_specificity,
+            excluded=self.excluded,
+            exclusion_reason=self.exclusion_reason,
+        )
 
 
 class GoldenLink(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    requirement_id: str
+    requirement_key: str
     evidence_id: str
-    relationship: EvidenceRelationship
-    depth: EvidenceDepth
+    relationship: EvidenceRelationship = EvidenceRelationship.EXACT
+    depth: EvidenceDepth = EvidenceDepth.PRODUCTION_OWNERSHIP
     last_used_date: date | None = None
     is_current: bool = False
     is_duplicate: bool = False
     is_contradiction: bool = False
     precomputed_strength: float | None = Field(default=None, ge=0.0, le=1.0)
+
+    @property
+    def requirement_id(self) -> str:
+        return f"req:{self.requirement_key}"
 
 
 class GoldenExpected(BaseModel):
@@ -70,7 +118,7 @@ class GoldenInput(BaseModel):
     requirements: list[GoldenRequirement]
     evidence: list[EvidenceCatalogItem]
     links: list[GoldenLink]
-    eligibility_signals: list[EligibilitySignal] = []
+    eligibility_signals: list[EligibilitySignal] = Field(default_factory=list)
     unresolved_conflict_count: int = Field(default=0, ge=0)
     invalid_link_count: int = Field(default=0, ge=0)
 
@@ -81,9 +129,9 @@ class GoldenCase(GoldenInput):
     name: str
     analysis_date: date
     expected: GoldenExpected
-    invariants: list[str] = []
-    fairness_requirements: list[str] = []
-    profile_variants: list[dict[str, Any]] = []
+    invariants: list[str] = Field(default_factory=list)
+    fairness_requirements: list[str] = Field(default_factory=list)
+    profile_variants: list[dict[str, Any]] = Field(default_factory=list)
     comparison: GoldenInput | None = None
 
 
@@ -139,7 +187,7 @@ def _evaluate_input(
     dict[str, RequirementAssessment],
     dict[str, int | None],
 ]:
-    clusters = [item.cluster for item in value.requirements]
+    clusters = [item.to_cluster() for item in value.requirements]
     catalog = {item.evidence_id: item for item in value.evidence}
     cluster_map = {item.cluster_id: item for item in clusters}
     links_by_requirement: dict[str, list[EvidenceLink]] = defaultdict(list)
@@ -165,7 +213,7 @@ def _evaluate_input(
 
     assessments: list[RequirementAssessment] = []
     duration_months: dict[str, int | None] = {}
-    input_by_cluster = {item.cluster.cluster_id: item for item in value.requirements}
+    input_by_cluster = {item.cluster_id: item for item in value.requirements}
     for cluster in clusters:
         if cluster.excluded or cluster.is_eligibility or cluster.is_trainable:
             continue
@@ -352,9 +400,7 @@ def assert_invariants(case: GoldenCase, result: GoldenResult) -> None:
         elif invariant == "excluded_requirement_not_scored":
             assert "exclude_warn_continue" in result.fairness_actions.values()
             excluded_ids = {
-                item.cluster.cluster_id
-                for item in case.requirements
-                if item.cluster.excluded
+                item.cluster_id for item in case.requirements if item.excluded
             }
             assert excluded_ids
             assert excluded_ids.isdisjoint(result.assessments)

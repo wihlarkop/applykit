@@ -13,9 +13,11 @@ from app.role_match.api_schemas import (
     RoleMatchAnalysisResponse,
     RoleMatchAnalyzeRequest,
     RoleMatchComparisonResponse,
+    RoleMatchOverridesRequest,
     RoleMatchReanalyzeRequest,
     RoleMatchVersionsResponse,
 )
+from app.role_match.overrides import apply_user_overrides
 from app.role_match.pipeline import analyze_role_match
 from app.role_match.repository import (
     compare_analyses,
@@ -150,4 +152,17 @@ def reanalyze_role_match(
         parent_analysis_id=parent.id,
         analysis_date=date.today(),
     )
+    return serialize_analysis(db, child)
+
+
+@router.post(
+    "/analyze/role-match/{analysis_id}/overrides",
+    response_model=RoleMatchAnalysisResponse,
+)
+def apply_role_match_overrides(
+    analysis_id: int,
+    body: RoleMatchOverridesRequest,
+    db: Session = Depends(get_db),
+):
+    child = apply_user_overrides(db, analysis_id, body.overrides)
     return serialize_analysis(db, child)

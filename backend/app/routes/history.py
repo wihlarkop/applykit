@@ -8,10 +8,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.exceptions import HistoryEntryNotFoundError
 from app.models import Application, GeneratedCoverLetter, GeneratedCV
+from app.role_match.integration import enrich_cover_letter_role_match
+from app.role_match.product_schemas import (
+    RoleMatchGeneratedCoverLetterEntry,
+    RoleMatchGeneratedCoverLetterListResponse,
+)
 from app.schemas import (
     BulkDeleteRequest,
-    GeneratedCoverLetterEntry,
-    GeneratedCoverLetterListResponse,
     GeneratedCVEntry,
     GeneratedCVListResponse,
     UpdateStatusRequest,
@@ -55,7 +58,7 @@ def _enrich_cv(entry: GeneratedCV, profiles: dict) -> dict:
     }
 
 
-def _enrich_cl(entry: GeneratedCoverLetter, profiles: dict) -> dict:
+def _enrich_cl(entry: GeneratedCoverLetter, profiles: dict, db: Session) -> dict:
     p = profiles.get(entry.profile_id) if entry.profile_id else None
     fit = None
     if entry.fit_analysis:
@@ -63,6 +66,7 @@ def _enrich_cl(entry: GeneratedCoverLetter, profiles: dict) -> dict:
             fit = json.loads(entry.fit_analysis)
         except Exception:
             fit = None
+    role_match = enrich_cover_letter_role_match(db, entry)
     return {
         "id": entry.id,
         "created_at": entry.created_at,
@@ -75,7 +79,6 @@ def _enrich_cl(entry: GeneratedCoverLetter, profiles: dict) -> dict:
         "cover_letter_text": entry.cover_letter_text,
         "tone": entry.tone or "professional",
         "job_url": entry.job_url,
-        "match_score": entry.match_score,
         "fit_analysis": fit,
         "application_status": entry.application_status,
         "application_id": entry.application_id,
@@ -83,6 +86,7 @@ def _enrich_cl(entry: GeneratedCoverLetter, profiles: dict) -> dict:
         "profile_label": p.label if p else None,
         "profile_color": p.color if p else None,
         "profile_icon": p.icon if p else None,
+        **role_match,
     }
 
 
@@ -144,7 +148,10 @@ def update_cv_status(
 # --- Cover letter history ---
 
 
-@router.get("/history/cover-letter", response_model=GeneratedCoverLetterListResponse)
+@router.get(
+    "/history/cover-letter",
+    response_model=RoleMatchGeneratedCoverLetterListResponse,
+)
 def list_cover_letter_history(
     db: Session = Depends(get_db),
     profile_id: int | None = Query(default=None),
@@ -165,36 +172,54 @@ def list_cover_letter_history(
             GeneratedCoverLetter.company_name.ilike(term)
             | GeneratedCoverLetter.job_description.ilike(term)
         )
-    if match_min is not None:
-        q = q.filter(GeneratedCoverLetter.match_score >= match_min)
-    if match_max is not None:
-        q = q.filter(GeneratedCoverLetter.match_score <= match_max)
     if status:
         q = q.filter(GeneratedCoverLetter.application_status == status)
     if sort == "date_asc":
         q = q.order_by(GeneratedCoverLetter.created_at.asc())
-    elif sort == "match_desc":
-        q = q.order_by(GeneratedCoverLetter.match_score.desc().nullslast())
     elif sort == "company_asc":
         q = q.order_by(GeneratedCoverLetter.company_name.asc().nullslast())
     else:
         q = q.order_by(GeneratedCoverLetter.created_at.desc())
-    total = q.count()
-    items = q.offset(offset).limit(limit).all()
-    pm = batch_load_profiles(items, db)
-    return GeneratedCoverLetterListResponse(
-        items=[_enrich_cl(e, pm) for e in items], total=total
-    )
+
+    entries = q.all()
+    profiles = batch_load_profiles(entries, db)
+    enriched = [_enrich_cl(entry, profiles, db) for entry in entries]
+    if match_min is not None:
+        enriched = [
+            item
+            for item in enriched
+            if item["match_score"] is not None and item["match_score"] >= match_min
+        ]
+    if match_max is not None:
+        enriched = [
+            item
+            for item in enriched
+            if item["match_score"] is not None and item["match_score"] <= match_max
+        ]
+    if sort == "match_desc":
+        enriched.sort(
+            key=lambda item: (
+                item["match_score"] is not None,
+                item["match_score"] or -1,
+                item["created_at"],
+            ),
+            reverse=True,
+        )
+
+    total = len(enriched)
+    page = enriched[offset : offset + limit]
+    return RoleMatchGeneratedCoverLetterListResponse(items=page, total=total)
 
 
 @router.get(
-    "/history/cover-letter/{entry_id}", response_model=GeneratedCoverLetterEntry
+    "/history/cover-letter/{entry_id}",
+    response_model=RoleMatchGeneratedCoverLetterEntry,
 )
 def get_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_db)):
     entry = db.query(GeneratedCoverLetter).filter_by(id=entry_id).first()
     if not entry:
         raise HistoryEntryNotFoundError("Cover letter", entry_id)
-    return _enrich_cl(entry, batch_load_profiles([entry], db))
+    return _enrich_cl(entry, batch_load_profiles([entry], db), db)
 
 
 @router.delete("/history/cover-letter/{entry_id}", status_code=204)
@@ -207,7 +232,8 @@ def delete_cover_letter_history_entry(entry_id: int, db: Session = Depends(get_d
 
 
 @router.patch(
-    "/history/cover-letter/{entry_id}/status", response_model=GeneratedCoverLetterEntry
+    "/history/cover-letter/{entry_id}/status",
+    response_model=RoleMatchGeneratedCoverLetterEntry,
 )
 def update_cover_letter_status(
     entry_id: int, body: UpdateStatusRequest, db: Session = Depends(get_db)
@@ -218,12 +244,10 @@ def update_cover_letter_status(
     entry.application_status = body.status
     if body.status:
         if entry.application_id:
-            # Sync status to the linked Application
             linked = db.query(Application).filter_by(id=entry.application_id).first()
             if linked:
                 linked.status = body.status
         else:
-            # Auto-create an Application record and link it
             app = Application(
                 company_name=entry.company_name or "Unknown",
                 role_title=entry.role_title or "",
@@ -238,9 +262,8 @@ def update_cover_letter_status(
             db.add(app)
             db.flush()
             entry.application_id = app.id
-    # Note: clearing to "—" does not unlink the Application — manage it from Tracker
     db.commit()
-    return _enrich_cl(entry, batch_load_profiles([entry], db))
+    return _enrich_cl(entry, batch_load_profiles([entry], db), db)
 
 
 @router.delete("/history/cover-letter")

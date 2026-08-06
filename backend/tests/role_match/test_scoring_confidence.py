@@ -94,7 +94,7 @@ def test_display_rounding_and_band() -> None:
     assert score_band(80) == "strong_evidence_match"
 
 
-def test_score_role_match_applies_essential_cap() -> None:
+def test_score_role_match_applies_essential_cap_without_breaking_display_increment() -> None:
     result = score_role_match(
         [
             assessment(
@@ -130,7 +130,8 @@ def test_score_role_match_applies_essential_cap() -> None:
         ]
     )
     assert result.applied_cap == 74
-    assert result.display_score <= 74
+    assert result.display_score == 70
+    assert result.display_score % 5 == 0
 
 
 def test_confidence_formula() -> None:

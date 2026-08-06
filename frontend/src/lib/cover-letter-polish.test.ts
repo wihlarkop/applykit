@@ -16,10 +16,10 @@ const legacyFit = readFileSync(
 );
 
 describe('cover letter visual polish', () => {
-  test('widens only the cover letter workspace and gives the result panel more room', () => {
+  test('uses a compact-balanced workspace with a larger result panel', () => {
     expect(layout).toContain("page.url.pathname === '/cover-letter'");
-    expect(layout).toContain("'max-w-[90rem]'");
-    expect(page).toContain('xl:grid-cols-[minmax(22rem,0.7fr)_minmax(0,1.3fr)]');
+    expect(layout).toContain("'max-w-[80rem]'");
+    expect(page).toContain('xl:grid-cols-[minmax(22rem,0.72fr)_minmax(0,1.28fr)]');
     expect(page).toContain('class="w-full space-y-6 pb-12"');
   });
 
@@ -31,10 +31,16 @@ describe('cover letter visual polish', () => {
     expect(legacyFit).toContain('grid gap-4 2xl:grid-cols-2');
   });
 
-  test('renders the generated letter at comfortable document scale', () => {
-    expect(page).toContain('max-w-4xl');
-    expect(preview).toContain('text-[15px]');
-    expect(preview).toContain('leading-7');
-    expect(preview).toContain('max-w-[48rem]');
+  test('renders the generated letter at a focused document scale', () => {
+    expect(page).toContain('max-w-[44rem]');
+    expect(preview).toContain('text-[14px]');
+    expect(preview).toContain('leading-6');
+    expect(preview).toContain('max-w-[44rem]');
+  });
+
+  test('keeps one reanalysis action and gives long job fields full width', () => {
+    expect(page).toContain('onReanalyze={handleAnalyzeFit}');
+    expect(page).not.toContain('>\n                Reanalyze\n              </Button>');
+    expect(page.match(/class="space-y-1\.5 sm:col-span-2"/g)?.length).toBe(2);
   });
 });

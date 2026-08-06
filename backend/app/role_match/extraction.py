@@ -22,10 +22,10 @@ class ExtractionResult(BaseModel):
     failure_code: str | None = None
 
 
-def _call_llm(**kwargs) -> str:
+def _call_llm(prompt: str, **kwargs) -> str:
     from app.services.llm import call_llm
 
-    return call_llm(**kwargs)
+    return call_llm(prompt, **kwargs)
 
 
 def extract_atomic_requirements(
@@ -44,7 +44,7 @@ def extract_atomic_requirements(
     )
     for _ in range(EXTRACTION_ATTEMPTS):
         raw = _call_llm(
-            user_prompt=user_prompt,
+            user_prompt,
             system=REQUIREMENT_EXTRACTION_SYSTEM_PROMPT,
             provider=provider,
             api_key=api_key,

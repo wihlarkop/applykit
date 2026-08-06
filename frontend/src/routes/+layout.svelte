@@ -17,6 +17,9 @@
   let { data, children } = $props();
   const isAuthRoute = $derived(data.isAuthRoute);
   const onSettings = $derived(page.url.pathname.startsWith('/settings'));
+  const shellWidth = $derived(
+    page.url.pathname === '/cover-letter' ? 'max-w-[90rem]' : 'max-w-5xl',
+  );
   let mobileMenuOpen = $state(false);
   let signingOut = $state(false);
 
@@ -80,7 +83,7 @@
 {:else}
   <div class="min-h-screen flex flex-col bg-muted/40">
     <header class="sticky top-0 z-60 border-b bg-card">
-      <div class="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between gap-3">
+      <div class="mx-auto {shellWidth} px-4 py-3 flex items-center justify-between gap-3">
         <div class="flex items-center gap-4 min-w-0">
           <a
             href="/"
@@ -132,7 +135,7 @@
 
       {#if mobileMenuOpen}
         <div class="md:hidden border-t border-border bg-card animate-in slide-in-from-top-2 duration-200">
-          <nav class="mx-auto max-w-5xl">
+          <nav class="mx-auto {shellWidth}">
             <a href="/" class={mobileNavClass('/')}>Dashboard</a>
             <a href="/cover-letter" class={mobileNavClass('/cover-letter')}>Cover Letter</a>
             <a href="/generate" class={mobileNavClass('/generate')}>Generate CV</a>
@@ -161,7 +164,7 @@
       <SessionExpiryBanner />
     {/if}
 
-    <main class="flex-1 mx-auto w-full max-w-5xl px-4 py-8">
+    <main class="flex-1 mx-auto w-full {shellWidth} px-4 py-8">
       {#if onSettings}
         <div class="mb-6"><SettingsNav /></div>
       {/if}

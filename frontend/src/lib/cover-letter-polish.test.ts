@@ -14,6 +14,7 @@ const legacyFit = readFileSync(
   new URL('./components/FitAnalysisDisplay.svelte', import.meta.url),
   'utf8',
 );
+const appCss = readFileSync(new URL('../app.css', import.meta.url), 'utf8');
 
 describe('cover letter visual polish', () => {
   test('uses a compact-balanced workspace with a larger result panel', () => {
@@ -42,10 +43,10 @@ describe('cover letter visual polish', () => {
     expect(page).toContain('onReanalyze={handleAnalyzeFit}');
     expect(page).not.toContain('>\n                Reanalyze\n              </Button>');
     expect(page.match(/class="space-y-1\.5 sm:col-span-2"/g)?.length).toBe(2);
-    expect(page).toContain(
-      'sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]',
+    expect(appCss).toContain(
+      'grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);',
     );
-    expect(page).toContain('title={salary || undefined}');
-    expect(page).toContain('class="text-xs tabular-nums"');
+    expect(appCss).toContain('#salary');
+    expect(appCss).toContain('font-variant-numeric: tabular-nums;');
   });
 });

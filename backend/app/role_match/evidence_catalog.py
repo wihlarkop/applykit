@@ -23,7 +23,7 @@ def build_evidence_catalog(profile: SafeProfile) -> list[EvidenceCatalogItem]:
         items.append(
             EvidenceCatalogItem(
                 evidence_id="summary:0",
-                source=EvidenceSource.WORK_EXPERIENCE,
+                source=EvidenceSource.SKILLS_LIST,
                 text=profile.summary,
                 duplicate_key=_duplicate_key(profile.summary),
                 metadata={"kind": "summary"},

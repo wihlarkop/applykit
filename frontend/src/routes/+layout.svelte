@@ -18,7 +18,7 @@
   const isAuthRoute = $derived(data.isAuthRoute);
   const onSettings = $derived(page.url.pathname.startsWith('/settings'));
   const shellWidth = $derived(
-    page.url.pathname === '/cover-letter' ? 'max-w-[90rem]' : 'max-w-5xl',
+    page.url.pathname === '/cover-letter' ? 'max-w-[80rem]' : 'max-w-5xl',
   );
   let mobileMenuOpen = $state(false);
   let signingOut = $state(false);

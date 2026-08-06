@@ -121,3 +121,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media (min-width: 640px) {
+  section[aria-labelledby="job-details-heading"] > .grid {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  }
+}
+
+#salary {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}

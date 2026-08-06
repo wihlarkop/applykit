@@ -4,6 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from app.role_match.api_schemas import RoleMatchAnalysisResponse
 from app.schemas import (
     ApplicationEntry,
     CoverLetterRequest,
@@ -15,27 +16,15 @@ class RoleMatchCoverLetterRequest(CoverLetterRequest):
     role_match_analysis_id: int
 
 
-class CompactRoleMatchAnalysis(BaseModel):
-    id: int
-    state: str
-    score: int | None
-    score_band: str | None
-    confidence: str | None
-    eligibility: str
-    show_authoritative_score: bool
-    summary: dict[str, Any] | None
-    failure_code: str | None
-    rules_version: str
-
-
 class RoleMatchGeneratedCoverLetterEntry(GeneratedCoverLetterEntry):
+    fit_analysis: dict[str, Any] | None = None
     match_score_source: Literal[
         "role_evidence_match",
         "legacy_llm_score",
         "none",
     ] = "none"
     role_match_analysis_id: int | None = None
-    role_match_analysis: CompactRoleMatchAnalysis | None = None
+    role_match_analysis: RoleMatchAnalysisResponse | None = None
 
 
 class RoleMatchGeneratedCoverLetterListResponse(BaseModel):

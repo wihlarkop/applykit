@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { buildRoleMatchViewModel } from './role-match-presenter';
-import type { RoleMatchAnalysisResponse } from './types';
+import type { RoleMatchAnalysisResponse } from './role-match-types';
 
 function strongFixture(): RoleMatchAnalysisResponse {
   return {

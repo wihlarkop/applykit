@@ -18,7 +18,8 @@ from app.role_match.domain import (
     TechnologyVolatility,
 )
 from app.role_match.models import RoleMatchOverride, RoleMatchRequirement
-from app.role_match.overrides import apply_user_overrides, restore_user_override
+from app.role_match.overrides import apply_user_overrides
+from app.role_match.restore import restore_user_override
 from app.role_match.scoring import score_role_match
 from app.role_match.snapshots import SnapshotInput, save_analysis_snapshot
 

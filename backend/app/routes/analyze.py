@@ -25,6 +25,7 @@ from app.role_match.repository import (
     list_versions,
     serialize_analysis,
 )
+from app.role_match.restore import restore_user_override
 from app.schemas import FitAnalysisRequest, FitAnalysisResponse
 from app.services.fit_analysis import analyze_fit
 from app.utils import format_profile_for_llm, profile_to_schema
@@ -166,3 +167,16 @@ def apply_role_match_overrides(
 ):
     child = apply_user_overrides(db, analysis_id, body.overrides)
     return serialize_analysis(db, child)
+
+
+@router.delete(
+    "/analyze/role-match/{analysis_id}/overrides/{override_id}",
+    response_model=RoleMatchAnalysisResponse,
+)
+def restore_role_match_override(
+    analysis_id: int,
+    override_id: int,
+    db: Session = Depends(get_db),
+):
+    restored = restore_user_override(db, analysis_id, override_id)
+    return serialize_analysis(db, restored)

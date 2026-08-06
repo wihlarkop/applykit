@@ -39,10 +39,10 @@ class LinkingResult(BaseModel):
     raw_output: str = ""
 
 
-def _call_llm(prompt: str, **kwargs) -> str:
+def _call_llm(**kwargs) -> str:
     from app.services.llm import call_llm
 
-    return call_llm(prompt, **kwargs)
+    return call_llm(**kwargs)
 
 
 def _last_used(item: EvidenceCatalogItem) -> tuple[date | None, bool]:
@@ -69,11 +69,11 @@ def link_candidate_evidence(
                 "evidence_catalog",
                 [item.model_dump(mode="json") for item in catalog],
             ),
-            "Link only supplied IDs and return JSON with a links array.",
+            "Link only supplied IDs from requirements and evidence_catalog and return JSON with a links array.",
         ]
     )
     raw = _call_llm(
-        user_prompt,
+        prompt=user_prompt,
         system=EVIDENCE_LINKING_SYSTEM_PROMPT,
         provider=provider,
         api_key=api_key,

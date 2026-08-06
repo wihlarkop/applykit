@@ -1,17 +1,80 @@
 from __future__ import annotations
 
+import json
+from typing import Any
+
+from sqlalchemy.orm import Session
+
+from app.role_match.carry_policy import classify_override_carry
 from app.role_match.domain import (
     MatchLevel,
     OverrideCarryStatus,
     RequirementAssessment,
     RequirementCluster,
 )
+from app.role_match.models import RoleMatchOverride, RoleMatchRequirement
 from app.role_match.overrides import (
     apply_carried_overrides_to_clusters,
     filter_carried_evidence_links,
-    prepare_parent_overrides,
 )
 from app.role_match.snapshots import SnapshotOverride
+
+
+def _loads(raw: str | None, default: Any) -> Any:
+    if raw is None:
+        return default
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+def prepare_parent_overrides(
+    db: Session,
+    parent_analysis_id: int | None,
+    new_clusters: list[RequirementCluster],
+) -> tuple[SnapshotOverride, ...]:
+    if parent_analysis_id is None:
+        return ()
+    previous_requirements = {
+        item.canonical_key: item
+        for item in db.query(RoleMatchRequirement)
+        .filter_by(analysis_id=parent_analysis_id)
+        .all()
+    }
+    previous_overrides = (
+        db.query(RoleMatchOverride)
+        .filter_by(analysis_id=parent_analysis_id)
+        .order_by(RoleMatchOverride.id.asc())
+        .all()
+    )
+    prepared: list[SnapshotOverride] = []
+    for item in previous_overrides:
+        previous_requirement = previous_requirements.get(item.requirement_key)
+        previous_category = (
+            previous_requirement.primary_category
+            if previous_requirement is not None
+            else ""
+        )
+        status, target_key = classify_override_carry(
+            previous_key=item.requirement_key,
+            previous_category=previous_category,
+            previous_status=item.carry_status,
+            new_clusters=new_clusters,
+        )
+        prepared.append(
+            SnapshotOverride(
+                requirement_key=target_key or item.requirement_key,
+                field_name=item.field_name,
+                extracted_value=_loads(item.extracted_value, None),
+                effective_value=_loads(item.effective_value, None),
+                reason=item.reason,
+                source="carry_forward",
+                carry_status=status.value,
+                source_override_id=item.id,
+            )
+        )
+    return tuple(prepared)
 
 
 def apply_carried_experience_overrides(

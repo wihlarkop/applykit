@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from datetime import date
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -18,7 +19,24 @@ from app.role_match.domain import (
     ScoreResult,
 )
 from app.role_match.evidence_strength import calculate_base_strength, calculate_recency_multiplier
-from app.role_match.models import RoleMatchAnalysis, RoleMatchEvidence, RoleMatchRequirement
+from app.role_match.models import (
+    RoleMatchAnalysis,
+    RoleMatchEvidence,
+    RoleMatchOverride,
+    RoleMatchRequirement,
+)
+
+
+@dataclass(frozen=True)
+class SnapshotOverride:
+    requirement_key: str
+    field_name: str
+    extracted_value: Any
+    effective_value: Any
+    reason: str
+    source: str = "user"
+    carry_status: str = "carried_forward"
+    source_override_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -43,6 +61,7 @@ class SnapshotInput:
     excluded_items: list[dict]
     summary: AnalysisSummary | None
     analysis_date: date
+    overrides: tuple[SnapshotOverride, ...] = ()
 
 
 def _sha256(value: str) -> str:
@@ -98,15 +117,26 @@ def save_analysis_snapshot(db: Session, value: SnapshotInput) -> RoleMatchAnalys
 
     assessment_map = {item.cluster_id: item for item in value.assessments}
     catalog_map = {item.evidence_id: item for item in value.catalog}
+    importance_overrides = {
+        item.requirement_key: item
+        for item in value.overrides
+        if item.field_name == "importance" and item.carry_status == "carried_forward"
+    }
     for index, cluster in enumerate(value.clusters):
         assessment = assessment_map.get(cluster.cluster_id)
+        importance_override = importance_overrides.get(cluster.canonical_key)
+        extracted_importance = (
+            str(importance_override.extracted_value)
+            if importance_override is not None
+            else cluster.importance.value
+        )
         requirement = RoleMatchRequirement(
             analysis_id=analysis.id,
             cluster_id=cluster.cluster_id,
             canonical_key=cluster.canonical_key,
             canonical_text=cluster.canonical_requirement,
             primary_category=cluster.primary_category.value,
-            extracted_importance=cluster.importance.value,
+            extracted_importance=extracted_importance,
             effective_importance=cluster.importance.value,
             mention_count=cluster.mention_count,
             importance_conflict=cluster.importance_conflict,
@@ -153,6 +183,22 @@ def save_analysis_snapshot(db: Session, value: SnapshotInput) -> RoleMatchAnalys
                     rank=rank,
                 )
             )
+
+    for item in value.overrides:
+        db.add(
+            RoleMatchOverride(
+                analysis_id=analysis.id,
+                requirement_key=item.requirement_key,
+                field_name=item.field_name,
+                extracted_value=json.dumps(item.extracted_value, ensure_ascii=False),
+                effective_value=json.dumps(item.effective_value, ensure_ascii=False),
+                reason=item.reason,
+                source=item.source,
+                carry_status=item.carry_status,
+                source_override_id=item.source_override_id,
+            )
+        )
+
     if value.parent_analysis_id:
         parent = db.query(RoleMatchAnalysis).filter_by(id=value.parent_analysis_id).first()
         if parent:

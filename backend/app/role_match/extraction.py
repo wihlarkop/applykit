@@ -22,10 +22,10 @@ class ExtractionResult(BaseModel):
     failure_code: str | None = None
 
 
-def _call_llm(prompt: str, **kwargs) -> str:
+def _call_llm(**kwargs) -> str:
     from app.services.llm import call_llm
 
-    return call_llm(prompt, **kwargs)
+    return call_llm(**kwargs)
 
 
 def extract_atomic_requirements(
@@ -39,12 +39,12 @@ def extract_atomic_requirements(
     user_prompt = "\n".join(
         [
             format_untrusted_input("job_description", job_description),
-            "Extract atomic requirements and return JSON with a requirements array.",
+            "Extract atomic requirements from job_description and return JSON with a requirements array.",
         ]
     )
     for _ in range(EXTRACTION_ATTEMPTS):
         raw = _call_llm(
-            user_prompt,
+            prompt=user_prompt,
             system=REQUIREMENT_EXTRACTION_SYSTEM_PROMPT,
             provider=provider,
             api_key=api_key,

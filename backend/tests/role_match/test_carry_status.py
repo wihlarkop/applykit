@@ -1,3 +1,4 @@
+from app.role_match.carry_policy import classify_override_carry
 from app.role_match.domain import (
     OverrideCarryStatus,
     RequirementCategory,
@@ -5,7 +6,6 @@ from app.role_match.domain import (
     RequirementImportance,
     TechnologyVolatility,
 )
-from app.role_match.overrides import classify_override_carry
 
 
 def cluster() -> RequirementCluster:

@@ -1,10 +1,14 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_profile_or_404, require_llm_config
+from app.exceptions import (
+    RoleMatchAnalysisNotFoundError,
+    RoleMatchProfileRequiredError,
+)
 from app.role_match.api_schemas import (
     RoleMatchAnalysisResponse,
     RoleMatchAnalyzeRequest,
@@ -79,7 +83,7 @@ def get_role_match_analysis(
 ):
     analysis = get_analysis(db, analysis_id)
     if analysis is None:
-        raise HTTPException(status_code=404, detail="Role match analysis not found")
+        raise RoleMatchAnalysisNotFoundError(analysis_id)
     return serialize_analysis(db, analysis)
 
 
@@ -93,7 +97,7 @@ def get_role_match_versions(
 ):
     analysis = get_analysis(db, analysis_id)
     if analysis is None:
-        raise HTTPException(status_code=404, detail="Role match analysis not found")
+        raise RoleMatchAnalysisNotFoundError(analysis_id)
     return list_versions(db, analysis)
 
 
@@ -107,9 +111,11 @@ def compare_role_match_analyses(
     db: Session = Depends(get_db),
 ):
     before = get_analysis(db, analysis_id)
+    if before is None:
+        raise RoleMatchAnalysisNotFoundError(analysis_id)
     after = get_analysis(db, other_analysis_id)
-    if before is None or after is None:
-        raise HTTPException(status_code=404, detail="Role match analysis not found")
+    if after is None:
+        raise RoleMatchAnalysisNotFoundError(other_analysis_id)
     return compare_analyses(db, before, after)
 
 
@@ -124,10 +130,10 @@ def reanalyze_role_match(
 ):
     parent = get_analysis(db, analysis_id)
     if parent is None:
-        raise HTTPException(status_code=404, detail="Role match analysis not found")
+        raise RoleMatchAnalysisNotFoundError(analysis_id)
     profile_id = body.profile_id or parent.profile_id
     if profile_id is None:
-        raise HTTPException(status_code=409, detail="A profile is required to re-analyze")
+        raise RoleMatchProfileRequiredError()
     profile = get_profile_or_404(profile_id, db)
     provider, api_key = require_llm_config(db)
     child = analyze_role_match(

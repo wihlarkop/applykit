@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text
 
-from app.models import Base
+from app.models import Base, GeneratedCoverLetter
 
 
 class RoleMatchAnalysis(Base):
@@ -36,6 +36,17 @@ class RoleMatchAnalysis(Base):
     show_authoritative_score = Column(Boolean, nullable=False, default=False)
     failure_code = Column(String(64), nullable=True)
     excluded_items = Column(Text, nullable=False, default="[]")
+
+
+# This column belongs to the legacy cover-letter table but is declared here so
+# importing the role-match subsystem is enough to register the complete v1.3
+# ORM metadata without coupling the legacy models module to the new engine.
+GeneratedCoverLetter.role_match_analysis_id = Column(
+    Integer,
+    ForeignKey("role_match_analysis.id", ondelete="SET NULL"),
+    nullable=True,
+    index=True,
+)
 
 
 class RoleMatchRequirement(Base):

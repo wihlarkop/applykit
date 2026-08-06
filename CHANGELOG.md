@@ -20,10 +20,17 @@ The project follows Semantic Versioning. Minor releases add backward-compatible 
 ### Changed
 
 - Smart Apply and Cover Letter now use Role Evidence Match while preserving existing page drafts and workflows.
+- Redesigned Cover Letter as a compact staged workflow with URL-first import, editable job summaries, focused fit review, writing preferences, and a balanced document preview.
 - Cover-letter generation uses a server-verified analysis ID and ignores score or fit context supplied by the browser.
 - Cover-letter history and the application tracker distinguish **Evidence match**, **Legacy score**, and records without a score.
 - Application score precedence now uses the latest direct authoritative analysis, then a linked cover-letter analysis, then a legacy score.
 - Overall scores are displayed in increments of five, including when an essential-requirement limit applies.
+
+### Fixed
+
+- Standalone job-posting URLs pasted into text mode are routed through the scraper instead of being treated as plain prompt text.
+- Official ATS metadata is prioritized over AI inference so imported company, role, location, and salary values are not replaced by guesses.
+- Long salary ranges receive more horizontal space and compact tabular-number styling in Cover Letter job details.
 
 ### Compatibility
 

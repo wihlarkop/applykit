@@ -540,7 +540,7 @@
 
   <div
     data-cover-letter-layout="hybrid"
-    class="grid items-start gap-6 xl:grid-cols-[minmax(22rem,0.7fr)_minmax(0,1.3fr)]"
+    class="grid items-start gap-6 xl:grid-cols-[minmax(22rem,0.72fr)_minmax(0,1.28fr)]"
   >
     <div class="space-y-5 xl:sticky xl:top-6">
       <Card class="overflow-hidden shadow-sm">
@@ -728,16 +728,16 @@
                   <Input id="company" bind:value={companyName} placeholder="Company name" />
                 </div>
                 <div class="space-y-1.5">
+                  <Label for="salary">Salary</Label>
+                  <Input id="salary" bind:value={salary} placeholder="Optional" />
+                </div>
+                <div class="space-y-1.5 sm:col-span-2">
                   <Label for="role">Role</Label>
                   <Input id="role" bind:value={roleTitle} placeholder="Target role" />
                 </div>
-                <div class="space-y-1.5">
+                <div class="space-y-1.5 sm:col-span-2">
                   <Label for="location">Location</Label>
                   <Input id="location" bind:value={location} placeholder="Tokyo, Japan" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="salary">Salary</Label>
-                  <Input id="salary" bind:value={salary} placeholder="Optional" />
                 </div>
               </div>
             </section>
@@ -1039,8 +1039,8 @@
           </div>
 
           {#if resultView === 'letter'}
-            <div class="bg-muted/20 p-4 sm:p-6 lg:p-8">
-              <div class="mx-auto min-h-[42rem] max-w-4xl rounded-xl border bg-background shadow-sm">
+            <div class="bg-muted/20 p-4 sm:p-5 lg:p-6">
+              <div class="mx-auto min-h-[42rem] max-w-[44rem] rounded-xl border bg-background shadow-sm">
                 <CoverLetterPreview text={coverLetterText} />
               </div>
             </div>
@@ -1059,16 +1059,11 @@
           {/if}
         {:else if fitResult}
           <div class="space-y-5 p-5 sm:p-6 lg:p-8">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Step 2
-                </p>
-                <h2 class="mt-1 text-xl font-semibold">Fit Review</h2>
-              </div>
-              <Button type="button" variant="outline" size="sm" onclick={handleAnalyzeFit}>
-                Reanalyze
-              </Button>
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Step 2
+              </p>
+              <h2 class="mt-1 text-xl font-semibold">Fit Review</h2>
             </div>
             <FitAnalysisDisplay
               {fitResult}

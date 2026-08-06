@@ -10,7 +10,7 @@
   import { authState } from '$lib/auth-state.svelte';
   import AiReadinessNotice from '$lib/components/AiReadinessNotice.svelte';
   import CoverLetterPreview from '$lib/components/CoverLetterPreview.svelte';
-  import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
+  import FitAnalysisDisplay from '$lib/components/RoleMatchFitAnalysisDisplay.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
   import { Input } from '$lib/components/ui/input';
@@ -461,7 +461,7 @@
   }
 </script>
 
-<div class="mx-auto max-w-7xl space-y-6 pb-12">
+<div class="w-full space-y-6 pb-12">
   {#if readiness && data.activeProfileId != null}
     <AiReadinessNotice
       ai={readiness.ai}
@@ -540,7 +540,7 @@
 
   <div
     data-cover-letter-layout="hybrid"
-    class="grid items-start gap-6 xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]"
+    class="grid items-start gap-6 xl:grid-cols-[minmax(22rem,0.7fr)_minmax(0,1.3fr)]"
   >
     <div class="space-y-5 xl:sticky xl:top-6">
       <Card class="overflow-hidden shadow-sm">
@@ -1039,13 +1039,13 @@
           </div>
 
           {#if resultView === 'letter'}
-            <div class="bg-muted/20 p-4 sm:p-6">
-              <div class="mx-auto min-h-[42rem] max-w-3xl rounded-xl border bg-background shadow-sm">
+            <div class="bg-muted/20 p-4 sm:p-6 lg:p-8">
+              <div class="mx-auto min-h-[42rem] max-w-4xl rounded-xl border bg-background shadow-sm">
                 <CoverLetterPreview text={coverLetterText} />
               </div>
             </div>
           {:else if fitResult}
-            <div class="p-5 sm:p-6">
+            <div class="p-5 sm:p-6 lg:p-8">
               <FitAnalysisDisplay
                 {fitResult}
                 {companyName}
@@ -1053,11 +1053,12 @@
                 {analyzing}
                 onAcceptEmphasis={acceptSuggestedEmphasis}
                 bind:showInterviewPrep
+                embedded={true}
               />
             </div>
           {/if}
         {:else if fitResult}
-          <div class="space-y-5 p-5 sm:p-6">
+          <div class="space-y-5 p-5 sm:p-6 lg:p-8">
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -1076,6 +1077,7 @@
               {analyzing}
               onAcceptEmphasis={acceptSuggestedEmphasis}
               bind:showInterviewPrep
+              embedded={true}
             />
           </div>
         {:else}

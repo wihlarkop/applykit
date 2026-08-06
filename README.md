@@ -15,12 +15,29 @@ ApplyKit keeps profiles, generated documents, application history, and provider 
 - Multiple role-specific career profiles
 - Resume import from PDF, DOCX, or pasted text
 - ATS-focused CV enhancement with live preview and PDF export
+- Evidence-based Role Evidence Match with separate confidence and eligibility
 - Tailored cover letters and Smart Apply workflows
 - Application tracker, history, and AI usage reporting
 - Curated and custom AI models across hosted and local providers
 - Encrypted multi-credential storage with manual, failover, and round-robin routing
 - Optional single-owner password protection for self-hosted deployments
 - Guided Profile Ready and AI Ready setup
+
+## Role Evidence Match
+
+Role Evidence Match shows how strongly the evidence in a career profile supports the requirements in a job description. A language model extracts atomic requirements and proposes evidence links, while fixed deterministic rules calculate the score, confidence, and eligibility status.
+
+The result keeps three questions separate:
+
+- **Evidence match** — how strongly the profile supports the role requirements.
+- **Confidence** — how complete, reliable, and consistent the available evidence is.
+- **Eligibility** — explicit job-related conditions such as work authorization, licensing, required location, or a language genuinely needed for the work.
+
+When the evidence is too incomplete or inconsistent, ApplyKit shows **Analysis needs review** rather than inventing a score. Users can correct requirement priority or evidence links, and each correction creates a new immutable analysis version for audit and comparison. Protected and non-job-related attributes are excluded from scoring.
+
+Role Evidence Match is application guidance. It is **not a hiring probability**, an ATS pass probability, or an automated hiring decision.
+
+See [Role Evidence Match](guides/role-evidence-match.md) for category weights, evidence multipliers, recency rules, score limits, confidence, fairness guardrails, versioned overrides, and the golden evaluation suite.
 
 ## Stable installation with Docker
 
@@ -73,6 +90,7 @@ Read [Upgrading](guides/upgrading.md) before changing tags or restoring data.
 
 - [Installation](guides/installation.md) — Docker, manual development, first launch, and storage
 - [Upgrading](guides/upgrading.md) — backups, migrations, tag upgrades, and rollback cautions
+- [Role Evidence Match](guides/role-evidence-match.md) — evidence-based scoring, confidence, eligibility, fairness, audit history, and limitations
 - [Configuration](guides/configuration.md) — environment variables, local mode, remote mode, and CORS
 - [Authentication](guides/authentication.md) — owner setup, sessions, lockout, and password recovery
 - [AI providers](guides/ai-providers.md) — models, credentials, routing, Ollama, and readiness

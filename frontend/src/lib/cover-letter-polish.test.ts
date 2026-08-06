@@ -38,9 +38,14 @@ describe('cover letter visual polish', () => {
     expect(preview).toContain('max-w-[44rem]');
   });
 
-  test('keeps one reanalysis action and gives long job fields full width', () => {
+  test('keeps one reanalysis action and gives long job fields enough room', () => {
     expect(page).toContain('onReanalyze={handleAnalyzeFit}');
     expect(page).not.toContain('>\n                Reanalyze\n              </Button>');
     expect(page.match(/class="space-y-1\.5 sm:col-span-2"/g)?.length).toBe(2);
+    expect(page).toContain(
+      'sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]',
+    );
+    expect(page).toContain('title={salary || undefined}');
+    expect(page).toContain('class="text-xs tabular-nums"');
   });
 });

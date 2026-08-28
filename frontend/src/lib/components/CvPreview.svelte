@@ -66,27 +66,14 @@
     </section>
   {/if}
 
-  {#if profile.skills.length}
-    <section class="mb-4">
-      <h2 class="text-xs font-bold uppercase tracking-widest border-b border-border dark:border-zinc-700 print:border-black pb-0.5 mb-2 text-foreground dark:text-zinc-200">Skills</h2>
-      <p class="text-muted-foreground dark:text-zinc-300 print:text-black">{profile.skills.join(' · ')}</p>
-    </section>
-  {/if}
-
   {#if profile.projects.length}
     <section class="mb-4">
       <h2 class="text-xs font-bold uppercase tracking-widest border-b border-border dark:border-zinc-700 print:border-black pb-0.5 mb-2 text-foreground dark:text-zinc-200">Projects</h2>
       {#each profile.projects as p}
-        <div class="mb-2">
-          <div class="flex justify-between items-baseline">
-            <span class="font-semibold text-foreground dark:text-zinc-200">{p.name}</span>
-            {#if p.link}<a href={toHref(p.link)} target="_blank" rel="noopener noreferrer" class="text-xs text-primary dark:text-blue-400 print:text-blue-600 hover:underline">{p.link}</a>{/if}
-          </div>
-          <p class="text-muted-foreground dark:text-zinc-300 print:text-black">{p.description}</p>
-          {#if p.tech_stack.length}
-            <p class="text-xs text-muted-foreground dark:text-zinc-500 print:text-gray-500 mt-0.5">{p.tech_stack.join(', ')}</p>
-          {/if}
-        </div>
+        <p class="mb-1 text-muted-foreground dark:text-zinc-300 print:text-black">
+          {#if p.link}<a href={toHref(p.link)} target="_blank" rel="noopener noreferrer" class="font-semibold text-foreground dark:text-zinc-200 hover:underline">{p.name}</a>{:else}<span class="font-semibold text-foreground dark:text-zinc-200">{p.name}</span>{/if}:
+          {p.description}{#if p.tech_stack.length} <span class="text-xs text-muted-foreground dark:text-zinc-500 print:text-gray-500">({p.tech_stack.join(', ')})</span>{/if}
+        </p>
       {/each}
     </section>
   {/if}
@@ -100,6 +87,22 @@
           <span class="text-xs text-muted-foreground dark:text-zinc-500 print:text-gray-500">{c.date}</span>
         </div>
       {/each}
+    </section>
+  {/if}
+
+  {#if profile.skill_categories?.length}
+    <section class="mb-4">
+      <h2 class="text-xs font-bold uppercase tracking-widest border-b border-border dark:border-zinc-700 print:border-black pb-0.5 mb-2 text-foreground dark:text-zinc-200">Skills</h2>
+      {#each profile.skill_categories as category}
+        <p class="text-muted-foreground dark:text-zinc-300 print:text-black">
+          <span class="font-semibold text-foreground dark:text-zinc-200">{category.label}:</span> {category.skills.join(', ')}
+        </p>
+      {/each}
+    </section>
+  {:else if profile.skills.length}
+    <section class="mb-4">
+      <h2 class="text-xs font-bold uppercase tracking-widest border-b border-border dark:border-zinc-700 print:border-black pb-0.5 mb-2 text-foreground dark:text-zinc-200">Skills</h2>
+      <p class="text-muted-foreground dark:text-zinc-300 print:text-black">{profile.skills.join(' · ')}</p>
     </section>
   {/if}
 </div>

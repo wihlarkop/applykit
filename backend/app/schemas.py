@@ -34,6 +34,11 @@ class Certification(BaseModel):
     date: str | None = None
 
 
+class SkillCategory(BaseModel):
+    label: str
+    skills: list[str]
+
+
 class ProfileData(BaseModel):
     id: int | None = None
     label: str = "Default"
@@ -50,6 +55,7 @@ class ProfileData(BaseModel):
     work_experience: list[WorkExperience] = []
     education: list[Education] = []
     skills: list[str] = []
+    skill_categories: list[SkillCategory] | None = None
     projects: list[Project] = []
     certifications: list[Certification] = []
     updated_at: datetime | None = None
@@ -145,6 +151,8 @@ class CoverLetterPdfRequest(BaseModel):
 class ATSEnhancement(BaseModel):
     summary: str
     work_experience: list[WorkExperience]
+    projects: list[Project] = []
+    skill_categories: list[SkillCategory] = []
 
 
 class GenerateSummaryRequest(BaseModel):

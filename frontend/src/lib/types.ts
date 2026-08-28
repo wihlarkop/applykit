@@ -27,6 +27,11 @@ export interface Certification {
   date: string;
 }
 
+export interface SkillCategory {
+  label: string;
+  skills: string[];
+}
+
 export interface ProfileData {
   id?: number | null;
   label?: string;
@@ -43,6 +48,7 @@ export interface ProfileData {
   work_experience: WorkExperience[];
   education: Education[];
   skills: string[];
+  skill_categories?: SkillCategory[] | null;
   projects: Project[];
   certifications: Certification[];
   updated_at?: string | null;

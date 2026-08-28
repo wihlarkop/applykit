@@ -39,13 +39,17 @@ INSTRUCTIONS:
    - Include measurable outcomes only when exact figures are explicitly present in the candidate data. Never infer or invent metrics, team size, system scale, revenue, or user counts.
    - Mirror keywords and phrases from the target job description when the candidate genuinely has that experience. Do NOT fabricate skills or experience.
    - Keep each bullet to 1-2 lines. Aim for 3-5 bullets per role.
-3. Preserve all factual information: company names, roles, dates, education, skills, projects, certifications. Never invent, fabricate, or add any data that was not present in the original profile.
-4. If no job description is provided, optimize generically for the candidate's apparent field.
+3. Reorder "projects" by relevance to the job description, most relevant first. Return every project from the original profile exactly once, with its original name, description, tech_stack, and link unchanged - only the order changes. If no job description is provided, keep the original order.
+4. Group "skills" into 3-6 short, natural categories for readability (for example: "AI/Voice", "Backend/Cloud", "Languages/Frontend", "Engineering Practices" - pick labels that fit this candidate's actual skills, don't force a fixed taxonomy). Every skill from the original profile must appear in exactly one category, using its original wording. Never drop, merge, rename, or invent skills. Order categories and skills within them by relevance to the job description when one is provided, otherwise by general importance.
+5. Preserve all other factual information exactly: company names, roles, dates, education, certifications. Never invent, fabricate, or add any data that was not present in the original profile.
+6. If no job description is provided, optimize generically for the candidate's apparent field.
 
 OUTPUT FORMAT:
-Return ONLY valid JSON with exactly two keys:
+Return ONLY valid JSON with exactly four keys:
 - "summary": string
 - "work_experience": array of objects, each with: company (string), role (string), start_date (string), end_date (string or null), bullets (array of strings)
+- "projects": array of objects, each with: name (string), description (string or null), tech_stack (array of strings), link (string or null)
+- "skill_categories": array of objects, each with: label (string), skills (array of strings)
 
 No markdown, no explanation, no wrapping - just the raw JSON object.""")
 

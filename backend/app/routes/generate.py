@@ -1,4 +1,5 @@
 import asyncio
+import io
 import json
 import logging
 from collections.abc import AsyncIterable
@@ -46,7 +47,12 @@ from app.services.settings import (
     is_llm_configured,
 )
 from app.utils import format_profile_for_llm, profile_to_schema
-from integration.pdf import PDFRenderError, html_to_pdf
+from integration.pdf import (
+    PDFRenderError,
+    document_to_pdf,
+    html_to_document,
+    html_to_pdf,
+)
 from integration.template import render_cover_letter_template, render_cv_template
 
 logger = logging.getLogger(__name__)
@@ -59,10 +65,109 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 
 
+def _pdf_page_count(pdf_bytes: bytes) -> int:
+    import pdfplumber
+
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        return len(pdf.pages)
+
+
+# Projects arrive pre-ranked by relevance (see ATS_SYSTEM_PROMPT instruction 3),
+# so trimming to a prefix keeps the most relevant ones.
+MAX_PROJECTS_WHEN_TRIMMED = 3
+
+# Bounds for stretching inter-section/item spacing to fill a page that has
+# room to spare. 1.8x is roughly where extra whitespace starts reading as
+# sparse rather than spacious, so the search never goes past it.
+MIN_SPACING_SCALE = 1.0
+MAX_SPACING_SCALE = 1.8
+# Second data point for the linear slack estimate below; the midpoint of the
+# scale range gives the widest safety margin against the fallback bisection.
+SPACING_PROBE_SCALE = 1.4
+# Bounded fallback bisection for the rare case where the linear estimate
+# overshoots (line-wrapping shifts mean scale-to-height isn't perfectly linear).
+SPACING_CORRECTION_ITERATIONS = 2
+
+_MM_TO_PT = 2.8346456693
+_PAGE_HEIGHT_PT = 297 * _MM_TO_PT  # A4, matches @page size in modern_v1.html
+_PAGE_BOTTOM_MARGIN_PT = 10 * _MM_TO_PT  # matches @page margin in modern_v1.html
+_MAX_CONTENT_BOTTOM_PT = _PAGE_HEIGHT_PT - _PAGE_BOTTOM_MARGIN_PT
+
+
+def _content_bottom_pt(pdf_bytes: bytes) -> float:
+    import pdfplumber
+
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        words = pdf.pages[0].extract_words()
+        return max((w["bottom"] for w in words), default=0.0)
+
+
+def _bisect_for_fit(
+    profile_data: dict, base_pdf_bytes: bytes, lo: float, hi: float
+) -> bytes:
+    best_bytes = base_pdf_bytes
+    for _ in range(SPACING_CORRECTION_ITERATIONS):
+        mid = (lo + hi) / 2
+        mid_document = html_to_document(
+            render_cv_template(profile_data, spacing_scale=mid)
+        )
+        if len(mid_document.pages) <= 1:
+            best_bytes = document_to_pdf(mid_document)
+            lo = mid
+        else:
+            hi = mid
+    return best_bytes
+
+
+def _find_max_fitting_spacing_scale(profile_data: dict, base_pdf_bytes: bytes) -> bytes:
+    # base_pdf_bytes must already be a confirmed one-page render at MIN_SPACING_SCALE;
+    # it doubles as the fallback whenever a larger scale can't be confirmed.
+    base_bottom = _content_bottom_pt(base_pdf_bytes)
+    slack = _MAX_CONTENT_BOTTOM_PT - base_bottom
+    if slack <= 0:
+        return base_pdf_bytes
+
+    probe_document = html_to_document(
+        render_cv_template(profile_data, spacing_scale=SPACING_PROBE_SCALE)
+    )
+    if len(probe_document.pages) > 1:
+        return _bisect_for_fit(
+            profile_data, base_pdf_bytes, MIN_SPACING_SCALE, SPACING_PROBE_SCALE
+        )
+
+    # Margins scale linearly with spacing_scale, so two points fully determine
+    # how much extra page height a given scale buys.
+    probe_bottom = _content_bottom_pt(document_to_pdf(probe_document))
+    slope = (probe_bottom - base_bottom) / (SPACING_PROBE_SCALE - MIN_SPACING_SCALE)
+    if slope <= 0:
+        return base_pdf_bytes
+
+    target_scale = min(MIN_SPACING_SCALE + slack / slope, MAX_SPACING_SCALE)
+    target_document = html_to_document(
+        render_cv_template(profile_data, spacing_scale=target_scale)
+    )
+    if len(target_document.pages) == 1:
+        return document_to_pdf(target_document)
+
+    return _bisect_for_fit(profile_data, base_pdf_bytes, MIN_SPACING_SCALE, target_scale)
+
+
 def _render_cv_pdf(profile_data: dict) -> Response:
     try:
         html = render_cv_template(profile_data)
         pdf_bytes = html_to_pdf(html)
+
+        projects = profile_data.get("projects") or []
+        if len(projects) > MAX_PROJECTS_WHEN_TRIMMED and _pdf_page_count(pdf_bytes) > 1:
+            profile_data = {
+                **profile_data,
+                "projects": projects[:MAX_PROJECTS_WHEN_TRIMMED],
+            }
+            trimmed_html = render_cv_template(profile_data)
+            pdf_bytes = html_to_pdf(trimmed_html)
+
+        if _pdf_page_count(pdf_bytes) == 1:
+            pdf_bytes = _find_max_fitting_spacing_scale(profile_data, pdf_bytes)
     except PDFRenderError as exc:
         raise PDFRenderFailedError() from exc
     return Response(
@@ -113,6 +218,19 @@ def _build_cover_letter_prompt(p: ProfileData, req: CoverLetterRequest) -> str:
     )
     parts.append(f"TONE INSTRUCTION: {tone_modifier}")
     return "\n".join(parts)
+
+
+def _apply_ats_enhancement(
+    profile_data: ProfileData, ats: ATSEnhancement
+) -> ProfileData:
+    return profile_data.model_copy(
+        update={
+            "summary": ats.summary,
+            "work_experience": ats.work_experience,
+            "projects": ats.projects or profile_data.projects,
+            "skill_categories": ats.skill_categories or None,
+        }
+    )
 
 
 def _build_cv_enhancement_prompt(
@@ -170,12 +288,7 @@ def generate_cv(req: GenerateCvRequest, db: Session = Depends(get_db)):
                 profile_id=req.profile_id,
             )
             ats = parse_structured_output(llm_output, ATSEnhancement)
-            result_profile = profile_data.model_copy(
-                update={
-                    "summary": ats.summary,
-                    "work_experience": ats.work_experience,
-                }
-            )
+            result_profile = _apply_ats_enhancement(profile_data, ats)
             enhanced = True
         except RateLimitError:
             raise
@@ -221,9 +334,7 @@ async def generate_cv_stream(req: GenerateCvRequest, db: Session = Depends(get_d
                 profile_id=req.profile_id,
             )
             ats = parse_structured_output(llm_output, ATSEnhancement)
-            result_profile = profile_data.model_copy(
-                update={"summary": ats.summary, "work_experience": ats.work_experience}
-            )
+            result_profile = _apply_ats_enhancement(profile_data, ats)
             enhanced = True
         except RateLimitError as exc:
             yield stream_error_event(exc)

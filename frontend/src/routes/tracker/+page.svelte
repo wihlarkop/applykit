@@ -10,6 +10,7 @@
 	import ApplicationCard from '$lib/components/tracker/ApplicationCard.svelte';
 	import ApplicationTable from '$lib/components/tracker/ApplicationTable.svelte';
 	import DetailPanel from '$lib/components/tracker/DetailPanel.svelte';
+	import PipelineFunnel from '$lib/components/tracker/PipelineFunnel.svelte';
 	import { STATUS_CONFIG } from '$lib/constants';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { toastState } from '$lib/toast.svelte';
@@ -29,6 +30,7 @@
 	let dateRange = $state('all');
 	let matchFilter = $state('all');
 	let filterProfileId = $state<number | undefined>(undefined);
+	let statusFilter = $state<ApplicationStatus | null>(null);
 	let searchTimer: ReturnType<typeof setTimeout>;
 
 	const allProfiles = $derived(profiles.all);
@@ -46,10 +48,13 @@
 	];
 
   // --- Derived ---
-  const filtersActive = $derived(search !== '' || dateRange !== 'all' || matchFilter !== 'all' || filterProfileId !== undefined);
+  const filtersActive = $derived(search !== '' || dateRange !== 'all' || matchFilter !== 'all' || filterProfileId !== undefined || statusFilter !== null);
+  // The funnel's counts reflect search/date/match/profile filters but not the stage filter itself,
+  // so selecting a stage doesn't zero out the other stages' counts.
+  const displayApps = $derived(statusFilter ? apps.filter((a) => a.status === statusFilter) : apps);
   const colItems = $derived(
     Object.fromEntries(
-      COLUMNS.map((c) => [c.status, apps.filter((a) => a.status === c.status)])
+      COLUMNS.map((c) => [c.status, displayApps.filter((a) => a.status === c.status)])
     ) as Record<ApplicationStatus, ApplicationEntry[]>
   );
 
@@ -195,6 +200,9 @@
     </div>
   {/if}
 
+  <!-- Pipeline funnel -->
+  <PipelineFunnel {apps} activeStatus={statusFilter} onSelect={(status) => (statusFilter = status)} />
+
   <!-- Filter bar -->
   <div class="flex items-center gap-3 flex-wrap">
     <input
@@ -226,7 +234,7 @@
 
     {#if filtersActive}
       <button
-        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; filterProfileId = undefined; load(); }}
+        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; filterProfileId = undefined; statusFilter = null; load(); }}
         class="text-xs text-primary font-bold px-2 py-1 hover:bg-primary/5 rounded-md transition-colors"
       >
         ✕ Clear filters
@@ -270,16 +278,16 @@
       <p class="text-xs text-muted-foreground">{loadError}</p>
       <button onclick={load} class="text-xs text-primary hover:underline mt-1">Try again</button>
     </div>
-  {:else if filtersActive && apps.length === 0}
+  {:else if filtersActive && displayApps.length === 0}
     <div class="flex flex-col items-center justify-center py-20 text-center gap-3">
       <p class="text-sm font-medium text-muted-foreground">No applications match your filters</p>
       <button
-        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; filterProfileId = undefined; load(); }}
+        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; filterProfileId = undefined; statusFilter = null; load(); }}
         class="text-xs text-primary hover:underline"
       >Clear filters</button>
     </div>
   {:else if viewMode === 'list'}
-    <ApplicationTable {apps} onSelect={(app) => (selectedApp = app)} />
+    <ApplicationTable apps={displayApps} onSelect={(app) => (selectedApp = app)} />
   {:else}
     <!-- Kanban board -->
     <div class="grid grid-cols-4 gap-4 items-start">

@@ -162,6 +162,11 @@
     selectedApp = updated;
   }
 
+  // Inline table edits sync the list without opening the detail panel.
+  function handleInlineUpdate(updated: ApplicationEntry) {
+    apps = apps.map((a) => (a.id === updated.id ? updated : a));
+  }
+
   function handleDelete(id: number) {
     apps = apps.filter((a) => a.id !== id);
     selectedApp = null;
@@ -287,7 +292,7 @@
       >Clear filters</button>
     </div>
   {:else if viewMode === 'list'}
-    <ApplicationTable apps={displayApps} onSelect={(app) => (selectedApp = app)} />
+    <ApplicationTable apps={displayApps} onSelect={(app) => (selectedApp = app)} onUpdate={handleInlineUpdate} />
   {:else}
     <!-- Kanban board -->
     <div class="grid grid-cols-4 gap-4 items-start">

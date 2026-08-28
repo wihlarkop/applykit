@@ -1,12 +1,21 @@
 <script lang="ts">
 	import type { ApplicationEntry } from '$lib/types';
 	import { STATUS_CONFIG } from '$lib/constants';
-	import { formatDateShort, getScoreColor } from '$lib/utils';
+	import { formatDateShort, getScoreColor, errorMessage } from '$lib/utils';
 	import { compareApplications, type ApplicationSortColumn, type SortDirection } from '$lib/tracker-sort';
+	import { updateApplication } from '$lib/api';
+	import { toastState } from '$lib/toast.svelte';
 	import { ArrowUpDown, ChevronUp, ChevronDown } from '@lucide/svelte';
 
-	let { apps, onSelect }: { apps: ApplicationEntry[]; onSelect: (app: ApplicationEntry) => void } =
-		$props();
+	let {
+		apps,
+		onSelect,
+		onUpdate
+	}: {
+		apps: ApplicationEntry[];
+		onSelect: (app: ApplicationEntry) => void;
+		onUpdate: (updated: ApplicationEntry) => void;
+	} = $props();
 
 	let sortColumn = $state<ApplicationSortColumn>('applied_date');
 	let sortDirection = $state<SortDirection>('desc');
@@ -33,6 +42,46 @@
 	const sortedApps = $derived(
 		[...apps].sort((a, b) => compareApplications(a, b, sortColumn, sortDirection))
 	);
+
+	// --- Inline quick-edit for location / applied_date ---
+	type EditableField = 'location' | 'applied_date';
+	let editingCell = $state<{ id: number; field: EditableField } | null>(null);
+	let editValue = $state('');
+
+	function focusOnMount(node: HTMLInputElement) {
+		node.focus();
+		node.select();
+	}
+
+	function startEdit(app: ApplicationEntry, field: EditableField) {
+		editingCell = { id: app.id, field };
+		editValue = app[field] ?? '';
+	}
+
+	function cancelEdit() {
+		editingCell = null;
+	}
+
+	async function saveEdit(app: ApplicationEntry) {
+		const cell = editingCell;
+		if (!cell) return;
+		editingCell = null;
+
+		const value = editValue.trim() || null;
+		if (value === (app[cell.field] ?? null)) return;
+
+		try {
+			const updated = await updateApplication(app.id, { [cell.field]: value });
+			onUpdate(updated);
+		} catch (e: unknown) {
+			toastState.error(errorMessage(e));
+		}
+	}
+
+	function onEditKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
+		else if (e.key === 'Escape') cancelEdit();
+	}
 </script>
 
 <div class="bg-card border border-border rounded-xl overflow-x-auto">
@@ -75,7 +124,26 @@
 						</span>
 					</td>
 					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{app.salary || '—'}</td>
-					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{app.location || '—'}</td>
+					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap" onclick={(e) => e.stopPropagation()}>
+						{#if editingCell?.id === app.id && editingCell.field === 'location'}
+							<input
+								type="text"
+								class="w-full min-w-24 bg-background border border-border rounded px-1.5 py-1 text-sm"
+								bind:value={editValue}
+								use:focusOnMount
+								onblur={() => saveEdit(app)}
+								onkeydown={onEditKeydown}
+							/>
+						{:else}
+							<button
+								type="button"
+								onclick={() => startEdit(app, 'location')}
+								class="text-left hover:text-foreground hover:underline decoration-dotted underline-offset-2"
+							>
+								{app.location || 'Add location'}
+							</button>
+						{/if}
+					</td>
 					<td class="px-3 py-2 whitespace-nowrap">
 						{#if app.match_score !== null}
 							<span class={getScoreColor(app.match_score).text}>{app.match_score}%</span>
@@ -83,8 +151,25 @@
 							<span class="text-muted-foreground">—</span>
 						{/if}
 					</td>
-					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">
-						{formatDateShort(app.applied_date ?? '') || '—'}
+					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap" onclick={(e) => e.stopPropagation()}>
+						{#if editingCell?.id === app.id && editingCell.field === 'applied_date'}
+							<input
+								type="date"
+								class="w-full bg-background border border-border rounded px-1.5 py-1 text-sm"
+								bind:value={editValue}
+								use:focusOnMount
+								onblur={() => saveEdit(app)}
+								onkeydown={onEditKeydown}
+							/>
+						{:else}
+							<button
+								type="button"
+								onclick={() => startEdit(app, 'applied_date')}
+								class="text-left hover:text-foreground hover:underline decoration-dotted underline-offset-2"
+							>
+								{formatDateShort(app.applied_date ?? '') || 'Add date'}
+							</button>
+						{/if}
 					</td>
 				</tr>
 			{/each}

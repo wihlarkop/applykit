@@ -8,13 +8,14 @@
 	import type { ApplicationFilters } from '$lib/types';
 	import { profiles } from '$lib/profiles.svelte';
 	import ApplicationCard from '$lib/components/tracker/ApplicationCard.svelte';
+	import ApplicationTable from '$lib/components/tracker/ApplicationTable.svelte';
 	import DetailPanel from '$lib/components/tracker/DetailPanel.svelte';
 	import { STATUS_CONFIG } from '$lib/constants';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { toastState } from '$lib/toast.svelte';
 	import type { ApplicationEntry, ApplicationStatus, CreateApplicationRequest } from '$lib/types';
 	import { errorMessage } from '$lib/utils';
-	import { Briefcase, CircleAlert } from '@lucide/svelte';
+	import { Briefcase, CircleAlert, LayoutGrid, List } from '@lucide/svelte';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 
@@ -22,6 +23,7 @@
 	let loading = $state(true);
 	let loadError = $state('');
 	let selectedApp = $state<ApplicationEntry | null>(null);
+	let viewMode = $state<'board' | 'list'>('list');
 
 	let search = $state('');
 	let dateRange = $state('all');
@@ -223,21 +225,44 @@
     </select>
 
     {#if filtersActive}
-      <button 
+      <button
         onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; filterProfileId = undefined; load(); }}
         class="text-xs text-primary font-bold px-2 py-1 hover:bg-primary/5 rounded-md transition-colors"
       >
         ✕ Clear filters
       </button>
     {/if}
+
+    <div class="flex items-center gap-1 border border-border rounded-md p-0.5 ml-auto">
+      <button
+        type="button"
+        onclick={() => (viewMode = 'list')}
+        title="List view"
+        class="p-1.5 rounded transition-colors {viewMode === 'list' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+      >
+        <List class="w-4 h-4" />
+      </button>
+      <button
+        type="button"
+        onclick={() => (viewMode = 'board')}
+        title="Board view"
+        class="p-1.5 rounded transition-colors {viewMode === 'board' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+      >
+        <LayoutGrid class="w-4 h-4" />
+      </button>
+    </div>
   </div>
 
   {#if loading}
-    <div class="grid grid-cols-4 gap-4">
-      {#each COLUMNS as _}
-        <div class="bg-card border border-border rounded-xl p-3 h-64 animate-pulse"></div>
-      {/each}
-    </div>
+    {#if viewMode === 'list'}
+      <div class="bg-card border border-border rounded-xl h-64 animate-pulse"></div>
+    {:else}
+      <div class="grid grid-cols-4 gap-4">
+        {#each COLUMNS as _}
+          <div class="bg-card border border-border rounded-xl p-3 h-64 animate-pulse"></div>
+        {/each}
+      </div>
+    {/if}
   {:else if loadError}
     <div class="flex flex-col items-center justify-center py-20 text-center gap-3">
       <CircleAlert class="w-8 h-8 text-destructive" />
@@ -253,6 +278,8 @@
         class="text-xs text-primary hover:underline"
       >Clear filters</button>
     </div>
+  {:else if viewMode === 'list'}
+    <ApplicationTable {apps} onSelect={(app) => (selectedApp = app)} />
   {:else}
     <!-- Kanban board -->
     <div class="grid grid-cols-4 gap-4 items-start">

@@ -1,20 +1,24 @@
 <script lang="ts">
-	import type { ApplicationEntry } from '$lib/types';
-	import { STATUS_CONFIG } from '$lib/constants';
+	import type { ApplicationEntry, ApplicationStatus } from '$lib/types';
+	import { STATUS_CONFIG, STATUS_OPTIONS } from '$lib/constants';
 	import { formatDateShort, getScoreColor, errorMessage } from '$lib/utils';
 	import { compareApplications, type ApplicationSortColumn, type SortDirection } from '$lib/tracker-sort';
-	import { updateApplication } from '$lib/api';
+	import { updateApplication, deleteApplication } from '$lib/api';
 	import { toastState } from '$lib/toast.svelte';
-	import { ArrowUpDown, ChevronUp, ChevronDown } from '@lucide/svelte';
+	import { ArrowUpDown, ChevronUp, ChevronDown, Trash2 } from '@lucide/svelte';
 
 	let {
 		apps,
 		onSelect,
-		onUpdate
+		onUpdate,
+		onBulkUpdate,
+		onBulkDelete
 	}: {
 		apps: ApplicationEntry[];
 		onSelect: (app: ApplicationEntry) => void;
 		onUpdate: (updated: ApplicationEntry) => void;
+		onBulkUpdate: (updated: ApplicationEntry[]) => void;
+		onBulkDelete: (ids: number[]) => void;
 	} = $props();
 
 	let sortColumn = $state<ApplicationSortColumn>('applied_date');
@@ -82,12 +86,141 @@
 		if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur();
 		else if (e.key === 'Escape') cancelEdit();
 	}
+
+	// --- Bulk selection ---
+	let selected = $state<Set<number>>(new Set());
+	let confirmBulkDelete = $state(false);
+	let bulkBusy = $state(false);
+	const BULK_STATUS_OPTIONS = STATUS_OPTIONS.filter(
+		(o): o is { value: ApplicationStatus; label: string } => o.value !== null
+	);
+
+	// Drop selections for rows that are no longer in view (filtered out, deleted, etc.)
+	$effect(() => {
+		const validIds = new Set(apps.map((a) => a.id));
+		if ([...selected].some((id) => !validIds.has(id))) {
+			selected = new Set([...selected].filter((id) => validIds.has(id)));
+		}
+	});
+
+	const allSelected = $derived(sortedApps.length > 0 && selected.size === sortedApps.length);
+
+	function toggleRow(id: number) {
+		const next = new Set(selected);
+		if (next.has(id)) next.delete(id);
+		else next.add(id);
+		selected = next;
+	}
+
+	function toggleAll() {
+		selected = allSelected ? new Set() : new Set(sortedApps.map((a) => a.id));
+	}
+
+	function clearSelection() {
+		selected = new Set();
+		confirmBulkDelete = false;
+	}
+
+	async function bulkSetStatus(status: ApplicationStatus) {
+		const ids = [...selected];
+		if (ids.length === 0) return;
+		bulkBusy = true;
+		try {
+			const results = await Promise.allSettled(ids.map((id) => updateApplication(id, { status })));
+			const succeeded = results
+				.filter((r): r is PromiseFulfilledResult<ApplicationEntry> => r.status === 'fulfilled')
+				.map((r) => r.value);
+			if (succeeded.length > 0) onBulkUpdate(succeeded);
+			const failedCount = results.length - succeeded.length;
+			if (failedCount > 0) {
+				toastState.error(`Failed to update ${failedCount} application${failedCount === 1 ? '' : 's'}`);
+			}
+			clearSelection();
+		} finally {
+			bulkBusy = false;
+		}
+	}
+
+	async function bulkDelete() {
+		const ids = [...selected];
+		if (ids.length === 0) return;
+		bulkBusy = true;
+		try {
+			const results = await Promise.allSettled(ids.map((id) => deleteApplication(id)));
+			const succeededIds = ids.filter((_, i) => results[i].status === 'fulfilled');
+			if (succeededIds.length > 0) onBulkDelete(succeededIds);
+			const failedCount = ids.length - succeededIds.length;
+			if (failedCount > 0) {
+				toastState.error(`Failed to delete ${failedCount} application${failedCount === 1 ? '' : 's'}`);
+			}
+			clearSelection();
+		} finally {
+			bulkBusy = false;
+		}
+	}
 </script>
+
+{#if selected.size > 0}
+	<div class="flex items-center gap-2 mb-2 px-3 py-2 bg-accent/50 border border-border rounded-lg text-sm">
+		<span class="text-xs font-bold text-muted-foreground">{selected.size} selected</span>
+
+		{#if confirmBulkDelete}
+			<span class="text-xs font-bold text-destructive">Delete {selected.size} application{selected.size === 1 ? '' : 's'}?</span>
+			<button
+				type="button"
+				disabled={bulkBusy}
+				onclick={bulkDelete}
+				class="bg-destructive text-destructive-foreground text-xs font-bold px-2.5 py-1 rounded-md hover:bg-destructive/90 transition-colors disabled:opacity-50"
+			>Confirm</button>
+			<button
+				type="button"
+				onclick={() => (confirmBulkDelete = false)}
+				class="border border-border text-xs font-bold px-2.5 py-1 rounded-md hover:bg-accent transition-colors"
+			>Cancel</button>
+		{:else}
+			<select
+				disabled={bulkBusy}
+				onchange={(e) => {
+					const value = e.currentTarget.value as ApplicationStatus | '';
+					if (value) bulkSetStatus(value);
+					e.currentTarget.value = '';
+				}}
+				class="bg-card border border-border rounded-md px-2 py-1 text-xs"
+			>
+				<option value="">Set status…</option>
+				{#each BULK_STATUS_OPTIONS as opt}
+					<option value={opt.value}>{opt.label}</option>
+				{/each}
+			</select>
+			<button
+				type="button"
+				disabled={bulkBusy}
+				onclick={() => (confirmBulkDelete = true)}
+				class="flex items-center gap-1 text-destructive/70 hover:text-destructive border border-destructive/20 text-xs font-bold px-2.5 py-1 rounded-md hover:bg-destructive/5 transition-colors disabled:opacity-50"
+			>
+				<Trash2 class="w-3 h-3" /> Delete
+			</button>
+			<button
+				type="button"
+				onclick={clearSelection}
+				class="ml-auto text-xs text-muted-foreground hover:text-foreground"
+			>Clear selection</button>
+		{/if}
+	</div>
+{/if}
 
 <div class="bg-card border border-border rounded-xl overflow-x-auto">
 	<table class="w-full text-sm">
 		<thead>
 			<tr class="border-b border-border">
+				<th class="px-3 py-2 w-8">
+					<input
+						type="checkbox"
+						checked={allSelected}
+						onclick={toggleAll}
+						aria-label="Select all"
+					/>
+				</th>
 				{#each COLUMNS as col}
 					<th class="text-left px-3 py-2 whitespace-nowrap">
 						<button
@@ -115,7 +248,16 @@
 				<tr
 					onclick={() => onSelect(app)}
 					class="border-b border-border/40 last:border-0 cursor-pointer hover:bg-accent/50 transition-colors"
+					class:bg-accent={selected.has(app.id)}
 				>
+					<td class="px-3 py-2" onclick={(e) => e.stopPropagation()}>
+						<input
+							type="checkbox"
+							checked={selected.has(app.id)}
+							onclick={() => toggleRow(app.id)}
+							aria-label="Select {app.company_name}"
+						/>
+					</td>
 					<td class="px-3 py-2 font-semibold whitespace-nowrap">{app.company_name}</td>
 					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{app.role_title || '—'}</td>
 					<td class="px-3 py-2 whitespace-nowrap">

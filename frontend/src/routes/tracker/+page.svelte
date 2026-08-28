@@ -167,6 +167,18 @@
     apps = apps.map((a) => (a.id === updated.id ? updated : a));
   }
 
+  function handleBulkUpdate(updated: ApplicationEntry[]) {
+    const byId = new Map(updated.map((u) => [u.id, u]));
+    apps = apps.map((a) => byId.get(a.id) ?? a);
+    if (selectedApp && byId.has(selectedApp.id)) selectedApp = byId.get(selectedApp.id)!;
+  }
+
+  function handleBulkDelete(ids: number[]) {
+    const idSet = new Set(ids);
+    apps = apps.filter((a) => !idSet.has(a.id));
+    if (selectedApp && idSet.has(selectedApp.id)) selectedApp = null;
+  }
+
   function handleDelete(id: number) {
     apps = apps.filter((a) => a.id !== id);
     selectedApp = null;
@@ -292,7 +304,13 @@
       >Clear filters</button>
     </div>
   {:else if viewMode === 'list'}
-    <ApplicationTable apps={displayApps} onSelect={(app) => (selectedApp = app)} onUpdate={handleInlineUpdate} />
+    <ApplicationTable
+      apps={displayApps}
+      onSelect={(app) => (selectedApp = app)}
+      onUpdate={handleInlineUpdate}
+      onBulkUpdate={handleBulkUpdate}
+      onBulkDelete={handleBulkDelete}
+    />
   {:else}
     <!-- Kanban board -->
     <div class="grid grid-cols-4 gap-4 items-start">

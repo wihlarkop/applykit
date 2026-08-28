@@ -5,41 +5,43 @@
 </head>
 <body>
 <style>
+  @page {
+    size: A4;
+    margin: 10mm 13mm;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: Helvetica, Arial, sans-serif;
-    font-size: 13px;
-    line-height: 1.25;
+    font-size: 12px;
+    line-height: 1.15;
     color: #000;
+    --spacing-scale: {{ spacing_scale | default(1.0) }};
   }
   .cv-container {
     max-width: 210mm;
     margin: 0 auto;
-    padding: 32px;
   }
   .cv-header {
     text-align: center;
-    margin-bottom: 16px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #d1d5db;
+    margin-bottom: calc(4px * var(--spacing-scale));
   }
   .cv-header .name {
-    font-size: 24px;
+    font-size: 22px;
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }
   .cv-header .contact-line {
-    font-size: 12px;
+    font-size: 11px;
     color: #6b7280;
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 4px 12px;
+    gap: 3px 10px;
   }
   .cv-section {
-    margin-bottom: 16px;
+    margin-bottom: calc(6px * var(--spacing-scale));
   }
   .section-title {
     font-size: 12px;
@@ -48,7 +50,7 @@
     letter-spacing: 0.1em;
     border-bottom: 1px solid #d1d5db;
     padding-bottom: 2px;
-    margin-bottom: 8px;
+    margin-bottom: calc(4px * var(--spacing-scale));
   }
   .summary-text {
     color: #4b5563;
@@ -57,11 +59,10 @@
   .education-item,
   .project-item,
   .certification-item {
-    margin-bottom: 12px;
+    margin-bottom: calc(4px * var(--spacing-scale));
   }
   .exp-header,
-  .edu-header,
-  .proj-header {
+  .edu-header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -72,41 +73,44 @@
   .cert-name {
     font-weight: bold;
   }
+  .proj-name {
+    color: inherit;
+    text-decoration: none;
+  }
   .exp-date,
   .edu-date,
   .cert-date {
-    font-size: 12px;
+    font-size: 11px;
     color: #6b7280;
   }
   .exp-company,
-  .edu-institution,
-  .proj-company {
-    font-size: 12px;
+  .edu-institution {
+    font-size: 11px;
     color: #6b7280;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
   .exp-bullets {
     margin-left: 16px;
   }
   .exp-bullets li {
-    margin-bottom: 2px;
+    margin-bottom: 1px;
   }
   .skills-text {
     color: #4b5563;
+    margin-bottom: 2px;
   }
-  .proj-description {
-    color: #4b5563;
-    margin-top: 4px;
+  .skills-category-label {
+    font-weight: bold;
+    color: #000;
   }
   .proj-tech {
-    font-size: 12px;
+    font-size: 11px;
     color: #6b7280;
-    margin-top: 2px;
   }
   .certification-item {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 4px;
+    margin-bottom: calc(3px * var(--spacing-scale));
   }
   .cert-issuer {
     color: #6b7280;
@@ -169,27 +173,14 @@
   </section>
   {% endif %}
 
-  {% if profile.skills %}
-  <section class="cv-section">
-    <h2 class="section-title">Skills</h2>
-    <p class="skills-text">{{ profile.skills | join(' · ') }}</p>
-  </section>
-  {% endif %}
-
   {% if profile.projects %}
   <section class="cv-section">
     <h2 class="section-title">Projects</h2>
     {% for proj in profile.projects %}
-    <div class="project-item">
-      <div class="proj-header">
-        <span class="proj-name">{{ proj.name }}</span>
-        {% if proj.link %}<span class="proj-link">{{ proj.link }}</span>{% endif %}
-      </div>
-      <p class="proj-description">{{ proj.description }}</p>
-      {% if proj.tech_stack %}
-      <p class="proj-tech">{{ proj.tech_stack | join(', ') }}</p>
-      {% endif %}
-    </div>
+    <p class="project-item">
+      {% if proj.link %}<a class="proj-name" href="{{ proj.link }}">{{ proj.name }}</a>{% else %}<span class="proj-name">{{ proj.name }}</span>{% endif %}:
+      {{ proj.description }}{% if proj.tech_stack %} <span class="proj-tech">({{ proj.tech_stack | join(', ') }})</span>{% endif %}
+    </p>
     {% endfor %}
   </section>
   {% endif %}
@@ -203,6 +194,20 @@
       <span class="cert-date">{{ cert.date or '' }}</span>
     </div>
     {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if profile.skill_categories %}
+  <section class="cv-section">
+    <h2 class="section-title">Skills</h2>
+    {% for category in profile.skill_categories %}
+    <p class="skills-text"><span class="skills-category-label">{{ category.label }}:</span> {{ category.skills | join(', ') }}</p>
+    {% endfor %}
+  </section>
+  {% elif profile.skills %}
+  <section class="cv-section">
+    <h2 class="section-title">Skills</h2>
+    <p class="skills-text">{{ profile.skills | join(' · ') }}</p>
   </section>
   {% endif %}
 </div>

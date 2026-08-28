@@ -101,7 +101,12 @@ class Application(Base):
         Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True
     )
     location = Column(String, nullable=True)
-    salary = Column(String, nullable=True)
+    min_salary = Column(Integer, nullable=True)
+    max_salary = Column(Integer, nullable=True)
+    excitement = Column(Integer, nullable=True)
+    date_posted = Column(Date, nullable=True)
+    deadline = Column(Date, nullable=True)
+    follow_up = Column(Date, nullable=True)
     job_description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     updated_at = Column(

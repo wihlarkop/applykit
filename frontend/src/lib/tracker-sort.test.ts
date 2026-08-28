@@ -21,7 +21,12 @@ function app(overrides: Partial<ApplicationEntry>): ApplicationEntry {
 		linked_cover_letter_id: null,
 		linked_cv_id: null,
 		location: null,
-		salary: null,
+		min_salary: null,
+		max_salary: null,
+		excitement: null,
+		date_posted: null,
+		deadline: null,
+		follow_up: null,
 		job_description: null,
 		...overrides
 	};
@@ -60,5 +65,19 @@ describe('compareApplications', () => {
 		const b = app({ applied_date: null });
 		expect(compareApplications(a, b, 'applied_date', 'asc')).toBe(0);
 		expect(compareApplications(a, b, 'applied_date', 'desc')).toBe(0);
+	});
+
+	test('sorts by min_salary', () => {
+		const a = app({ min_salary: 150_000 });
+		const b = app({ min_salary: 100_000 });
+		expect(compareApplications(a, b, 'min_salary', 'asc')).toBeGreaterThan(0);
+		expect(compareApplications(a, b, 'min_salary', 'desc')).toBeLessThan(0);
+	});
+
+	test('sorts by excitement', () => {
+		const a = app({ excitement: 5 });
+		const b = app({ excitement: 1 });
+		expect(compareApplications(a, b, 'excitement', 'asc')).toBeGreaterThan(0);
+		expect(compareApplications(a, b, 'excitement', 'desc')).toBeLessThan(0);
 	});
 });

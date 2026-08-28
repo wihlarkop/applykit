@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ApplicationEntry, ApplicationStatus } from '$lib/types';
 	import { STATUS_CONFIG, STATUS_OPTIONS } from '$lib/constants';
-	import { formatDateShort, getScoreColor, errorMessage } from '$lib/utils';
+	import { formatDateShort, getScoreColor, errorMessage, formatSalaryRange, formatExcitement } from '$lib/utils';
 	import { compareApplications, type ApplicationSortColumn, type SortDirection } from '$lib/tracker-sort';
 	import { updateApplication, deleteApplication } from '$lib/api';
 	import { toastState } from '$lib/toast.svelte';
@@ -28,10 +28,15 @@
 		{ key: 'company_name', label: 'Company' },
 		{ key: 'role_title', label: 'Role' },
 		{ key: 'status', label: 'Status' },
-		{ key: 'salary', label: 'Salary' },
+		{ key: 'min_salary', label: 'Salary' },
 		{ key: 'location', label: 'Location' },
 		{ key: 'match_score', label: 'Match' },
+		{ key: 'excitement', label: 'Excitement' },
+		{ key: 'date_posted', label: 'Posted' },
+		{ key: 'created_at', label: 'Saved' },
 		{ key: 'applied_date', label: 'Applied' },
+		{ key: 'deadline', label: 'Deadline' },
+		{ key: 'follow_up', label: 'Follow up' },
 	];
 
 	function toggleSort(col: ApplicationSortColumn) {
@@ -265,7 +270,7 @@
 							{STATUS_CONFIG[app.status].label}
 						</span>
 					</td>
-					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{app.salary || '—'}</td>
+					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{formatSalaryRange(app.min_salary, app.max_salary)}</td>
 					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap" onclick={(e) => e.stopPropagation()}>
 						{#if editingCell?.id === app.id && editingCell.field === 'location'}
 							<input
@@ -293,6 +298,11 @@
 							<span class="text-muted-foreground">—</span>
 						{/if}
 					</td>
+					<td class="px-3 py-2 text-amber-500 whitespace-nowrap">{formatExcitement(app.excitement)}</td>
+					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">
+						{app.date_posted ? formatDateShort(app.date_posted) : '—'}
+					</td>
+					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{formatDateShort(app.created_at)}</td>
 					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap" onclick={(e) => e.stopPropagation()}>
 						{#if editingCell?.id === app.id && editingCell.field === 'applied_date'}
 							<input
@@ -312,6 +322,12 @@
 								{formatDateShort(app.applied_date ?? '') || 'Add date'}
 							</button>
 						{/if}
+					</td>
+					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">
+						{app.deadline ? formatDateShort(app.deadline) : '—'}
+					</td>
+					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">
+						{app.follow_up ? formatDateShort(app.follow_up) : '—'}
 					</td>
 				</tr>
 			{/each}

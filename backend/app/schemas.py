@@ -364,7 +364,12 @@ class CreateApplicationRequest(BaseModel):
     applied_date: date | None = None
     profile_id: int | None = None
     location: str | None = None
-    salary: str | None = None
+    min_salary: int | None = None
+    max_salary: int | None = None
+    excitement: int | None = Field(default=None, ge=1, le=5)
+    date_posted: date | None = None
+    deadline: date | None = None
+    follow_up: date | None = None
     job_description: str | None = None
 
 
@@ -376,7 +381,12 @@ class UpdateApplicationRequest(BaseModel):
     notes: str | None = None
     applied_date: date | None = None
     location: str | None = None
-    salary: str | None = None
+    min_salary: int | None = None
+    max_salary: int | None = None
+    excitement: int | None = Field(default=None, ge=1, le=5)
+    date_posted: date | None = None
+    deadline: date | None = None
+    follow_up: date | None = None
     job_description: str | None = None
 
 
@@ -397,7 +407,12 @@ class ApplicationEntry(BaseModel):
     linked_cover_letter_id: int | None
     linked_cv_id: int | None
     location: str | None
-    salary: str | None
+    min_salary: int | None
+    max_salary: int | None
+    excitement: int | None
+    date_posted: date | None
+    deadline: date | None
+    follow_up: date | None
     job_description: str | None
 
     model_config = {"from_attributes": True}

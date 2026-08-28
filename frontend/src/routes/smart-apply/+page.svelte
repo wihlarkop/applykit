@@ -304,7 +304,8 @@
         profile_id: ap.id,
         status: 'applied',
         location: location || null,
-        salary: salary || null,
+        // salary here is free text from the job posting (e.g. "$120K-$150K"),
+        // which can't be reliably split into the tracker's structured min/max.
         job_description: scrapeResult.job_description || null,
       });
 

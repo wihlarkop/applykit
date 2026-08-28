@@ -3,8 +3,8 @@
 	import { STATUS_CONFIG } from '$lib/constants';
 	import { toastState } from '$lib/toast.svelte';
 	import type { ApplicationEntry, ApplicationStatus, UpdateApplicationRequest } from '$lib/types';
-	import { errorMessage, getScoreColor } from '$lib/utils';
-	import { Building2, MapPin, DollarSign, Calendar, Link, FileText, Trash2, ExternalLink } from '@lucide/svelte';
+	import { errorMessage, getScoreColor, formatDateShort } from '$lib/utils';
+	import { Building2, MapPin, DollarSign, Calendar, Link, FileText, Trash2, ExternalLink, Star } from '@lucide/svelte';
 
 	let {
 		app,
@@ -38,6 +38,12 @@
     } finally {
       saving = false;
     }
+  }
+
+  function toNumberOrNull(value: string): number | null {
+    if (!value.trim()) return null;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
   }
 
   async function handleDelete() {
@@ -165,35 +171,54 @@
           />
         </div>
 
+        <div>
+          <label for="dp-location" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Location</label>
+          <div class="relative">
+            <MapPin size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+            <input
+              id="dp-location"
+              class="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none transition-all"
+              placeholder="Remote, NY, etc."
+              value={app.location ?? ''}
+              onblur={(e) => {
+                const v = (e.target as HTMLInputElement).value || null;
+                if (v !== app.location) patch({ location: v });
+              }}
+            />
+          </div>
+        </div>
+
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label for="dp-location" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Location</label>
+            <label for="dp-min-salary" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Min Salary</label>
             <div class="relative">
-              <MapPin size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+              <DollarSign size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
               <input
-                id="dp-location"
+                id="dp-min-salary"
+                type="number"
                 class="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none transition-all"
-                placeholder="Remote, NY, etc."
-                value={app.location ?? ''}
+                placeholder="120000"
+                value={app.min_salary ?? ''}
                 onblur={(e) => {
-                  const v = (e.target as HTMLInputElement).value || null;
-                  if (v !== app.location) patch({ location: v });
+                  const v = toNumberOrNull((e.target as HTMLInputElement).value);
+                  if (v !== app.min_salary) patch({ min_salary: v });
                 }}
               />
             </div>
           </div>
           <div>
-            <label for="dp-salary" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Salary</label>
+            <label for="dp-max-salary" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Max Salary</label>
             <div class="relative">
               <DollarSign size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
               <input
-                id="dp-salary"
+                id="dp-max-salary"
+                type="number"
                 class="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none transition-all"
-                placeholder="Range or fixed"
-                value={app.salary ?? ''}
+                placeholder="150000"
+                value={app.max_salary ?? ''}
                 onblur={(e) => {
-                  const v = (e.target as HTMLInputElement).value || null;
-                  if (v !== app.salary) patch({ salary: v });
+                  const v = toNumberOrNull((e.target as HTMLInputElement).value);
+                  if (v !== app.max_salary) patch({ max_salary: v });
                 }}
               />
             </div>
@@ -201,21 +226,97 @@
         </div>
 
         <div>
-          <label for="dp-date" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Applied On</label>
-          <div class="relative">
-            <Calendar size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
-            <input
-              id="dp-date"
-              type="date"
-              class="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none transition-all"
-              value={app.applied_date ?? ''}
-              onblur={(e) => {
-                const v = (e.target as HTMLInputElement).value || null;
-                if (v !== app.applied_date) patch({ applied_date: v });
-              }}
-            />
+          <span class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Excitement</span>
+          <div class="flex items-center gap-1">
+            {#each [1, 2, 3, 4, 5] as n}
+              <button
+                type="button"
+                onclick={() => patch({ excitement: app.excitement === n ? null : n })}
+                aria-label="Set excitement to {n}"
+                class="p-0.5"
+              >
+                <Star
+                  size={18}
+                  class={app.excitement !== null && n <= app.excitement
+                    ? 'fill-amber-400 text-amber-400'
+                    : 'text-muted-foreground/40'}
+                />
+              </button>
+            {/each}
           </div>
         </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="dp-date" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Applied On</label>
+            <div class="relative">
+              <Calendar size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+              <input
+                id="dp-date"
+                type="date"
+                class="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none transition-all"
+                value={app.applied_date ?? ''}
+                onblur={(e) => {
+                  const v = (e.target as HTMLInputElement).value || null;
+                  if (v !== app.applied_date) patch({ applied_date: v });
+                }}
+              />
+            </div>
+          </div>
+          <div>
+            <label for="dp-posted" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Date Posted</label>
+            <div class="relative">
+              <Calendar size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+              <input
+                id="dp-posted"
+                type="date"
+                class="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none transition-all"
+                value={app.date_posted ?? ''}
+                onblur={(e) => {
+                  const v = (e.target as HTMLInputElement).value || null;
+                  if (v !== app.date_posted) patch({ date_posted: v });
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="dp-deadline" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Deadline</label>
+            <div class="relative">
+              <Calendar size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+              <input
+                id="dp-deadline"
+                type="date"
+                class="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none transition-all"
+                value={app.deadline ?? ''}
+                onblur={(e) => {
+                  const v = (e.target as HTMLInputElement).value || null;
+                  if (v !== app.deadline) patch({ deadline: v });
+                }}
+              />
+            </div>
+          </div>
+          <div>
+            <label for="dp-follow-up" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Follow Up</label>
+            <div class="relative">
+              <Calendar size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+              <input
+                id="dp-follow-up"
+                type="date"
+                class="w-full bg-background border border-border rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none transition-all"
+                value={app.follow_up ?? ''}
+                onblur={(e) => {
+                  const v = (e.target as HTMLInputElement).value || null;
+                  if (v !== app.follow_up) patch({ follow_up: v });
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <p class="text-[10px] text-muted-foreground/70">Saved {formatDateShort(app.created_at)}</p>
 
         <div>
           <label for="dp-url" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Job Posting URL</label>

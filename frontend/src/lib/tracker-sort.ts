@@ -4,10 +4,15 @@ export type ApplicationSortColumn =
 	| 'company_name'
 	| 'role_title'
 	| 'status'
-	| 'salary'
+	| 'min_salary'
 	| 'location'
 	| 'match_score'
-	| 'applied_date';
+	| 'excitement'
+	| 'date_posted'
+	| 'created_at'
+	| 'applied_date'
+	| 'deadline'
+	| 'follow_up';
 
 export type SortDirection = 'asc' | 'desc';
 

@@ -7,6 +7,10 @@ from sqlalchemy import engine_from_config, pool
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from app.models import Base
+# Autogenerate needs every model module imported so its tables register on
+# Base.metadata; otherwise a table with no other registered module looks
+# "removed" and autogenerate emits a DROP for it.
+import app.role_match.models  # noqa: F401
 
 config = context.config
 

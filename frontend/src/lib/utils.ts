@@ -107,6 +107,19 @@ export function formatDateShort(iso: string): string {
 	return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+export function formatSalaryRange(min: number | null, max: number | null): string {
+	const fmt = (n: number) => `$${Math.round(n / 1000)}K`;
+	if (min !== null && max !== null) return min === max ? fmt(min) : `${fmt(min)} - ${fmt(max)}`;
+	if (min !== null) return `${fmt(min)}+`;
+	if (max !== null) return `Up to ${fmt(max)}`;
+	return '—';
+}
+
+export function formatExcitement(n: number | null): string {
+	if (n === null) return '—';
+	return '★'.repeat(n) + '☆'.repeat(5 - n);
+}
+
 export function formatDateRelative(iso: string): string {
 	const date = new Date(iso);
 	const now = new Date();

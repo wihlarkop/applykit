@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { deleteApplication, updateApplication } from '$lib/api';
-	import { STATUS_CONFIG } from '$lib/constants';
+	import { STATUS_CONFIG, STATUS_OPTIONS } from '$lib/constants';
 	import { toastState } from '$lib/toast.svelte';
 	import type { ApplicationEntry, ApplicationStatus, UpdateApplicationRequest } from '$lib/types';
 	import { errorMessage, getScoreColor, formatDateShort } from '$lib/utils';
@@ -18,7 +18,9 @@
 		ondelete: (id: number) => void;
 	} = $props();
 
-	const STATUS_OPTIONS: ApplicationStatus[] = ['applied', 'interviewing', 'offer', 'rejected'];
+	const STATUS_SELECT_OPTIONS = STATUS_OPTIONS.filter(
+		(o): o is { value: ApplicationStatus; label: string } => o.value !== null
+	);
 
 	let confirmDelete = $state(false);
 	let saving = $state(false);
@@ -105,8 +107,8 @@
           value={app.status}
           onchange={(e) => patch({ status: (e.target as HTMLSelectElement).value as ApplicationStatus })}
         >
-          {#each STATUS_OPTIONS as s}
-            <option value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+          {#each STATUS_SELECT_OPTIONS as opt}
+            <option value={opt.value}>{opt.label}</option>
           {/each}
         </select>
       </div>

@@ -41,9 +41,12 @@
 	let newDate = $state(new Date().toISOString().split('T')[0]);
 
 	const COLUMNS: { status: ApplicationStatus; label: string; color: string }[] = [
-		{ status: 'applied', label: STATUS_CONFIG.applied.label, color: 'text-muted-foreground' },
+		{ status: 'bookmarked', label: STATUS_CONFIG.bookmarked.label, color: 'text-muted-foreground' },
+		{ status: 'applying', label: STATUS_CONFIG.applying.label, color: STATUS_CONFIG.applying.color },
+		{ status: 'applied', label: STATUS_CONFIG.applied.label, color: STATUS_CONFIG.applied.color },
 		{ status: 'interviewing', label: STATUS_CONFIG.interviewing.label, color: STATUS_CONFIG.interviewing.color },
-		{ status: 'offer', label: STATUS_CONFIG.offer.label, color: STATUS_CONFIG.offer.color },
+		{ status: 'negotiating', label: STATUS_CONFIG.negotiating.label, color: STATUS_CONFIG.negotiating.color },
+		{ status: 'accepted', label: STATUS_CONFIG.accepted.label, color: STATUS_CONFIG.accepted.color },
 		{ status: 'rejected', label: STATUS_CONFIG.rejected.label, color: STATUS_CONFIG.rejected.color },
 	];
 
@@ -282,9 +285,9 @@
     {#if viewMode === 'list'}
       <div class="bg-card border border-border rounded-xl h-64 animate-pulse"></div>
     {:else}
-      <div class="grid grid-cols-4 gap-4">
+      <div class="flex gap-4 overflow-x-auto">
         {#each COLUMNS as _}
-          <div class="bg-card border border-border rounded-xl p-3 h-64 animate-pulse"></div>
+          <div class="bg-card border border-border rounded-xl p-3 h-64 w-64 shrink-0 animate-pulse"></div>
         {/each}
       </div>
     {/if}
@@ -313,10 +316,10 @@
     />
   {:else}
     <!-- Kanban board -->
-    <div class="grid grid-cols-4 gap-4 items-start">
+    <div class="flex gap-4 items-start overflow-x-auto pb-2">
       {#each COLUMNS as col}
         {@const items = colItems[col.status] ?? []}
-        <div class="bg-card border border-border rounded-xl p-3 flex flex-col">
+        <div class="bg-card border border-border rounded-xl p-3 flex flex-col w-64 shrink-0">
           <!-- Column header (sticky) -->
           <div class="sticky top-0 bg-card/95 backdrop-blur-sm z-10 flex items-center justify-between mb-3 py-1 border-b border-border/40">
             <span class="text-[10px] font-black uppercase tracking-widest {col.color}">{col.label}</span>

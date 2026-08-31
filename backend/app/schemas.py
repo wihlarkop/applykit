@@ -349,9 +349,12 @@ class BulkDeleteRequest(BaseModel):
 
 
 class ApplicationStatus(str, Enum):
+    bookmarked = "bookmarked"
+    applying = "applying"
     applied = "applied"
     interviewing = "interviewing"
-    offer = "offer"
+    negotiating = "negotiating"
+    accepted = "accepted"
     rejected = "rejected"
 
 

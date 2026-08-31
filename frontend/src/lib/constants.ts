@@ -37,13 +37,26 @@ export const MATCH_COLORS = {
 
 export const STATUS_OPTIONS: { value: ApplicationStatus | null; label: string }[] = [
 	{ value: null, label: '—' },
+	{ value: 'bookmarked', label: 'Bookmarked' },
+	{ value: 'applying', label: 'Applying' },
 	{ value: 'applied', label: 'Applied' },
 	{ value: 'interviewing', label: 'Interviewing' },
-	{ value: 'offer', label: 'Offer' },
+	{ value: 'negotiating', label: 'Negotiating' },
+	{ value: 'accepted', label: 'Accepted' },
 	{ value: 'rejected', label: 'Rejected' },
 ];
 
 export const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string; activeClass: string }> = {
+	bookmarked: {
+		label: 'Bookmarked',
+		color: 'text-slate-500',
+		activeClass: 'bg-slate-500/20 text-slate-600 border border-slate-500/40',
+	},
+	applying: {
+		label: 'Applying',
+		color: 'text-violet-500',
+		activeClass: 'bg-violet-500/20 text-violet-600 border border-violet-500/40',
+	},
 	applied: {
 		label: 'Applied',
 		color: 'text-blue-600',
@@ -54,8 +67,13 @@ export const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: st
 		color: 'text-amber-500',
 		activeClass: 'bg-amber-500/20 text-amber-600 border border-amber-500/40',
 	},
-	offer: {
-		label: 'Offer',
+	negotiating: {
+		label: 'Negotiating',
+		color: 'text-cyan-500',
+		activeClass: 'bg-cyan-500/20 text-cyan-600 border border-cyan-500/40',
+	},
+	accepted: {
+		label: 'Accepted',
 		color: 'text-green-500',
 		activeClass: 'bg-green-500/20 text-green-600 border border-green-500/40',
 	},

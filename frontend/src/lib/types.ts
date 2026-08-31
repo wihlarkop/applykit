@@ -131,7 +131,14 @@ export interface FitAnalysisResponse {
 }
 
 export type Tone = 'professional' | 'enthusiastic' | 'concise' | 'creative';
-export type ApplicationStatus = 'applied' | 'interviewing' | 'offer' | 'rejected';
+export type ApplicationStatus =
+  | 'bookmarked'
+  | 'applying'
+  | 'applied'
+  | 'interviewing'
+  | 'negotiating'
+  | 'accepted'
+  | 'rejected';
 
 export interface CoverLetterRequest {
   profile_id: number;

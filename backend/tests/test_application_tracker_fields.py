@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.models import Base
 from app.routes.applications import create_application, update_application
-from app.schemas import CreateApplicationRequest, UpdateApplicationRequest
+from app.schemas import ApplicationStatus, CreateApplicationRequest, UpdateApplicationRequest
 
 
 def _make_session():
@@ -65,3 +65,23 @@ def test_update_application_patches_new_fields_independently():
 def test_excitement_rejects_out_of_range_values(excitement):
     with pytest.raises(ValidationError):
         CreateApplicationRequest(company_name="Acme", excitement=excitement)
+
+
+@pytest.mark.parametrize(
+    "status",
+    ["bookmarked", "applying", "applied", "interviewing", "negotiating", "accepted", "rejected"],
+)
+def test_create_application_accepts_every_status_in_the_expanded_taxonomy(status):
+    db = _make_session()
+    try:
+        entry = create_application(
+            CreateApplicationRequest(company_name="Acme", status=ApplicationStatus(status)), db
+        )
+        assert entry.status == status
+    finally:
+        db.close()
+
+
+def test_offer_is_no_longer_a_valid_status():
+    with pytest.raises(ValidationError):
+        CreateApplicationRequest(company_name="Acme", status="offer")

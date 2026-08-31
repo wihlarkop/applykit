@@ -3,18 +3,23 @@
 	import { STATUS_CONFIG, STATUS_OPTIONS } from '$lib/constants';
 	import { formatDateShort, getScoreColor, errorMessage, formatSalaryRange, formatExcitement } from '$lib/utils';
 	import { compareApplications, type ApplicationSortColumn, type SortDirection } from '$lib/tracker-sort';
+	import { groupApplications, type GroupByOption } from '$lib/tracker-view-config';
 	import { updateApplication, deleteApplication } from '$lib/api';
 	import { toastState } from '$lib/toast.svelte';
 	import { ArrowUpDown, ChevronUp, ChevronDown, Trash2 } from '@lucide/svelte';
 
 	let {
 		apps,
+		columns,
+		groupBy = 'none',
 		onSelect,
 		onUpdate,
 		onBulkUpdate,
 		onBulkDelete
 	}: {
 		apps: ApplicationEntry[];
+		columns: { key: ApplicationSortColumn; label: string }[];
+		groupBy?: GroupByOption;
 		onSelect: (app: ApplicationEntry) => void;
 		onUpdate: (updated: ApplicationEntry) => void;
 		onBulkUpdate: (updated: ApplicationEntry[]) => void;
@@ -23,21 +28,6 @@
 
 	let sortColumn = $state<ApplicationSortColumn>('applied_date');
 	let sortDirection = $state<SortDirection>('desc');
-
-	const COLUMNS: { key: ApplicationSortColumn; label: string }[] = [
-		{ key: 'company_name', label: 'Company' },
-		{ key: 'role_title', label: 'Role' },
-		{ key: 'status', label: 'Status' },
-		{ key: 'min_salary', label: 'Salary' },
-		{ key: 'location', label: 'Location' },
-		{ key: 'match_score', label: 'Match' },
-		{ key: 'excitement', label: 'Excitement' },
-		{ key: 'date_posted', label: 'Posted' },
-		{ key: 'created_at', label: 'Saved' },
-		{ key: 'applied_date', label: 'Applied' },
-		{ key: 'deadline', label: 'Deadline' },
-		{ key: 'follow_up', label: 'Follow up' },
-	];
 
 	function toggleSort(col: ApplicationSortColumn) {
 		if (sortColumn === col) {
@@ -51,6 +41,7 @@
 	const sortedApps = $derived(
 		[...apps].sort((a, b) => compareApplications(a, b, sortColumn, sortDirection))
 	);
+	const groups = $derived(groupApplications(sortedApps, groupBy));
 
 	// --- Inline quick-edit for location / applied_date ---
 	type EditableField = 'location' | 'applied_date';
@@ -165,6 +156,88 @@
 	}
 </script>
 
+{#snippet cell(col: { key: ApplicationSortColumn; label: string }, app: ApplicationEntry)}
+	{#if col.key === 'company_name'}
+		<td class="px-3 py-2 font-semibold whitespace-nowrap">{app.company_name}</td>
+	{:else if col.key === 'role_title'}
+		<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{app.role_title || '—'}</td>
+	{:else if col.key === 'status'}
+		<td class="px-3 py-2 whitespace-nowrap">
+			<span class="text-[10px] font-black uppercase tracking-widest {STATUS_CONFIG[app.status].color}">
+				{STATUS_CONFIG[app.status].label}
+			</span>
+		</td>
+	{:else if col.key === 'min_salary'}
+		<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{formatSalaryRange(app.min_salary, app.max_salary)}</td>
+	{:else if col.key === 'location'}
+		<td class="px-3 py-2 text-muted-foreground whitespace-nowrap" onclick={(e) => e.stopPropagation()}>
+			{#if editingCell?.id === app.id && editingCell.field === 'location'}
+				<input
+					type="text"
+					class="w-full min-w-24 bg-background border border-border rounded px-1.5 py-1 text-sm"
+					bind:value={editValue}
+					use:focusOnMount
+					onblur={() => saveEdit(app)}
+					onkeydown={onEditKeydown}
+				/>
+			{:else}
+				<button
+					type="button"
+					onclick={() => startEdit(app, 'location')}
+					class="text-left hover:text-foreground hover:underline decoration-dotted underline-offset-2"
+				>
+					{app.location || 'Add location'}
+				</button>
+			{/if}
+		</td>
+	{:else if col.key === 'match_score'}
+		<td class="px-3 py-2 whitespace-nowrap">
+			{#if app.match_score !== null}
+				<span class={getScoreColor(app.match_score).text}>{app.match_score}%</span>
+			{:else}
+				<span class="text-muted-foreground">—</span>
+			{/if}
+		</td>
+	{:else if col.key === 'excitement'}
+		<td class="px-3 py-2 text-amber-500 whitespace-nowrap">{formatExcitement(app.excitement)}</td>
+	{:else if col.key === 'date_posted'}
+		<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">
+			{app.date_posted ? formatDateShort(app.date_posted) : '—'}
+		</td>
+	{:else if col.key === 'created_at'}
+		<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{formatDateShort(app.created_at)}</td>
+	{:else if col.key === 'applied_date'}
+		<td class="px-3 py-2 text-muted-foreground whitespace-nowrap" onclick={(e) => e.stopPropagation()}>
+			{#if editingCell?.id === app.id && editingCell.field === 'applied_date'}
+				<input
+					type="date"
+					class="w-full bg-background border border-border rounded px-1.5 py-1 text-sm"
+					bind:value={editValue}
+					use:focusOnMount
+					onblur={() => saveEdit(app)}
+					onkeydown={onEditKeydown}
+				/>
+			{:else}
+				<button
+					type="button"
+					onclick={() => startEdit(app, 'applied_date')}
+					class="text-left hover:text-foreground hover:underline decoration-dotted underline-offset-2"
+				>
+					{formatDateShort(app.applied_date ?? '') || 'Add date'}
+				</button>
+			{/if}
+		</td>
+	{:else if col.key === 'deadline'}
+		<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">
+			{app.deadline ? formatDateShort(app.deadline) : '—'}
+		</td>
+	{:else if col.key === 'follow_up'}
+		<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">
+			{app.follow_up ? formatDateShort(app.follow_up) : '—'}
+		</td>
+	{/if}
+{/snippet}
+
 {#if selected.size > 0}
 	<div class="flex items-center gap-2 mb-2 px-3 py-2 bg-accent/50 border border-border rounded-lg text-sm">
 		<span class="text-xs font-bold text-muted-foreground">{selected.size} selected</span>
@@ -226,7 +299,7 @@
 						aria-label="Select all"
 					/>
 				</th>
-				{#each COLUMNS as col}
+				{#each columns as col}
 					<th class="text-left px-3 py-2 whitespace-nowrap">
 						<button
 							type="button"
@@ -249,87 +322,33 @@
 			</tr>
 		</thead>
 		<tbody>
-			{#each sortedApps as app (app.id)}
-				<tr
-					onclick={() => onSelect(app)}
-					class="border-b border-border/40 last:border-0 cursor-pointer hover:bg-accent/50 transition-colors"
-					class:bg-accent={selected.has(app.id)}
-				>
-					<td class="px-3 py-2" onclick={(e) => e.stopPropagation()}>
-						<input
-							type="checkbox"
-							checked={selected.has(app.id)}
-							onclick={() => toggleRow(app.id)}
-							aria-label="Select {app.company_name}"
-						/>
-					</td>
-					<td class="px-3 py-2 font-semibold whitespace-nowrap">{app.company_name}</td>
-					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{app.role_title || '—'}</td>
-					<td class="px-3 py-2 whitespace-nowrap">
-						<span class="text-[10px] font-black uppercase tracking-widest {STATUS_CONFIG[app.status].color}">
-							{STATUS_CONFIG[app.status].label}
-						</span>
-					</td>
-					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{formatSalaryRange(app.min_salary, app.max_salary)}</td>
-					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap" onclick={(e) => e.stopPropagation()}>
-						{#if editingCell?.id === app.id && editingCell.field === 'location'}
+			{#each groups as group (group.label)}
+				{#if groupBy !== 'none'}
+					<tr class="bg-muted/30">
+						<td colspan={columns.length + 1} class="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+							{group.label} <span class="font-bold text-muted-foreground/70">({group.items.length})</span>
+						</td>
+					</tr>
+				{/if}
+				{#each group.items as app (app.id)}
+					<tr
+						onclick={() => onSelect(app)}
+						class="border-b border-border/40 last:border-0 cursor-pointer hover:bg-accent/50 transition-colors"
+						class:bg-accent={selected.has(app.id)}
+					>
+						<td class="px-3 py-2" onclick={(e) => e.stopPropagation()}>
 							<input
-								type="text"
-								class="w-full min-w-24 bg-background border border-border rounded px-1.5 py-1 text-sm"
-								bind:value={editValue}
-								use:focusOnMount
-								onblur={() => saveEdit(app)}
-								onkeydown={onEditKeydown}
+								type="checkbox"
+								checked={selected.has(app.id)}
+								onclick={() => toggleRow(app.id)}
+								aria-label="Select {app.company_name}"
 							/>
-						{:else}
-							<button
-								type="button"
-								onclick={() => startEdit(app, 'location')}
-								class="text-left hover:text-foreground hover:underline decoration-dotted underline-offset-2"
-							>
-								{app.location || 'Add location'}
-							</button>
-						{/if}
-					</td>
-					<td class="px-3 py-2 whitespace-nowrap">
-						{#if app.match_score !== null}
-							<span class={getScoreColor(app.match_score).text}>{app.match_score}%</span>
-						{:else}
-							<span class="text-muted-foreground">—</span>
-						{/if}
-					</td>
-					<td class="px-3 py-2 text-amber-500 whitespace-nowrap">{formatExcitement(app.excitement)}</td>
-					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">
-						{app.date_posted ? formatDateShort(app.date_posted) : '—'}
-					</td>
-					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{formatDateShort(app.created_at)}</td>
-					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap" onclick={(e) => e.stopPropagation()}>
-						{#if editingCell?.id === app.id && editingCell.field === 'applied_date'}
-							<input
-								type="date"
-								class="w-full bg-background border border-border rounded px-1.5 py-1 text-sm"
-								bind:value={editValue}
-								use:focusOnMount
-								onblur={() => saveEdit(app)}
-								onkeydown={onEditKeydown}
-							/>
-						{:else}
-							<button
-								type="button"
-								onclick={() => startEdit(app, 'applied_date')}
-								class="text-left hover:text-foreground hover:underline decoration-dotted underline-offset-2"
-							>
-								{formatDateShort(app.applied_date ?? '') || 'Add date'}
-							</button>
-						{/if}
-					</td>
-					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">
-						{app.deadline ? formatDateShort(app.deadline) : '—'}
-					</td>
-					<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">
-						{app.follow_up ? formatDateShort(app.follow_up) : '—'}
-					</td>
-				</tr>
+						</td>
+						{#each columns as col}
+							{@render cell(col, app)}
+						{/each}
+					</tr>
+				{/each}
 			{/each}
 		</tbody>
 	</table>

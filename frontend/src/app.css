@@ -132,3 +132,14 @@
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
+
+/* Workaround for @dnd-kit/dom bug: the dragged element gets popover="manual"
+   for top-layer promotion, but if showPopover() fails silently (element not
+   yet connected, etc.) the attribute stays applied without the popover ever
+   opening, and Chrome's UA stylesheet hides any [popover] that isn't
+   :popover-open. Force it visible regardless of popover state.
+   https://github.com/clauderic/dnd-kit/issues/2111 — remove once upstream
+   ships the fix in clauderic/dnd-kit#2125. */
+[data-dnd-dragging] {
+  display: flex !important;
+}

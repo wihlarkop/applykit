@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import {
 	    createApplication,
@@ -11,11 +12,20 @@
 	import ApplicationTable from '$lib/components/tracker/ApplicationTable.svelte';
 	import DetailPanel from '$lib/components/tracker/DetailPanel.svelte';
 	import PipelineFunnel from '$lib/components/tracker/PipelineFunnel.svelte';
+	import TrackerViewConfig from '$lib/components/tracker/TrackerViewConfig.svelte';
 	import { STATUS_CONFIG } from '$lib/constants';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { toastState } from '$lib/toast.svelte';
 	import type { ApplicationEntry, ApplicationStatus, CreateApplicationRequest } from '$lib/types';
 	import { errorMessage } from '$lib/utils';
+	import {
+		applicationsToCsv,
+		defaultTrackerViewConfigState,
+		loadTrackerViewConfigState,
+		saveTrackerViewConfigState,
+		visibleOrderedColumns,
+		type TrackerViewConfigState
+	} from '$lib/tracker-view-config';
 	import { Briefcase, CircleAlert, LayoutGrid, List } from '@lucide/svelte';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
@@ -25,6 +35,27 @@
 	let loadError = $state('');
 	let selectedApp = $state<ApplicationEntry | null>(null);
 	let viewMode = $state<'board' | 'list'>('list');
+	let viewConfig = $state<TrackerViewConfigState>(defaultTrackerViewConfigState());
+
+	if (browser) {
+		viewConfig = loadTrackerViewConfigState();
+	}
+	$effect(() => {
+		if (browser) saveTrackerViewConfigState(viewConfig);
+	});
+
+	const visibleColumns = $derived(visibleOrderedColumns(viewConfig));
+
+	function downloadCsv() {
+		const csv = applicationsToCsv(displayApps);
+		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `applications-${new Date().toISOString().split('T')[0]}.csv`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
 
 	let search = $state('');
 	let dateRange = $state('all');
@@ -279,6 +310,8 @@
         <LayoutGrid class="w-4 h-4" />
       </button>
     </div>
+
+    <TrackerViewConfig {viewMode} bind:config={viewConfig} onExport={downloadCsv} />
   </div>
 
   {#if loading}
@@ -309,6 +342,8 @@
   {:else if viewMode === 'list'}
     <ApplicationTable
       apps={displayApps}
+      columns={visibleColumns}
+      groupBy={viewConfig.groupBy}
       onSelect={(app) => (selectedApp = app)}
       onUpdate={handleInlineUpdate}
       onBulkUpdate={handleBulkUpdate}
@@ -346,7 +381,7 @@
             >
               {#each items as app (app.id)}
                 <div animate:flip={{ duration: 150 }}>
-                  <ApplicationCard {app} onclick={() => (selectedApp = app)} />
+                  <ApplicationCard {app} onclick={() => (selectedApp = app)} hiddenFields={viewConfig.hiddenCardFields} />
                 </div>
               {/each}
             </div>

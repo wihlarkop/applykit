@@ -1,8 +1,21 @@
 <script lang="ts">
 	import type { ApplicationEntry } from '$lib/types';
+	import type { CardFieldKey } from '$lib/tracker-view-config';
 	import { formatDateShort, getScoreColor } from '$lib/utils';
 
-	let { app, onclick }: { app: ApplicationEntry; onclick: () => void } = $props();
+	let {
+		app,
+		onclick,
+		hiddenFields = []
+	}: {
+		app: ApplicationEntry;
+		onclick: () => void;
+		hiddenFields?: CardFieldKey[];
+	} = $props();
+
+	const showDate = $derived(!hiddenFields.includes('date'));
+	const showMatchScore = $derived(!hiddenFields.includes('match_score'));
+	const showDocuments = $derived(!hiddenFields.includes('documents'));
 
 	const matchColor = $derived(
 		app.match_score === null
@@ -15,7 +28,7 @@
 	type="button"
 	onclick={onclick}
 	class="w-full text-left bg-card border border-border rounded-lg p-3 cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all group relative overflow-hidden"
-	class:border-dashed={!app.linked_cover_letter_id && !app.linked_cv_id}
+	class:border-dashed={showDocuments && !app.linked_cover_letter_id && !app.linked_cv_id}
 >
 	<!-- Status Dot & Company -->
 	<div class="flex items-center gap-2 mb-1.5">
@@ -31,33 +44,39 @@
 	<p class="text-xs text-muted-foreground mb-2 pl-4 truncate">{app.role_title || '—'}</p>
 
 	<!-- Date & Indicators -->
-	<div class="flex items-center justify-between pl-4 mt-1">
-		<span class="text-[10px] font-medium text-muted-foreground/70">
-			{formatDateShort(app.applied_date ?? '') ?? ''}
-		</span>
-		<div class="flex items-center gap-1.5">
-			{#if app.linked_cover_letter_id}
-				<span class="text-[9px] font-bold bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded-sm border border-blue-500/20" title="Cover Letter Linked">
-					CL
+	{#if showDate || showDocuments}
+		<div class="flex items-center justify-between pl-4 mt-1">
+			{#if showDate}
+				<span class="text-[10px] font-medium text-muted-foreground/70">
+					{formatDateShort(app.applied_date ?? '') ?? ''}
 				</span>
 			{/if}
-			{#if app.linked_cv_id}
-				<span class="text-[9px] font-bold bg-purple-500/10 text-purple-500 px-1.5 py-0.5 rounded-sm border border-purple-500/20" title="CV Linked">
-					CV
-				</span>
+			{#if showDocuments}
+				<div class="flex items-center gap-1.5">
+					{#if app.linked_cover_letter_id}
+						<span class="text-[9px] font-bold bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded-sm border border-blue-500/20" title="Cover Letter Linked">
+							CL
+						</span>
+					{/if}
+					{#if app.linked_cv_id}
+						<span class="text-[9px] font-bold bg-purple-500/10 text-purple-500 px-1.5 py-0.5 rounded-sm border border-purple-500/20" title="CV Linked">
+							CV
+						</span>
+					{/if}
+				</div>
 			{/if}
 		</div>
-	</div>
+	{/if}
 
 	<!-- Match Score Progress Bar -->
-	{#if app.match_score !== null}
+	{#if showMatchScore && app.match_score !== null}
 		<div class="mt-3 pl-4 space-y-1">
 			<div class="flex items-center justify-between text-[9px] font-semibold">
 				<span class="text-muted-foreground/60 uppercase tracking-tighter">Match</span>
 				<span class={getScoreColor(app.match_score).text}>{app.match_score}%</span>
 			</div>
 			<div class="h-1 w-full bg-muted rounded-full overflow-hidden">
-				<div 
+				<div
 					class="h-full transition-all duration-500 {getScoreColor(app.match_score).bg}"
 					style="width: {app.match_score}%"
 				></div>
@@ -65,7 +84,7 @@
 		</div>
 	{/if}
 
-	{#if !app.linked_cover_letter_id && !app.linked_cv_id}
+	{#if showDocuments && !app.linked_cover_letter_id && !app.linked_cv_id}
 		<span class="inline-flex items-center gap-1 text-[10px] font-medium text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 px-1.5 py-0.5 rounded mt-1">
 			⚠ No docs linked
 		</span>

@@ -165,8 +165,8 @@
 >
   <div class="flex items-center justify-between mt-2">
     <div>
-      <h1 class="text-3xl font-black tracking-tight">Tracker</h1>
-      <p class="text-sm text-muted-foreground">Manage and track your job applications in one place.</p>
+      <h1 class="text-2xl font-bold">Tracker</h1>
+      <p class="text-sm text-muted-foreground mt-0.5">Manage and track your job applications in one place.</p>
     </div>
   </div>
 

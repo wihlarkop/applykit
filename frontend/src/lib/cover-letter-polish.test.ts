@@ -19,7 +19,7 @@ const appCss = readFileSync(new URL('../app.css', import.meta.url), 'utf8');
 describe('cover letter visual polish', () => {
   test('uses a compact-balanced workspace with a larger result panel', () => {
     expect(layout).toContain("page.url.pathname === '/cover-letter'");
-    expect(layout).toContain("'max-w-[80rem]'");
+    expect(layout).toContain("'max-w-[100rem]'");
     expect(page).toContain('xl:grid-cols-[minmax(22rem,0.72fr)_minmax(0,1.28fr)]');
     expect(page).toContain('class="w-full space-y-6 pb-12"');
   });

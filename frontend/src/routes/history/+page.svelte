@@ -246,7 +246,10 @@
 </script>
 
 <div class="space-y-6">
-  <h1 class="text-2xl font-bold">History</h1>
+  <div>
+    <h1 class="text-2xl font-bold">History</h1>
+    <p class="text-sm text-muted-foreground mt-0.5">Browse and revisit your previously generated CVs and cover letters.</p>
+  </div>
 
   <!-- Profile filter -->
   {#if allProfiles.length > 1}

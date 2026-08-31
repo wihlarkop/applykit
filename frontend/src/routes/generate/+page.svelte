@@ -6,7 +6,6 @@
   import type { ReadinessResponse } from '$lib/readiness-types';
   import CvPreview from '$lib/components/CvPreview.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
-  import PageHeader from '$lib/components/PageHeader.svelte';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
   import { Label } from '$lib/components/ui/label';
@@ -159,10 +158,10 @@
 </script>
 
 <div class="pb-10">
-  <PageHeader
-    title="Generate CV"
-    subtitle="Create an ATS-optimized CV tailored from your profile."
-  />
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold">Generate CV</h1>
+    <p class="text-sm text-muted-foreground mt-0.5">Create an ATS-optimized CV tailored from your profile.</p>
+  </div>
 
   {#if readiness && data.activeProfileId != null}
     <div class="mt-6">

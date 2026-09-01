@@ -17,7 +17,7 @@ from app.utils import profile_to_schema
 
 router = APIRouter()
 
-JSON_FIELDS = {"work_experience", "education", "skills", "projects", "certifications"}
+JSON_FIELDS = {"work_experience", "education", "skills", "projects", "certifications", "github"}
 
 
 def _profile_list_item(p: Profile) -> ProfileListItem:

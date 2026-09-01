@@ -126,7 +126,7 @@
       {% if profile.phone %} | {{ profile.phone }}{% endif %}
       {% if profile.location %} | {{ profile.location }}{% endif %}
       {% if profile.linkedin %} | {{ profile.linkedin }}{% endif %}
-      {% if profile.github %} | {{ profile.github }}{% endif %}
+      {% for gh in profile.github %}{% if gh %} | {{ gh }}{% endif %}{% endfor %}
       {% if profile.portfolio %} | {{ profile.portfolio }}{% endif %}
     </div>
   </header>

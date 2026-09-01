@@ -31,7 +31,7 @@ class Profile(Base):
     phone = Column(String, nullable=True)
     location = Column(String, nullable=True)
     linkedin = Column(String, nullable=True)
-    github = Column(String, nullable=True)
+    github = Column(Text, default="[]")
     portfolio = Column(String, nullable=True)
     summary = Column(Text, nullable=True)
     work_experience = Column(Text, default="[]")

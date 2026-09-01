@@ -19,7 +19,7 @@
       {#if profile.phone}<a href="tel:{profile.phone}" class="hover:text-primary transition-colors print:text-blue-600">{profile.phone}</a>{/if}
       {#if profile.location}<span>{profile.location}</span>{/if}
       {#if profile.linkedin}<a href={toHref(profile.linkedin)} target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors print:text-blue-600">{profile.linkedin}</a>{/if}
-      {#if profile.github}<a href={toHref(profile.github)} target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors print:text-blue-600">{profile.github}</a>{/if}
+      {#each profile.github.filter(Boolean) as gh}<a href={toHref(gh)} target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors print:text-blue-600">{gh}</a>{/each}
       {#if profile.portfolio}<a href={toHref(profile.portfolio)} target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors print:text-blue-600">{profile.portfolio}</a>{/if}
     </div>
   </div>

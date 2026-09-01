@@ -12,10 +12,12 @@
   import AiReadinessNotice from '$lib/components/AiReadinessNotice.svelte';
   import type { ReadinessResponse } from '$lib/readiness-types';
   import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
+  import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '$lib/components/ui/tooltip';
   import { clearDraft, consumeDraft, draftKey, saveDraft } from '$lib/draft-recovery';
   import { consumeStream } from '$lib/stream';
   import { toastState } from '$lib/toast.svelte';
@@ -40,6 +42,37 @@
     data.readiness;
     readinessOverride = null;
   });
+
+  const SCRAPE_SOURCE_INFO: Record<
+    ScrapeJobResponse['source'],
+    { label: string; description: string; variant: 'secondary' | 'outline' }
+  > = {
+    greenhouse_api: {
+      label: 'Greenhouse',
+      description: "Pulled directly from the company's Greenhouse job board API.",
+      variant: 'secondary',
+    },
+    lever_api: {
+      label: 'Lever',
+      description: "Pulled directly from the company's Lever job board API.",
+      variant: 'secondary',
+    },
+    ashby_api: {
+      label: 'Ashby',
+      description: "Pulled directly from the company's Ashby job board API.",
+      variant: 'secondary',
+    },
+    jina: {
+      label: 'Scraped',
+      description: 'Extracted by reading the page content — some fields may be inferred by AI.',
+      variant: 'outline',
+    },
+    crawl4ai: {
+      label: 'Scraped',
+      description: 'Extracted from a rendered version of the page — some fields may be inferred by AI.',
+      variant: 'outline',
+    },
+  };
 
   interface SmartApplyDraft {
     inputMode: 'url' | 'paste';
@@ -439,14 +472,29 @@
         </div>
         <!-- Job Description (collapsible) -->
         {#if scrapeResult?.job_description}
+          {@const jobDescriptionSource = SCRAPE_SOURCE_INFO[scrapeResult.source]}
           <div class="pt-2 border-t border-border/50">
-            <button
-              onclick={() => jobDescriptionExpanded = !jobDescriptionExpanded}
-              class="flex items-center justify-between w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span>Job Description</span>
-              <ChevronDown class="w-4 h-4 transition-transform {jobDescriptionExpanded ? 'rotate-180' : ''}" />
-            </button>
+            <div class="flex items-center justify-between">
+              <button
+                onclick={() => jobDescriptionExpanded = !jobDescriptionExpanded}
+                class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span>Job Description</span>
+                <ChevronDown class="w-4 h-4 transition-transform {jobDescriptionExpanded ? 'rotate-180' : ''}" />
+              </button>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger>
+                    {#snippet child({ props })}
+                      <Badge {...props} variant={jobDescriptionSource.variant} class="cursor-default">
+                        {jobDescriptionSource.label}
+                      </Badge>
+                    {/snippet}
+                  </TooltipTrigger>
+                  <TooltipContent>{jobDescriptionSource.description}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             {#if jobDescriptionExpanded}
               <div class="mt-2 bg-muted/50 rounded-lg p-3 text-sm max-h-60 overflow-y-auto whitespace-pre-wrap">
                 {scrapeResult.job_description}

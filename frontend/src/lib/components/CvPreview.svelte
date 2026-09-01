@@ -61,6 +61,11 @@
             <span class="text-xs text-muted-foreground dark:text-zinc-500 print:text-gray-500">{e.start_date} – {e.end_date ?? 'Present'}</span>
           </div>
           <div class="text-xs text-muted-foreground dark:text-zinc-400 print:text-gray-600">{e.institution}</div>
+          {#if e.accomplishments.length}
+            <ul class="list-disc list-inside space-y-0.5">
+              {#each e.accomplishments as a}<li>{a}</li>{/each}
+            </ul>
+          {/if}
         </div>
       {/each}
     </section>

@@ -19,6 +19,7 @@ class Education(BaseModel):
     field: str | None = None
     start_date: str | None = None
     end_date: str | None = None
+    accomplishments: list[str] = []
 
 
 class Project(BaseModel):

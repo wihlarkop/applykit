@@ -1,4 +1,5 @@
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -190,6 +191,29 @@ async def _scrape_crawl4ai(url: str) -> str | None:
         return None
 
 
+async def _try_ats_api(
+    handler: Callable[[str, httpx.AsyncClient], Awaitable[ScrapedJob]],
+    url: str,
+    client: httpx.AsyncClient,
+) -> ScrapedJob | None:
+    """Run an ATS API handler, retrying once on a transient failure.
+
+    Returns None instead of raising so the caller can fall through to the
+    generic scraping tiers rather than failing the whole scrape outright.
+    """
+    attempts = 2
+    for attempt in range(attempts):
+        try:
+            return await handler(url, client)
+        except ValueError:
+            # URL doesn't match this ATS's expected shape; retrying won't help.
+            return None
+        except Exception:
+            if attempt == attempts - 1:
+                return None
+    return None
+
+
 async def scrape_job_url(
     url: str, client: httpx.AsyncClient, provider: str = "auto"
 ) -> ScrapedJob:
@@ -204,13 +228,19 @@ async def scrape_job_url(
     ats = _detect_ats(url)
 
     if ats == "greenhouse":
-        return await _scrape_greenhouse(url, client)
+        result = await _try_ats_api(_scrape_greenhouse, url, client)
+        if result is not None:
+            return result
 
-    if ats == "lever":
-        return await _scrape_lever(url, client)
+    elif ats == "lever":
+        result = await _try_ats_api(_scrape_lever, url, client)
+        if result is not None:
+            return result
 
-    if ats == "ashby":
-        return await _scrape_ashby(url, client)
+    elif ats == "ashby":
+        result = await _try_ats_api(_scrape_ashby, url, client)
+        if result is not None:
+            return result
 
     # Tier 2: Jina
     jina_result = await _scrape_jina(url, client)

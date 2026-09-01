@@ -50,7 +50,7 @@ class ProfileData(BaseModel):
     phone: str | None = None
     location: str | None = None
     linkedin: str | None = None
-    github: str | None = None
+    github: list[str] = []
     portfolio: str | None = None
     summary: str | None = None
     work_experience: list[WorkExperience] = []

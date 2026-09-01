@@ -35,7 +35,7 @@ def _profile(**overrides) -> dict:
         "phone": None,
         "location": None,
         "linkedin": None,
-        "github": None,
+        "github": [],
         "portfolio": None,
         "summary": None,
         "work_experience": [],

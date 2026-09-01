@@ -43,7 +43,7 @@ export interface ProfileData {
   phone?: string | null;
   location?: string | null;
   linkedin?: string | null;
-  github?: string | null;
+  github: string[];
   portfolio?: string | null;
   summary?: string | null;
   work_experience: WorkExperience[];

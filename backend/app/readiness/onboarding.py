@@ -36,7 +36,6 @@ def _profile_is_meaningful(profile: Profile) -> bool:
         profile.phone,
         profile.location,
         profile.linkedin,
-        profile.github,
         profile.portfolio,
         profile.summary,
     )
@@ -45,6 +44,7 @@ def _profile_is_meaningful(profile: Profile) -> bool:
     return any(
         parse_list(value)
         for value in (
+            profile.github,
             profile.work_experience,
             profile.education,
             profile.skills,

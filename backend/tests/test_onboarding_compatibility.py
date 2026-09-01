@@ -95,6 +95,30 @@ def test_meaningful_profile_marks_installation_existing() -> None:
         db.close()
 
 
+def test_github_links_alone_mark_installation_existing() -> None:
+    db = make_session()
+    try:
+        profile = empty_profile()
+        profile.github = '["https://github.com/wihlarko"]'
+        db.add(profile)
+        db.commit()
+        assert infer_installation_state(db) == "existing"
+    finally:
+        db.close()
+
+
+def test_empty_github_links_do_not_mark_installation_existing() -> None:
+    db = make_session()
+    try:
+        profile = empty_profile()
+        profile.github = "[]"
+        db.add(profile)
+        db.commit()
+        assert infer_installation_state(db) == "fresh"
+    finally:
+        db.close()
+
+
 def test_generated_cv_marks_installation_existing() -> None:
     db = make_session()
     try:

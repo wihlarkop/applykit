@@ -180,7 +180,7 @@ EXTRACTION RULES:
 5. If a field is genuinely not present in the CV, use null for optional strings or [] for arrays. Never fabricate or infer data.
 6. For projects: if tech_stack is mentioned alongside a project, extract it. If a link/URL is associated, capture it.
 7. Phone numbers: preserve the original format including country codes.
-8. LinkedIn/GitHub/portfolio: extract full URLs if present, or usernames/paths if that is all that is given.
+8. LinkedIn/GitHub/portfolio: extract full URLs if present, or usernames/paths if that is all that is given. If multiple distinct GitHub URLs are present (e.g. a personal and a work account), extract all of them into the github array. If none are present, return an empty array.
 9. Certifications: extract ONLY if explicitly mentioned in the CV. If none are mentioned, return an empty array.
 10. Education accomplishments: extract honors, awards, GPA (only if explicitly stated), relevant coursework, or activities listed under an education entry as separate strings in that entry's accomplishments array. If none are mentioned for an entry, return an empty array.
 
@@ -191,7 +191,7 @@ OUTPUT FORMAT - return ONLY this JSON structure, no markdown, no explanation:
   "phone": "string or null",
   "location": "string or null",
   "linkedin": "string or null",
-  "github": "string or null",
+  "github": ["string"],
   "portfolio": "string or null",
   "summary": "string or null",
   "work_experience": [{"company": "string", "role": "string", "start_date": "string", "end_date": "string or null", "bullets": ["string"]}],

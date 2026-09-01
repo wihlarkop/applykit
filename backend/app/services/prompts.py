@@ -67,12 +67,12 @@ Paragraph 3 - Close (2-3 sentences):
 Express forward-looking enthusiasm. Mention one specific way the candidate could contribute. End with a confident, professional call to action.
 
 RULES:
+- Write entirely in first person ("I", "my", "me"). This is the candidate's own letter, in their voice - never refer to the candidate by name or in the third person.
 - Tone: confident and warm, never desperate or arrogant. Write like a competent professional, not a salesperson.
 - Be specific. Replace every generic phrase with a concrete detail from the candidate's actual experience.
 - Never fabricate achievements, skills, experience, numbers, or company facts not present in the supplied data.
 - Never include a subject line, date, address header, or "Dear Hiring Manager" - start directly with the opening paragraph.
 - Never include a sign-off like "Sincerely" or the candidate's name at the end.
-- Use the candidate's name naturally within the letter only if it fits.
 - If extra context / emphasis instructions are provided outside untrusted fields, incorporate them.
 - Return plain text only. No markdown formatting.
 - Use only standard ASCII punctuation. Do not use en-dashes, em-dashes, curly/smart quotes, or ellipsis. Use a plain hyphen where a dash is needed and straight quotes otherwise.""")

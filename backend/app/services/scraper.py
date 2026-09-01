@@ -43,10 +43,13 @@ def _detect_ats(url: str) -> str:
         return "lever"
     if "ashbyhq.com" in url:
         return "ashby"
-    if "jazzhr.com" in url:
+    if "applytojob.com" in url:
+        # JazzHR's candidate-facing hosted career pages live on applytojob.com,
+        # not jazzhr.com. No dedicated API handler exists (no stable public
+        # read API), so this still falls through to the generic tiers below -
+        # kept as a distinct label rather than "generic" for accurate source
+        # attribution and to make a future handler a smaller diff.
         return "jazzhr"
-    if "bamboohr.com" in url:
-        return "bamboohr"
     return "generic"
 
 

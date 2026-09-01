@@ -302,7 +302,9 @@
         role_title: roleTitle,
         job_url: inputMode === 'url' ? jobUrl.trim() || null : null,
         profile_id: ap.id,
-        status: 'applied',
+        // Smart Apply generates the documents and tracks the role, but the
+        // user still has to actually submit the application themselves.
+        status: 'applying',
         location: location || null,
         // salary here is free text from the job posting (e.g. "$120K-$150K"),
         // which can't be reliably split into the tracker's structured min/max.

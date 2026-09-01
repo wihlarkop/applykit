@@ -139,7 +139,7 @@
     <div class="experience-item">
       <div class="exp-header">
         <span class="exp-role">{{ exp.role }}</span>
-        <span class="exp-date">{{ exp.start_date }} – {{ exp.end_date or 'Present' }}</span>
+        <span class="exp-date">{{ exp.start_date | format_date_range(exp.end_date) }}</span>
       </div>
       <div class="exp-company">{{ exp.company }}</div>
       {% if exp.bullets %}
@@ -161,7 +161,7 @@
     <div class="education-item">
       <div class="edu-header">
         <span class="edu-degree">{{ edu.degree }} in {{ edu.field }}</span>
-        <span class="edu-date">{{ edu.start_date }} – {{ edu.end_date or 'Present' }}</span>
+        <span class="edu-date">{{ edu.start_date | format_date_range(edu.end_date) }}</span>
       </div>
       <div class="edu-institution">{{ edu.institution }}</div>
     </div>
@@ -200,7 +200,7 @@
     {% for cert in profile.certifications %}
     <div class="certification-item">
       <span class="cert-name">{{ cert.name }} — <span class="cert-issuer">{{ cert.issuer }}</span></span>
-      <span class="cert-date">{{ cert.date }}</span>
+      <span class="cert-date">{{ cert.date or '' }}</span>
     </div>
     {% endfor %}
   </section>

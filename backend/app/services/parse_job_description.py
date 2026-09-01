@@ -15,7 +15,7 @@ def parse_job_description(
     text: str, provider: str, api_key: str
 ) -> ParseJobDescriptionResponse:
     user_prompt = PARSE_JD_USER_TEMPLATE.format(
-        job_description=format_untrusted_input("job_description", text[:4000])
+        job_description=format_untrusted_input("job_description", text)
     )
     raw = call_llm(
         user_prompt,

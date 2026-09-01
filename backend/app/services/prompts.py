@@ -182,6 +182,7 @@ EXTRACTION RULES:
 7. Phone numbers: preserve the original format including country codes.
 8. LinkedIn/GitHub/portfolio: extract full URLs if present, or usernames/paths if that is all that is given.
 9. Certifications: extract ONLY if explicitly mentioned in the CV. If none are mentioned, return an empty array.
+10. Education accomplishments: extract honors, awards, GPA (only if explicitly stated), relevant coursework, or activities listed under an education entry as separate strings in that entry's accomplishments array. If none are mentioned for an entry, return an empty array.
 
 OUTPUT FORMAT - return ONLY this JSON structure, no markdown, no explanation:
 {
@@ -194,7 +195,7 @@ OUTPUT FORMAT - return ONLY this JSON structure, no markdown, no explanation:
   "portfolio": "string or null",
   "summary": "string or null",
   "work_experience": [{"company": "string", "role": "string", "start_date": "string", "end_date": "string or null", "bullets": ["string"]}],
-  "education": [{"institution": "string", "degree": "string", "field": "string", "start_date": "string", "end_date": "string or null"}],
+  "education": [{"institution": "string", "degree": "string", "field": "string", "start_date": "string", "end_date": "string or null", "accomplishments": ["string"]}],
   "skills": ["string"],
   "projects": [{"name": "string", "description": "string", "tech_stack": ["string"], "link": "string or null"}],
   "certifications": [{"name": "string", "issuer": "string", "date": "string"}]

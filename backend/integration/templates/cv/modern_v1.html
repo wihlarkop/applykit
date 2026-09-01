@@ -89,10 +89,12 @@
     color: #6b7280;
     margin-bottom: 2px;
   }
-  .exp-bullets {
+  .exp-bullets,
+  .edu-accomplishments {
     margin-left: 16px;
   }
-  .exp-bullets li {
+  .exp-bullets li,
+  .edu-accomplishments li {
     margin-bottom: 1px;
   }
   .skills-text {
@@ -168,6 +170,13 @@
         <span class="edu-date">{{ edu.start_date | format_date_range(edu.end_date) }}</span>
       </div>
       <div class="edu-institution">{{ edu.institution }}</div>
+      {% if edu.accomplishments %}
+      <ul class="edu-accomplishments">
+        {% for accomplishment in edu.accomplishments %}
+        <li>{{ accomplishment }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
     </div>
     {% endfor %}
   </section>

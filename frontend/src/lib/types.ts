@@ -12,6 +12,7 @@ export interface Education {
   field: string;
   start_date: string;
   end_date?: string | null;
+  accomplishments: string[];
 }
 
 export interface Project {

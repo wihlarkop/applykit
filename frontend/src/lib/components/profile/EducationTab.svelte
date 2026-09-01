@@ -3,7 +3,8 @@
   import { Button } from '$lib/components/ui/button';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
-  import type { ProfileData } from '$lib/types';
+  import { Textarea } from '$lib/components/ui/textarea';
+  import type { Education, ProfileData } from '$lib/types';
 
   interface Props {
     profile: ProfileData;
@@ -13,12 +14,23 @@
   function addEdu() {
     profile.education = [
       ...profile.education,
-      { institution: '', degree: '', field: '', start_date: '', end_date: '' },
+      { institution: '', degree: '', field: '', start_date: '', end_date: '', accomplishments: [] },
     ];
   }
 
   function removeEdu(i: number) {
     profile.education = profile.education.filter((_, idx) => idx !== i);
+  }
+
+  function eduAccomplishmentsText(edu: Education) {
+    return edu.accomplishments.map(a => `- ${a}`).join('\n');
+  }
+
+  function setEduAccomplishments(i: number, text: string) {
+    profile.education[i].accomplishments = text
+      .split('\n')
+      .map(s => s.replace(/^[-•*]\s*/, '').trim())
+      .filter(Boolean);
   }
 </script>
 
@@ -88,6 +100,17 @@
                 <Label class="text-xs font-bold uppercase tracking-wider text-muted-foreground">End Date</Label>
                 <Input bind:value={edu.end_date} placeholder="e.g. Jun 2022 or Present" class="bg-background h-10 border-muted-foreground/20 focus:border-primary transition-all" />
               </div>
+            </div>
+
+            <div class="space-y-2 text-left">
+              <Label class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Accomplishments / Awards</Label>
+              <Textarea
+                value={eduAccomplishmentsText(edu)}
+                oninput={(e) => setEduAccomplishments(i, (e.target as HTMLTextAreaElement).value)}
+                placeholder="- Dean's List, all semesters&#10;- Best Capstone Project Award"
+                rows={3}
+                class="bg-background resize-y border-muted-foreground/20 focus:border-primary transition-all"
+              />
             </div>
           </div>
         </div>

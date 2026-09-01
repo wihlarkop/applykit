@@ -39,13 +39,17 @@ INSTRUCTIONS:
    - Include measurable outcomes only when exact figures are explicitly present in the candidate data. Never infer or invent metrics, team size, system scale, revenue, or user counts.
    - Mirror keywords and phrases from the target job description when the candidate genuinely has that experience. Do NOT fabricate skills or experience.
    - Keep each bullet to 1-2 lines. Aim for 3-5 bullets per role.
-3. Preserve all factual information: company names, roles, dates, education, skills, projects, certifications. Never invent, fabricate, or add any data that was not present in the original profile.
-4. If no job description is provided, optimize generically for the candidate's apparent field.
+3. Reorder "projects" by relevance to the job description, most relevant first. Return every project from the original profile exactly once, with its original name, description, tech_stack, and link unchanged - only the order changes. If no job description is provided, keep the original order.
+4. Group "skills" into 3-6 short, natural categories for readability (for example: "AI/Voice", "Backend/Cloud", "Languages/Frontend", "Engineering Practices" - pick labels that fit this candidate's actual skills, don't force a fixed taxonomy). Every skill from the original profile must appear in exactly one category, using its original wording. Never drop, merge, rename, or invent skills. Order categories and skills within them by relevance to the job description when one is provided, otherwise by general importance.
+5. Preserve all other factual information exactly: company names, roles, dates, education, certifications. Never invent, fabricate, or add any data that was not present in the original profile.
+6. If no job description is provided, optimize generically for the candidate's apparent field.
 
 OUTPUT FORMAT:
-Return ONLY valid JSON with exactly two keys:
+Return ONLY valid JSON with exactly four keys:
 - "summary": string
 - "work_experience": array of objects, each with: company (string), role (string), start_date (string), end_date (string or null), bullets (array of strings)
+- "projects": array of objects, each with: name (string), description (string or null), tech_stack (array of strings), link (string or null)
+- "skill_categories": array of objects, each with: label (string), skills (array of strings)
 
 No markdown, no explanation, no wrapping - just the raw JSON object.""")
 
@@ -176,8 +180,9 @@ EXTRACTION RULES:
 5. If a field is genuinely not present in the CV, use null for optional strings or [] for arrays. Never fabricate or infer data.
 6. For projects: if tech_stack is mentioned alongside a project, extract it. If a link/URL is associated, capture it.
 7. Phone numbers: preserve the original format including country codes.
-8. LinkedIn/GitHub/portfolio: extract full URLs if present, or usernames/paths if that is all that is given.
+8. LinkedIn/GitHub/portfolio: extract full URLs if present, or usernames/paths if that is all that is given. If multiple distinct GitHub URLs are present (e.g. a personal and a work account), extract all of them into the github array. If none are present, return an empty array.
 9. Certifications: extract ONLY if explicitly mentioned in the CV. If none are mentioned, return an empty array.
+10. Education accomplishments: extract honors, awards, GPA (only if explicitly stated), relevant coursework, or activities listed under an education entry as separate strings in that entry's accomplishments array. If none are mentioned for an entry, return an empty array.
 
 OUTPUT FORMAT - return ONLY this JSON structure, no markdown, no explanation:
 {
@@ -186,11 +191,11 @@ OUTPUT FORMAT - return ONLY this JSON structure, no markdown, no explanation:
   "phone": "string or null",
   "location": "string or null",
   "linkedin": "string or null",
-  "github": "string or null",
+  "github": ["string"],
   "portfolio": "string or null",
   "summary": "string or null",
   "work_experience": [{"company": "string", "role": "string", "start_date": "string", "end_date": "string or null", "bullets": ["string"]}],
-  "education": [{"institution": "string", "degree": "string", "field": "string", "start_date": "string", "end_date": "string or null"}],
+  "education": [{"institution": "string", "degree": "string", "field": "string", "start_date": "string", "end_date": "string or null", "accomplishments": ["string"]}],
   "skills": ["string"],
   "projects": [{"name": "string", "description": "string", "tech_stack": ["string"], "link": "string or null"}],
   "certifications": [{"name": "string", "issuer": "string", "date": "string"}]

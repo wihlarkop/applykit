@@ -32,7 +32,7 @@
     phone: '',
     location: '',
     linkedin: '',
-    github: '',
+    github: [],
     portfolio: '',
     summary: '',
     work_experience: [],

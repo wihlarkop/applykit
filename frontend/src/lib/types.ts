@@ -12,6 +12,7 @@ export interface Education {
   field: string;
   start_date: string;
   end_date?: string | null;
+  accomplishments: string[];
 }
 
 export interface Project {
@@ -27,6 +28,11 @@ export interface Certification {
   date: string;
 }
 
+export interface SkillCategory {
+  label: string;
+  skills: string[];
+}
+
 export interface ProfileData {
   id?: number | null;
   label?: string;
@@ -37,12 +43,13 @@ export interface ProfileData {
   phone?: string | null;
   location?: string | null;
   linkedin?: string | null;
-  github?: string | null;
+  github: string[];
   portfolio?: string | null;
   summary?: string | null;
   work_experience: WorkExperience[];
   education: Education[];
   skills: string[];
+  skill_categories?: SkillCategory[] | null;
   projects: Project[];
   certifications: Certification[];
   updated_at?: string | null;

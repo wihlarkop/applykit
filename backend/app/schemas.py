@@ -19,6 +19,7 @@ class Education(BaseModel):
     field: str | None = None
     start_date: str | None = None
     end_date: str | None = None
+    accomplishments: list[str] = []
 
 
 class Project(BaseModel):
@@ -34,6 +35,11 @@ class Certification(BaseModel):
     date: str | None = None
 
 
+class SkillCategory(BaseModel):
+    label: str
+    skills: list[str]
+
+
 class ProfileData(BaseModel):
     id: int | None = None
     label: str = "Default"
@@ -44,12 +50,13 @@ class ProfileData(BaseModel):
     phone: str | None = None
     location: str | None = None
     linkedin: str | None = None
-    github: str | None = None
+    github: list[str] = []
     portfolio: str | None = None
     summary: str | None = None
     work_experience: list[WorkExperience] = []
     education: list[Education] = []
     skills: list[str] = []
+    skill_categories: list[SkillCategory] | None = None
     projects: list[Project] = []
     certifications: list[Certification] = []
     updated_at: datetime | None = None
@@ -145,6 +152,8 @@ class CoverLetterPdfRequest(BaseModel):
 class ATSEnhancement(BaseModel):
     summary: str
     work_experience: list[WorkExperience]
+    projects: list[Project] = []
+    skill_categories: list[SkillCategory] = []
 
 
 class GenerateSummaryRequest(BaseModel):

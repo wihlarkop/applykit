@@ -202,15 +202,24 @@ async def _try_ats_api(
     generic scraping tiers rather than failing the whole scrape outright.
     """
     attempts = 2
-    for attempt in range(attempts):
+    for _ in range(attempts):
         try:
             return await handler(url, client)
-        except ValueError:
-            # URL doesn't match this ATS's expected shape; retrying won't help.
-            return None
-        except Exception:
-            if attempt == attempts - 1:
+        except httpx.HTTPStatusError as exc:
+            # Do not repeat permanent errors or immediately retry rate limits.
+            if exc.response.status_code not in {408, 500, 502, 503, 504}:
                 return None
+        except (
+            httpx.TimeoutException,
+            httpx.NetworkError,
+            httpx.RemoteProtocolError,
+            TimeoutError,
+        ):
+            pass
+        except Exception:
+            # Malformed URLs/payloads and other non-transient failures cannot
+            # benefit from another identical request, but can use fallback.
+            return None
     return None
 
 

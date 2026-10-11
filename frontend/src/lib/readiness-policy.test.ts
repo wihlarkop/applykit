@@ -9,6 +9,7 @@ const onboarding = source('../routes/onboarding/+page.svelte');
 const dashboard = source('../routes/+page.svelte');
 const layout = source('../routes/+layout.ts');
 const generate = source('../routes/generate/+page.svelte');
+const resumeWorkspace = source('./features/resume/ResumeWorkspace.svelte');
 const coverLetter = source('../routes/cover-letter/+page.svelte');
 const smartApply = source('../routes/smart-apply/+page.svelte');
 
@@ -57,7 +58,8 @@ describe('readiness UX policy', () => {
     expect(dashboard).not.toContain('<Lock');
   });
   test('AI pages use focused readiness notices instead of onboarding locks', () => {
-    for (const pageSource of [generate, coverLetter, smartApply]) {
+    expect(generate).toContain("$lib/features/resume/ResumeWorkspace.svelte");
+    for (const pageSource of [resumeWorkspace, coverLetter, smartApply]) {
       expect(pageSource).toContain('AiReadinessNotice');
       expect(pageSource).toContain('aiReady');
       expect(pageSource).not.toContain("goto('/settings')");
@@ -65,7 +67,7 @@ describe('readiness UX policy', () => {
       expect(pageSource).not.toContain('<Lock');
       expect(pageSource).not.toContain('> Locked');
     }
-    expect(generate).toContain('bind:value={jobDescription}');
+    expect(resumeWorkspace).toContain('bind:value={jobDescription}');
     expect(coverLetter).toContain('bind:value={jobDescription}');
     expect(smartApply).toContain('bind:value={jobUrl}');
   });
@@ -73,7 +75,7 @@ describe('readiness UX policy', () => {
   test('readiness state does not capture only the initial prop value', () => {
     const checklist = source('./components/ReadinessChecklist.svelte');
     expect(checklist).not.toMatch(/\$state(?:<[^>]+>)?\(readiness\)/);
-    for (const pageSource of [onboarding, generate, coverLetter, smartApply]) {
+    for (const pageSource of [onboarding, resumeWorkspace, coverLetter, smartApply]) {
       expect(pageSource).not.toMatch(/\$state(?:<[^>]+>)?\(data\.readiness\)/);
     }
   });

@@ -12,6 +12,7 @@ export interface Education {
   field: string;
   start_date: string;
   end_date?: string | null;
+  accomplishments: string[];
 }
 
 export interface Project {
@@ -27,6 +28,11 @@ export interface Certification {
   date: string;
 }
 
+export interface SkillCategory {
+  label: string;
+  skills: string[];
+}
+
 export interface ProfileData {
   id?: number | null;
   label?: string;
@@ -37,12 +43,13 @@ export interface ProfileData {
   phone?: string | null;
   location?: string | null;
   linkedin?: string | null;
-  github?: string | null;
+  github: string[];
   portfolio?: string | null;
   summary?: string | null;
   work_experience: WorkExperience[];
   education: Education[];
   skills: string[];
+  skill_categories?: SkillCategory[] | null;
   projects: Project[];
   certifications: Certification[];
   updated_at?: string | null;
@@ -110,8 +117,10 @@ export interface ScrapeAnalyzeResponse {
   role_title: string | null;
   location: string | null;
   salary: string | null;
+  min_salary: number | null;
+  max_salary: number | null;
   job_description: string;
-  source: 'greenhouse_api' | 'lever_api' | 'ashby_api' | 'jina' | 'crawl4ai';
+  source: 'greenhouse_api' | 'lever_api' | 'ashby_api' | 'jina' | 'crawl4ai' | 'manual';
 }
 
 export interface FitAnalysisResponse {
@@ -125,7 +134,14 @@ export interface FitAnalysisResponse {
 }
 
 export type Tone = 'professional' | 'enthusiastic' | 'concise' | 'creative';
-export type ApplicationStatus = 'applied' | 'interviewing' | 'offer' | 'rejected';
+export type ApplicationStatus =
+  | 'bookmarked'
+  | 'applying'
+  | 'applied'
+  | 'interviewing'
+  | 'negotiating'
+  | 'accepted'
+  | 'rejected';
 
 export interface CoverLetterRequest {
   profile_id: number;
@@ -276,6 +292,12 @@ export interface ApplicationEntry {
   linked_cv_id: number | null;
   location: string | null;
   salary: string | null;
+  min_salary: number | null;
+  max_salary: number | null;
+  excitement: number | null;
+  date_posted: string | null;  // ISO date string
+  deadline: string | null;  // ISO date string
+  follow_up: string | null;  // ISO date string
   job_description: string | null;
 }
 
@@ -294,6 +316,12 @@ export interface CreateApplicationRequest {
   profile_id?: number | null;
   location?: string | null;
   salary?: string | null;
+  min_salary?: number | null;
+  max_salary?: number | null;
+  excitement?: number | null;
+  date_posted?: string | null;
+  deadline?: string | null;
+  follow_up?: string | null;
   job_description?: string | null;
 }
 
@@ -306,6 +334,12 @@ export interface UpdateApplicationRequest {
   applied_date?: string | null;
   location?: string | null;
   salary?: string | null;
+  min_salary?: number | null;
+  max_salary?: number | null;
+  excitement?: number | null;
+  date_posted?: string | null;
+  deadline?: string | null;
+  follow_up?: string | null;
   job_description?: string | null;
 }
 

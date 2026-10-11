@@ -76,7 +76,7 @@ async def scrape_analyze(
     pasted_url = _pasted_http_url(body.text)
     effective_url = body.url or pasted_url
     job_description = ""
-    source = "jina"
+    source = "manual"
 
     try:
         if effective_url:
@@ -101,6 +101,8 @@ async def scrape_analyze(
             role_title=role_title,
             location=location,
             salary=salary,
+            min_salary=parsed.min_salary,
+            max_salary=parsed.max_salary,
             job_description=job_description,
             source=source,
         )

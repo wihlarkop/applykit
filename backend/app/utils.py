@@ -28,7 +28,7 @@ def profile_to_schema(p: Profile) -> ProfileData:
         phone=p.phone,
         location=p.location,
         linkedin=p.linkedin,
-        github=p.github,
+        github=_safe_json(p.github, []),
         portfolio=p.portfolio,
         summary=p.summary,
         work_experience=_safe_json(p.work_experience, []),
@@ -50,7 +50,7 @@ def format_profile_for_llm(p: ProfileData) -> str:
     if p.linkedin:
         lines.append(f"LinkedIn: {p.linkedin}")
     if p.github:
-        lines.append(f"GitHub: {p.github}")
+        lines.append(f"GitHub: {', '.join(p.github)}")
     if p.summary:
         lines.append(f"\nSUMMARY:\n{p.summary}")
     if p.skills:

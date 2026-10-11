@@ -31,7 +31,7 @@ class Profile(Base):
     phone = Column(String, nullable=True)
     location = Column(String, nullable=True)
     linkedin = Column(String, nullable=True)
-    github = Column(String, nullable=True)
+    github = Column(Text, default="[]")
     portfolio = Column(String, nullable=True)
     summary = Column(Text, nullable=True)
     work_experience = Column(Text, default="[]")
@@ -101,7 +101,14 @@ class Application(Base):
         Integer, ForeignKey("profile.id", ondelete="SET NULL"), nullable=True
     )
     location = Column(String, nullable=True)
+    # Preserve the original salary text alongside structured numeric values.
     salary = Column(String, nullable=True)
+    min_salary = Column(Integer, nullable=True)
+    max_salary = Column(Integer, nullable=True)
+    excitement = Column(Integer, nullable=True)
+    date_posted = Column(Date, nullable=True)
+    deadline = Column(Date, nullable=True)
+    follow_up = Column(Date, nullable=True)
     job_description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     updated_at = Column(

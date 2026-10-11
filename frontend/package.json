@@ -13,6 +13,7 @@
     "test": "bun test"
   },
   "devDependencies": {
+    "@internationalized/date": "^3.12.0",
     "@sveltejs/adapter-auto": "^7.0.0",
     "@sveltejs/adapter-node": "^5.5.4",
     "@sveltejs/kit": "^2.50.2",
@@ -27,7 +28,9 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
-    "@lucide/svelte": "^0.577.0",
+    "@dnd-kit/helpers": "^0.5.0",
+    "@dnd-kit/svelte": "^0.5.0",
+    "@lucide/svelte": "^1.38.0",
     "@types/canvas-confetti": "^1.9.0",
     "@zxcvbn-ts/core": "^4.1.2",
     "@zxcvbn-ts/language-common": "^4.1.3",

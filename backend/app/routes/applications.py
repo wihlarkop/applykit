@@ -47,6 +47,12 @@ def _enrich_app(app: Application, profiles: dict) -> dict:
         "linked_cv_id": None,
         "location": app.location,
         "salary": app.salary,
+        "min_salary": app.min_salary,
+        "max_salary": app.max_salary,
+        "excitement": app.excitement,
+        "date_posted": app.date_posted,
+        "deadline": app.deadline,
+        "follow_up": app.follow_up,
         "job_description": app.job_description,
     }
 
@@ -117,6 +123,12 @@ def create_application(body: CreateApplicationRequest, db: Session = Depends(get
         profile_id=body.profile_id,
         location=body.location,
         salary=body.salary,
+        min_salary=body.min_salary,
+        max_salary=body.max_salary,
+        excitement=body.excitement,
+        date_posted=body.date_posted,
+        deadline=body.deadline,
+        follow_up=body.follow_up,
         job_description=body.job_description,
     )
     db.add(app)

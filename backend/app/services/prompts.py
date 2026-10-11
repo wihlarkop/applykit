@@ -39,13 +39,17 @@ INSTRUCTIONS:
    - Include measurable outcomes only when exact figures are explicitly present in the candidate data. Never infer or invent metrics, team size, system scale, revenue, or user counts.
    - Mirror keywords and phrases from the target job description when the candidate genuinely has that experience. Do NOT fabricate skills or experience.
    - Keep each bullet to 1-2 lines. Aim for 3-5 bullets per role.
-3. Preserve all factual information: company names, roles, dates, education, skills, projects, certifications. Never invent, fabricate, or add any data that was not present in the original profile.
-4. If no job description is provided, optimize generically for the candidate's apparent field.
+3. Reorder "projects" by relevance to the job description, most relevant first. Return every project from the original profile exactly once, with its original name, description, tech_stack, and link unchanged - only the order changes. If no job description is provided, keep the original order.
+4. Group "skills" into 3-6 short, natural categories for readability (for example: "AI/Voice", "Backend/Cloud", "Languages/Frontend", "Engineering Practices" - pick labels that fit this candidate's actual skills, don't force a fixed taxonomy). Every skill from the original profile must appear in exactly one category, using its original wording. Never drop, merge, rename, or invent skills. Order categories and skills within them by relevance to the job description when one is provided, otherwise by general importance.
+5. Preserve all other factual information exactly: company names, roles, dates, education, certifications. Never invent, fabricate, or add any data that was not present in the original profile.
+6. If no job description is provided, optimize generically for the candidate's apparent field.
 
 OUTPUT FORMAT:
-Return ONLY valid JSON with exactly two keys:
+Return ONLY valid JSON with exactly four keys:
 - "summary": string
 - "work_experience": array of objects, each with: company (string), role (string), start_date (string), end_date (string or null), bullets (array of strings)
+- "projects": array of objects, each with: name (string), description (string or null), tech_stack (array of strings), link (string or null)
+- "skill_categories": array of objects, each with: label (string), skills (array of strings)
 
 No markdown, no explanation, no wrapping - just the raw JSON object.""")
 
@@ -67,12 +71,12 @@ Paragraph 3 - Close (2-3 sentences):
 Express forward-looking enthusiasm. Mention one specific way the candidate could contribute. End with a confident, professional call to action.
 
 RULES:
+- Write entirely in first person ("I", "my", "me"). This is the candidate's own letter, in their voice - never refer to the candidate by name or in the third person.
 - Tone: confident and warm, never desperate or arrogant. Write like a competent professional, not a salesperson.
 - Be specific. Replace every generic phrase with a concrete detail from the candidate's actual experience.
 - Never fabricate achievements, skills, experience, numbers, or company facts not present in the supplied data.
 - Never include a subject line, date, address header, or "Dear Hiring Manager" - start directly with the opening paragraph.
 - Never include a sign-off like "Sincerely" or the candidate's name at the end.
-- Use the candidate's name naturally within the letter only if it fits.
 - If extra context / emphasis instructions are provided outside untrusted fields, incorporate them.
 - Return plain text only. No markdown formatting.
 - Use only standard ASCII punctuation. Do not use en-dashes, em-dashes, curly/smart quotes, or ellipsis. Use a plain hyphen where a dash is needed and straight quotes otherwise.""")
@@ -150,17 +154,18 @@ Given job description data, extract the following fields:
 - company_name: The company hiring
 - role_title: The job title/position
 - location: The job location, including Remote/Hybrid/Onsite when stated
-- salary: Salary/range if explicitly mentioned
+- salary: Salary/range if explicitly mentioned; preserve the wording as written
+- min_salary, max_salary: Plain integer amounts for an explicit annual base salary in USD (or with no currency stated). Exclude hourly, weekly, monthly, equity, bonus, total-compensation, and non-USD figures. For one annual salary figure, set both min_salary and max_salary to it. If the criteria are not clearly met, set both to null; never guess or convert units.
 
 Return ONLY valid JSON with exactly these keys:
-company_name, role_title, location, salary
-All values should be strings or null if not found. Preserve salary ranges as written. No markdown, no explanation - just the raw JSON object.""")
+company_name, role_title, location, salary, min_salary, max_salary
+company_name, role_title, location, salary should be strings or null if not found. min_salary and max_salary should be integers or null. Preserve salary ranges as written in the salary field. No markdown, no explanation - just the raw JSON object.""")
 
 
 PARSE_JD_USER_TEMPLATE = """\
 Extract structured information from this job description data:
 {job_description}
-Return JSON with company_name, role_title, location, salary fields."""
+Return JSON with company_name, role_title, location, salary, min_salary, max_salary fields."""
 
 
 # --- CV Import ---
@@ -176,8 +181,9 @@ EXTRACTION RULES:
 5. If a field is genuinely not present in the CV, use null for optional strings or [] for arrays. Never fabricate or infer data.
 6. For projects: if tech_stack is mentioned alongside a project, extract it. If a link/URL is associated, capture it.
 7. Phone numbers: preserve the original format including country codes.
-8. LinkedIn/GitHub/portfolio: extract full URLs if present, or usernames/paths if that is all that is given.
+8. LinkedIn/GitHub/portfolio: extract full URLs if present, or usernames/paths if that is all that is given. If multiple distinct GitHub URLs are present (e.g. a personal and a work account), extract all of them into the github array. If none are present, return an empty array.
 9. Certifications: extract ONLY if explicitly mentioned in the CV. If none are mentioned, return an empty array.
+10. Education accomplishments: extract honors, awards, GPA (only if explicitly stated), relevant coursework, or activities listed under an education entry as separate strings in that entry's accomplishments array. If none are mentioned for an entry, return an empty array.
 
 OUTPUT FORMAT - return ONLY this JSON structure, no markdown, no explanation:
 {
@@ -186,11 +192,11 @@ OUTPUT FORMAT - return ONLY this JSON structure, no markdown, no explanation:
   "phone": "string or null",
   "location": "string or null",
   "linkedin": "string or null",
-  "github": "string or null",
+  "github": ["string"],
   "portfolio": "string or null",
   "summary": "string or null",
   "work_experience": [{"company": "string", "role": "string", "start_date": "string", "end_date": "string or null", "bullets": ["string"]}],
-  "education": [{"institution": "string", "degree": "string", "field": "string", "start_date": "string", "end_date": "string or null"}],
+  "education": [{"institution": "string", "degree": "string", "field": "string", "start_date": "string", "end_date": "string or null", "accomplishments": ["string"]}],
   "skills": ["string"],
   "projects": [{"name": "string", "description": "string", "tech_stack": ["string"], "link": "string or null"}],
   "certifications": [{"name": "string", "issuer": "string", "date": "string"}]

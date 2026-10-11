@@ -19,6 +19,7 @@ class Education(BaseModel):
     field: str | None = None
     start_date: str | None = None
     end_date: str | None = None
+    accomplishments: list[str] = []
 
 
 class Project(BaseModel):
@@ -34,6 +35,11 @@ class Certification(BaseModel):
     date: str | None = None
 
 
+class SkillCategory(BaseModel):
+    label: str
+    skills: list[str]
+
+
 class ProfileData(BaseModel):
     id: int | None = None
     label: str = "Default"
@@ -44,12 +50,13 @@ class ProfileData(BaseModel):
     phone: str | None = None
     location: str | None = None
     linkedin: str | None = None
-    github: str | None = None
+    github: list[str] = []
     portfolio: str | None = None
     summary: str | None = None
     work_experience: list[WorkExperience] = []
     education: list[Education] = []
     skills: list[str] = []
+    skill_categories: list[SkillCategory] | None = None
     projects: list[Project] = []
     certifications: list[Certification] = []
     updated_at: datetime | None = None
@@ -145,6 +152,8 @@ class CoverLetterPdfRequest(BaseModel):
 class ATSEnhancement(BaseModel):
     summary: str
     work_experience: list[WorkExperience]
+    projects: list[Project] = []
+    skill_categories: list[SkillCategory] = []
 
 
 class GenerateSummaryRequest(BaseModel):
@@ -295,6 +304,8 @@ class ParseJobDescriptionResponse(BaseModel):
     role_title: str | None
     location: str | None
     salary: str | None
+    min_salary: int | None = None
+    max_salary: int | None = None
 
 
 class ScrapeAnalyzeRequest(BaseModel):
@@ -307,8 +318,10 @@ class ScrapeAnalyzeResponse(BaseModel):
     role_title: str | None
     location: str | None
     salary: str | None
+    min_salary: int | None = None
+    max_salary: int | None = None
     job_description: str
-    source: Literal["greenhouse_api", "lever_api", "ashby_api", "jina", "crawl4ai"]
+    source: Literal["greenhouse_api", "lever_api", "ashby_api", "jina", "crawl4ai", "manual"]
 
 
 # --- Fit analysis schemas ---
@@ -341,9 +354,12 @@ class BulkDeleteRequest(BaseModel):
 
 
 class ApplicationStatus(str, Enum):
+    bookmarked = "bookmarked"
+    applying = "applying"
     applied = "applied"
     interviewing = "interviewing"
-    offer = "offer"
+    negotiating = "negotiating"
+    accepted = "accepted"
     rejected = "rejected"
 
 
@@ -357,6 +373,12 @@ class CreateApplicationRequest(BaseModel):
     profile_id: int | None = None
     location: str | None = None
     salary: str | None = None
+    min_salary: int | None = None
+    max_salary: int | None = None
+    excitement: int | None = Field(default=None, ge=1, le=5)
+    date_posted: date | None = None
+    deadline: date | None = None
+    follow_up: date | None = None
     job_description: str | None = None
 
 
@@ -369,6 +391,12 @@ class UpdateApplicationRequest(BaseModel):
     applied_date: date | None = None
     location: str | None = None
     salary: str | None = None
+    min_salary: int | None = None
+    max_salary: int | None = None
+    excitement: int | None = Field(default=None, ge=1, le=5)
+    date_posted: date | None = None
+    deadline: date | None = None
+    follow_up: date | None = None
     job_description: str | None = None
 
 
@@ -390,6 +418,12 @@ class ApplicationEntry(BaseModel):
     linked_cv_id: int | None
     location: str | None
     salary: str | None
+    min_salary: int | None
+    max_salary: int | None
+    excitement: int | None
+    date_posted: date | None
+    deadline: date | None
+    follow_up: date | None
     job_description: str | None
 
     model_config = {"from_attributes": True}

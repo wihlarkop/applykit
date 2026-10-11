@@ -10,7 +10,7 @@ def make_profile(**updates) -> ProfileData:
         "phone": "+62 812",
         "location": "Jakarta, Indonesia",
         "linkedin": "https://linkedin.example/a",
-        "github": "https://github.example/a",
+        "github": ["https://github.example/a"],
         "portfolio": "https://portfolio.example/a",
         "summary": "Backend engineer",
         "work_experience": [

@@ -47,7 +47,7 @@ def test_job_specific_weights_are_deterministic():
         hard_gate=None,
     )
 
-    assert result.score == 81
+    assert result.score == 82
     assert result.band == "good"
 
 

@@ -150,7 +150,7 @@ def evaluate_tailoring(
         level = _match_level(requirement)
         importance = _importance(requirement)
         category = _category(requirement)
-        present = normalized_term in resume_text
+        present = f" {normalized_term} " in f" {resume_text} "
 
         if level in _SUPPORTED_LEVELS:
             supported_categories[category] += 1
@@ -241,7 +241,7 @@ def evaluate_tailoring(
         normalized_term = normalize_text(term)
         if not normalized_term:
             continue
-        count = resume_text.count(normalized_term)
+        count = f" {resume_text} ".count(f" {normalized_term} ")
         if count > KEYWORD_REPETITION_THRESHOLD:
             repeated_terms.append({"term": term, "count": count})
     if repeated_terms:

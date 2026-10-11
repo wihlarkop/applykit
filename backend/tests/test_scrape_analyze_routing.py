@@ -45,3 +45,27 @@ def test_pasted_job_url_uses_scraper_and_preserves_authoritative_metadata(monkey
     assert result.role_title == "AI Engineer, Playable Ads - Tokyo Japan."
     assert result.location == "Tokyo, Japan"
     assert result.source == "greenhouse_api"
+
+
+def test_pasted_job_description_reports_manual_source(monkeypatch):
+    def fake_parse_job_description(*args, **kwargs) -> ParseJobDescriptionResponse:
+        return ParseJobDescriptionResponse(
+            company_name="Acme",
+            role_title="Engineer",
+            location="Remote",
+            salary=None,
+        )
+
+    monkeypatch.setattr(scrape, "require_llm_config", lambda db: ("openai", "secret"))
+    monkeypatch.setattr(scrape, "parse_job_description", fake_parse_job_description)
+
+    result = asyncio.run(
+        scrape.scrape_analyze(
+            ScrapeAnalyzeRequest(text="Engineer at Acme"),
+            db=object(),
+            client=object(),
+        )
+    )
+
+    assert result.source == "manual"
+    assert result.job_description == "Engineer at Acme"

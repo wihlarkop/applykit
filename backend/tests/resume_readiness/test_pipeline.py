@@ -80,7 +80,10 @@ def test_low_coverage_requires_review_and_applies_cap():
             generated_cv_id=42,
             profile_snapshot=_snapshot(),
         ),
-        _dependencies("Edo Example edo@example.com"),
+        _dependencies(
+            "Edo Example edo@example.com "
+            "unrelated content that does not match the source profile " * 3
+        ),
     )
 
     assert result.status.value == "needs_review"

@@ -68,6 +68,34 @@ def test_unsupported_keyword_is_critical():
     assert rule.score_cap == 60
 
 
+def test_short_requirement_does_not_match_inside_a_larger_word():
+    results = evaluate_tailoring(
+        snapshot={
+            "name": "Edo",
+            "email": "edo@example.com",
+            "summary": "Experienced with NoSQL databases",
+            "work_experience": [],
+            "skills": [],
+        },
+        job_snapshot=LONG_JOB,
+        role_match={
+            "state": "success",
+            "show_authoritative_score": True,
+            "requirements": [
+                {
+                    "canonical_text": "SQL",
+                    "importance": "critical",
+                    "primary_category": "essential_qualifications",
+                    "match_level": "no_evidence",
+                    "excluded": False,
+                }
+            ],
+        },
+    )
+
+    assert all(result.rule_id != "TAILOR-004" for result in results)
+
+
 def test_no_job_excludes_tailoring():
     results = evaluate_tailoring(
         snapshot={"name": "Edo", "email": "edo@example.com"},

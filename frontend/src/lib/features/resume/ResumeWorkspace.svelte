@@ -11,7 +11,6 @@
   import AiReadinessNotice from '$lib/components/AiReadinessNotice.svelte';
   import CvPreview from '$lib/components/CvPreview.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
-  import PageHeader from '$lib/components/PageHeader.svelte';
   import ReadinessEmptyState from '$lib/components/resume-readiness/ReadinessEmptyState.svelte';
   import ReadinessExtractionPreview from '$lib/components/resume-readiness/ReadinessExtractionPreview.svelte';
   import ReadinessFindingList from '$lib/components/resume-readiness/ReadinessFindingList.svelte';
@@ -50,7 +49,7 @@
   }
 
   interface WorkspaceData {
-    readiness?: ReadinessResponse;
+    readiness?: ReadinessResponse | null;
     activeProfileId?: number | null;
   }
 
@@ -339,10 +338,12 @@
 </script>
 
 <div class="pb-10">
-  <PageHeader
-    title="Resume"
-    subtitle="Create a role-specific resume, validate the exported PDF, and review actionable findings."
-  />
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold">Resume</h1>
+    <p class="mt-0.5 text-sm text-muted-foreground">
+      Create a role-specific resume, validate the exported PDF, and review actionable findings.
+    </p>
+  </div>
 
   {#if aiReadiness && data.activeProfileId != null}
     <div class="mt-6">

@@ -43,7 +43,7 @@
 
 {#if expiryState === 'active'}
   <div class="border-b border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/70 dark:text-amber-100" role="status">
-    <div class="mx-auto flex max-w-5xl flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+    <div class="mx-auto flex max-w-[90rem] flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
       <p class="flex items-center gap-2 text-sm font-medium">
         <Clock3 class="h-4 w-4 shrink-0" />
         Your session expires in 5 minutes.

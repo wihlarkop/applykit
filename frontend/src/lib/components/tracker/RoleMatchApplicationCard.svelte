@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ApplicationEntry } from '$lib/types';
+  import type { CardFieldKey } from '$lib/tracker-view-config';
   import { formatDateShort, getScoreColor } from '$lib/utils';
 
   interface SourceAwareApplication extends ApplicationEntry {
@@ -7,7 +8,19 @@
     role_match_analysis_id?: number | null;
   }
 
-  let { app, onclick }: { app: SourceAwareApplication; onclick: () => void } = $props();
+  let {
+    app,
+    onclick,
+    hiddenFields = []
+  }: {
+    app: SourceAwareApplication;
+    onclick: () => void;
+    hiddenFields?: CardFieldKey[];
+  } = $props();
+
+  const showDate = $derived(!hiddenFields.includes('date'));
+  const showMatchScore = $derived(!hiddenFields.includes('match_score'));
+  const showDocuments = $derived(!hiddenFields.includes('documents'));
 
   const sourceLabel = $derived(
     app.match_score_source === 'role_evidence_match'
@@ -22,7 +35,7 @@
   type="button"
   onclick={onclick}
   class="group relative w-full cursor-pointer overflow-hidden rounded-lg border border-border bg-card p-3 text-left transition-all hover:border-primary/50 hover:shadow-sm"
-  class:border-dashed={!app.linked_cover_letter_id && !app.linked_cv_id}
+  class:border-dashed={showDocuments && !app.linked_cover_letter_id && !app.linked_cv_id}
 >
   <div class="mb-1.5 flex items-center gap-2">
     <span
@@ -36,21 +49,27 @@
 
   <p class="mb-2 truncate pl-4 text-xs text-muted-foreground">{app.role_title || '—'}</p>
 
-  <div class="mt-1 flex items-center justify-between pl-4">
-    <span class="text-[10px] font-medium text-muted-foreground/70">
-      {formatDateShort(app.applied_date ?? '') ?? ''}
-    </span>
-    <div class="flex items-center gap-1.5">
-      {#if app.linked_cover_letter_id}
-        <span class="rounded-sm border border-blue-500/20 bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold text-blue-500" title="Cover Letter Linked">CL</span>
+  {#if showDate || showDocuments}
+    <div class="mt-1 flex items-center justify-between pl-4">
+      {#if showDate}
+        <span class="text-[10px] font-medium text-muted-foreground/70">
+          {formatDateShort(app.applied_date ?? '') ?? ''}
+        </span>
       {/if}
-      {#if app.linked_cv_id}
-        <span class="rounded-sm border border-purple-500/20 bg-purple-500/10 px-1.5 py-0.5 text-[9px] font-bold text-purple-500" title="CV Linked">CV</span>
+      {#if showDocuments}
+        <div class="flex items-center gap-1.5">
+          {#if app.linked_cover_letter_id}
+            <span class="rounded-sm border border-blue-500/20 bg-blue-500/10 px-1.5 py-0.5 text-[9px] font-bold text-blue-500" title="Cover Letter Linked">CL</span>
+          {/if}
+          {#if app.linked_cv_id}
+            <span class="rounded-sm border border-purple-500/20 bg-purple-500/10 px-1.5 py-0.5 text-[9px] font-bold text-purple-500" title="CV Linked">CV</span>
+          {/if}
+        </div>
       {/if}
     </div>
-  </div>
+  {/if}
 
-  {#if app.match_score !== null}
+  {#if showMatchScore && app.match_score !== null}
     <div class="mt-3 space-y-1 pl-4">
       <div class="flex items-center justify-between text-[9px] font-semibold">
         <span class="uppercase tracking-wide text-muted-foreground/70">{sourceLabel}</span>
@@ -65,7 +84,7 @@
     </div>
   {/if}
 
-  {#if !app.linked_cover_letter_id && !app.linked_cv_id}
+  {#if showDocuments && !app.linked_cover_letter_id && !app.linked_cv_id}
     <span class="mt-1 inline-flex items-center gap-1 rounded border border-yellow-200 bg-yellow-50 px-1.5 py-0.5 text-[10px] font-medium text-yellow-600 dark:border-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
       ⚠ No docs linked
     </span>

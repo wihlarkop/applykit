@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import {
 	    createApplication,
@@ -8,13 +9,24 @@
 	import type { ApplicationFilters } from '$lib/types';
 	import { profiles } from '$lib/profiles.svelte';
 	import ApplicationCard from '$lib/components/tracker/ApplicationCard.svelte';
+	import ApplicationTable from '$lib/components/tracker/ApplicationTable.svelte';
 	import DetailPanel from '$lib/components/tracker/DetailPanel.svelte';
+	import PipelineFunnel from '$lib/components/tracker/PipelineFunnel.svelte';
+	import TrackerViewConfig from '$lib/components/tracker/TrackerViewConfig.svelte';
 	import { STATUS_CONFIG } from '$lib/constants';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { toastState } from '$lib/toast.svelte';
 	import type { ApplicationEntry, ApplicationStatus, CreateApplicationRequest } from '$lib/types';
 	import { errorMessage } from '$lib/utils';
-	import { Briefcase, CircleAlert } from '@lucide/svelte';
+	import {
+		applicationsToCsv,
+		defaultTrackerViewConfigState,
+		loadTrackerViewConfigState,
+		saveTrackerViewConfigState,
+		visibleOrderedColumns,
+		type TrackerViewConfigState
+	} from '$lib/tracker-view-config';
+	import { Briefcase, CircleAlert, LayoutGrid, List } from '@lucide/svelte';
 	import { dndzone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 
@@ -22,11 +34,34 @@
 	let loading = $state(true);
 	let loadError = $state('');
 	let selectedApp = $state<ApplicationEntry | null>(null);
+	let viewMode = $state<'board' | 'list'>('list');
+	let viewConfig = $state<TrackerViewConfigState>(defaultTrackerViewConfigState());
+
+	if (browser) {
+		viewConfig = loadTrackerViewConfigState();
+	}
+	$effect(() => {
+		if (browser) saveTrackerViewConfigState(viewConfig);
+	});
+
+	const visibleColumns = $derived(visibleOrderedColumns(viewConfig));
+
+	function downloadCsv() {
+		const csv = applicationsToCsv(displayApps);
+		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `applications-${new Date().toISOString().split('T')[0]}.csv`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
 
 	let search = $state('');
 	let dateRange = $state('all');
 	let matchFilter = $state('all');
 	let filterProfileId = $state<number | undefined>(undefined);
+	let statusFilter = $state<ApplicationStatus | null>(null);
 	let searchTimer: ReturnType<typeof setTimeout>;
 
 	const allProfiles = $derived(profiles.all);
@@ -37,17 +72,23 @@
 	let newDate = $state(new Date().toISOString().split('T')[0]);
 
 	const COLUMNS: { status: ApplicationStatus; label: string; color: string }[] = [
-		{ status: 'applied', label: STATUS_CONFIG.applied.label, color: 'text-muted-foreground' },
+		{ status: 'bookmarked', label: STATUS_CONFIG.bookmarked.label, color: 'text-muted-foreground' },
+		{ status: 'applying', label: STATUS_CONFIG.applying.label, color: STATUS_CONFIG.applying.color },
+		{ status: 'applied', label: STATUS_CONFIG.applied.label, color: STATUS_CONFIG.applied.color },
 		{ status: 'interviewing', label: STATUS_CONFIG.interviewing.label, color: STATUS_CONFIG.interviewing.color },
-		{ status: 'offer', label: STATUS_CONFIG.offer.label, color: STATUS_CONFIG.offer.color },
+		{ status: 'negotiating', label: STATUS_CONFIG.negotiating.label, color: STATUS_CONFIG.negotiating.color },
+		{ status: 'accepted', label: STATUS_CONFIG.accepted.label, color: STATUS_CONFIG.accepted.color },
 		{ status: 'rejected', label: STATUS_CONFIG.rejected.label, color: STATUS_CONFIG.rejected.color },
 	];
 
   // --- Derived ---
-  const filtersActive = $derived(search !== '' || dateRange !== 'all' || matchFilter !== 'all' || filterProfileId !== undefined);
+  const filtersActive = $derived(search !== '' || dateRange !== 'all' || matchFilter !== 'all' || filterProfileId !== undefined || statusFilter !== null);
+  // The funnel's counts reflect search/date/match/profile filters but not the stage filter itself,
+  // so selecting a stage doesn't zero out the other stages' counts.
+  const displayApps = $derived(statusFilter ? apps.filter((a) => a.status === statusFilter) : apps);
   const colItems = $derived(
     Object.fromEntries(
-      COLUMNS.map((c) => [c.status, apps.filter((a) => a.status === c.status)])
+      COLUMNS.map((c) => [c.status, displayApps.filter((a) => a.status === c.status)])
     ) as Record<ApplicationStatus, ApplicationEntry[]>
   );
 
@@ -155,6 +196,23 @@
     selectedApp = updated;
   }
 
+  // Inline table edits sync the list without opening the detail panel.
+  function handleInlineUpdate(updated: ApplicationEntry) {
+    apps = apps.map((a) => (a.id === updated.id ? updated : a));
+  }
+
+  function handleBulkUpdate(updated: ApplicationEntry[]) {
+    const byId = new Map(updated.map((u) => [u.id, u]));
+    apps = apps.map((a) => byId.get(a.id) ?? a);
+    if (selectedApp && byId.has(selectedApp.id)) selectedApp = byId.get(selectedApp.id)!;
+  }
+
+  function handleBulkDelete(ids: number[]) {
+    const idSet = new Set(ids);
+    apps = apps.filter((a) => !idSet.has(a.id));
+    if (selectedApp && idSet.has(selectedApp.id)) selectedApp = null;
+  }
+
   function handleDelete(id: number) {
     apps = apps.filter((a) => a.id !== id);
     selectedApp = null;
@@ -165,8 +223,8 @@
 >
   <div class="flex items-center justify-between mt-2">
     <div>
-      <h1 class="text-3xl font-black tracking-tight">Tracker</h1>
-      <p class="text-sm text-muted-foreground">Manage and track your job applications in one place.</p>
+      <h1 class="text-2xl font-bold">Tracker</h1>
+      <p class="text-sm text-muted-foreground mt-0.5">Manage and track your job applications in one place.</p>
     </div>
   </div>
 
@@ -192,6 +250,9 @@
       {/each}
     </div>
   {/if}
+
+  <!-- Pipeline funnel -->
+  <PipelineFunnel {apps} activeStatus={statusFilter} onSelect={(status) => (statusFilter = status)} />
 
   <!-- Filter bar -->
   <div class="flex items-center gap-3 flex-wrap">
@@ -223,21 +284,46 @@
     </select>
 
     {#if filtersActive}
-      <button 
-        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; filterProfileId = undefined; load(); }}
+      <button
+        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; filterProfileId = undefined; statusFilter = null; load(); }}
         class="text-xs text-primary font-bold px-2 py-1 hover:bg-primary/5 rounded-md transition-colors"
       >
         ✕ Clear filters
       </button>
     {/if}
+
+    <div class="flex items-center gap-1 border border-border rounded-md p-0.5 ml-auto">
+      <button
+        type="button"
+        onclick={() => (viewMode = 'list')}
+        title="List view"
+        class="p-1.5 rounded transition-colors {viewMode === 'list' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+      >
+        <List class="w-4 h-4" />
+      </button>
+      <button
+        type="button"
+        onclick={() => (viewMode = 'board')}
+        title="Board view"
+        class="p-1.5 rounded transition-colors {viewMode === 'board' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}"
+      >
+        <LayoutGrid class="w-4 h-4" />
+      </button>
+    </div>
+
+    <TrackerViewConfig {viewMode} bind:config={viewConfig} onExport={downloadCsv} />
   </div>
 
   {#if loading}
-    <div class="grid grid-cols-4 gap-4">
-      {#each COLUMNS as _}
-        <div class="bg-card border border-border rounded-xl p-3 h-64 animate-pulse"></div>
-      {/each}
-    </div>
+    {#if viewMode === 'list'}
+      <div class="bg-card border border-border rounded-xl h-64 animate-pulse"></div>
+    {:else}
+      <div class="flex gap-4 overflow-x-auto">
+        {#each COLUMNS as _}
+          <div class="bg-card border border-border rounded-xl p-3 h-64 w-64 shrink-0 animate-pulse"></div>
+        {/each}
+      </div>
+    {/if}
   {:else if loadError}
     <div class="flex flex-col items-center justify-center py-20 text-center gap-3">
       <CircleAlert class="w-8 h-8 text-destructive" />
@@ -245,20 +331,30 @@
       <p class="text-xs text-muted-foreground">{loadError}</p>
       <button onclick={load} class="text-xs text-primary hover:underline mt-1">Try again</button>
     </div>
-  {:else if filtersActive && apps.length === 0}
+  {:else if filtersActive && displayApps.length === 0}
     <div class="flex flex-col items-center justify-center py-20 text-center gap-3">
       <p class="text-sm font-medium text-muted-foreground">No applications match your filters</p>
       <button
-        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; filterProfileId = undefined; load(); }}
+        onclick={() => { search = ''; dateRange = 'all'; matchFilter = 'all'; filterProfileId = undefined; statusFilter = null; load(); }}
         class="text-xs text-primary hover:underline"
       >Clear filters</button>
     </div>
+  {:else if viewMode === 'list'}
+    <ApplicationTable
+      apps={displayApps}
+      columns={visibleColumns}
+      groupBy={viewConfig.groupBy}
+      onSelect={(app) => (selectedApp = app)}
+      onUpdate={handleInlineUpdate}
+      onBulkUpdate={handleBulkUpdate}
+      onBulkDelete={handleBulkDelete}
+    />
   {:else}
     <!-- Kanban board -->
-    <div class="grid grid-cols-4 gap-4 items-start">
+    <div class="flex gap-4 items-start overflow-x-auto pb-2">
       {#each COLUMNS as col}
         {@const items = colItems[col.status] ?? []}
-        <div class="bg-card border border-border rounded-xl p-3 flex flex-col">
+        <div class="bg-card border border-border rounded-xl p-3 flex flex-col w-64 shrink-0">
           <!-- Column header (sticky) -->
           <div class="sticky top-0 bg-card/95 backdrop-blur-sm z-10 flex items-center justify-between mb-3 py-1 border-b border-border/40">
             <span class="text-[10px] font-black uppercase tracking-widest {col.color}">{col.label}</span>
@@ -285,7 +381,7 @@
             >
               {#each items as app (app.id)}
                 <div animate:flip={{ duration: 150 }}>
-                  <ApplicationCard {app} onclick={() => (selectedApp = app)} />
+                  <ApplicationCard {app} onclick={() => (selectedApp = app)} hiddenFields={viewConfig.hiddenCardFields} />
                 </div>
               {/each}
             </div>

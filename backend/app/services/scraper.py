@@ -1,4 +1,5 @@
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -42,10 +43,13 @@ def _detect_ats(url: str) -> str:
         return "lever"
     if "ashbyhq.com" in url:
         return "ashby"
-    if "jazzhr.com" in url:
+    if "applytojob.com" in url:
+        # JazzHR's candidate-facing hosted career pages live on applytojob.com,
+        # not jazzhr.com. No dedicated API handler exists (no stable public
+        # read API), so this still falls through to the generic tiers below -
+        # kept as a distinct label rather than "generic" for accurate source
+        # attribution and to make a future handler a smaller diff.
         return "jazzhr"
-    if "bamboohr.com" in url:
-        return "bamboohr"
     return "generic"
 
 
@@ -190,6 +194,38 @@ async def _scrape_crawl4ai(url: str) -> str | None:
         return None
 
 
+async def _try_ats_api(
+    handler: Callable[[str, httpx.AsyncClient], Awaitable[ScrapedJob]],
+    url: str,
+    client: httpx.AsyncClient,
+) -> ScrapedJob | None:
+    """Run an ATS API handler, retrying once on a transient failure.
+
+    Returns None instead of raising so the caller can fall through to the
+    generic scraping tiers rather than failing the whole scrape outright.
+    """
+    attempts = 2
+    for _ in range(attempts):
+        try:
+            return await handler(url, client)
+        except httpx.HTTPStatusError as exc:
+            # Do not repeat permanent errors or immediately retry rate limits.
+            if exc.response.status_code not in {408, 500, 502, 503, 504}:
+                return None
+        except (
+            httpx.TimeoutException,
+            httpx.NetworkError,
+            httpx.RemoteProtocolError,
+            TimeoutError,
+        ):
+            pass
+        except Exception:
+            # Malformed URLs/payloads and other non-transient failures cannot
+            # benefit from another identical request, but can use fallback.
+            return None
+    return None
+
+
 async def scrape_job_url(
     url: str, client: httpx.AsyncClient, provider: str = "auto"
 ) -> ScrapedJob:
@@ -204,13 +240,19 @@ async def scrape_job_url(
     ats = _detect_ats(url)
 
     if ats == "greenhouse":
-        return await _scrape_greenhouse(url, client)
+        result = await _try_ats_api(_scrape_greenhouse, url, client)
+        if result is not None:
+            return result
 
-    if ats == "lever":
-        return await _scrape_lever(url, client)
+    elif ats == "lever":
+        result = await _try_ats_api(_scrape_lever, url, client)
+        if result is not None:
+            return result
 
-    if ats == "ashby":
-        return await _scrape_ashby(url, client)
+    elif ats == "ashby":
+        result = await _try_ats_api(_scrape_ashby, url, client)
+        if result is not None:
+            return result
 
     # Tier 2: Jina
     jina_result = await _scrape_jina(url, client)

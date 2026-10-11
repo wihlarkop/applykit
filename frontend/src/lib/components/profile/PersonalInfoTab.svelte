@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { User, SparklesIcon, ChevronDown, Check, Loader2, RefreshCw } from '@lucide/svelte';
+  import { User, SparklesIcon, ChevronDown, Check, Loader2, Plus, RefreshCw, X } from '@lucide/svelte';
   import { Label } from '$lib/components/ui/label';
   import { Input } from '$lib/components/ui/input';
   import { Textarea } from '$lib/components/ui/textarea';
@@ -15,6 +15,14 @@
     profile: ProfileData;
   }
   let { profile = $bindable() }: Props = $props();
+
+  function addGithub() {
+    profile.github = [...profile.github, ''];
+  }
+
+  function removeGithub(i: number) {
+    profile.github = profile.github.filter((_, idx) => idx !== i);
+  }
 
   // Generate Summary
   let showSummaryGen = $state(false);
@@ -102,8 +110,32 @@
         <Input id="linkedin" bind:value={profile.linkedin} placeholder="linkedin.com/in/username" class="bg-background h-11 text-base border-muted-foreground/20 focus:border-primary transition-all" />
       </div>
       <div class="space-y-2">
-        <Label for="github" class="text-xs font-bold uppercase tracking-wider text-muted-foreground">GitHub</Label>
-        <Input id="github" bind:value={profile.github} placeholder="github.com/username" class="bg-background h-11 text-base border-muted-foreground/20 focus:border-primary transition-all" />
+        <Label class="text-xs font-bold uppercase tracking-wider text-muted-foreground">GitHub</Label>
+        <div class="space-y-2">
+          {#each profile.github as _, i}
+            <div class="flex gap-2">
+              <Input
+                bind:value={profile.github[i]}
+                placeholder="github.com/username"
+                class="bg-background h-11 text-base border-muted-foreground/20 focus:border-primary transition-all flex-1"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                class="h-11 w-11 shrink-0 text-destructive hover:bg-destructive/10"
+                onclick={() => removeGithub(i)}
+                aria-label="Remove GitHub link"
+              >
+                <X class="w-4 h-4" />
+              </Button>
+            </div>
+          {/each}
+          <Button type="button" variant="outline" size="sm" onclick={addGithub} class="font-semibold">
+            <Plus class="w-4 h-4 mr-1.5" />
+            {profile.github.length === 0 ? 'Add GitHub' : 'Add another'}
+          </Button>
+        </div>
       </div>
       <div class="space-y-2 sm:col-span-2">
         <Label for="portfolio" class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Portfolio / Personal Website</Label>

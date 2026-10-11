@@ -12,14 +12,16 @@
   import AiReadinessNotice from '$lib/components/AiReadinessNotice.svelte';
   import type { ReadinessResponse } from '$lib/readiness-types';
   import FitAnalysisDisplay from '$lib/components/FitAnalysisDisplay.svelte';
+  import { Badge } from '$lib/components/ui/badge';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent } from '$lib/components/ui/card';
   import { Input } from '$lib/components/ui/input';
   import { Label } from '$lib/components/ui/label';
+  import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '$lib/components/ui/tooltip';
   import { clearDraft, consumeDraft, draftKey, saveDraft } from '$lib/draft-recovery';
   import { consumeStream } from '$lib/stream';
   import { toastState } from '$lib/toast.svelte';
-  import type { FitAnalysisResponse, ScrapeJobResponse } from '$lib/types';
+  import type { FitAnalysisResponse, ScrapeAnalyzeResponse } from '$lib/types';
   import { errorMessage } from '$lib/utils';
   import {
       AlertTriangle,
@@ -41,16 +43,54 @@
     readinessOverride = null;
   });
 
+  const SCRAPE_SOURCE_INFO: Record<
+    ScrapeAnalyzeResponse['source'],
+    { label: string; description: string; variant: 'secondary' | 'outline' }
+  > = {
+    greenhouse_api: {
+      label: 'Greenhouse',
+      description: "Pulled directly from the company's Greenhouse job board API.",
+      variant: 'secondary',
+    },
+    lever_api: {
+      label: 'Lever',
+      description: "Pulled directly from the company's Lever job board API.",
+      variant: 'secondary',
+    },
+    ashby_api: {
+      label: 'Ashby',
+      description: "Pulled directly from the company's Ashby job board API.",
+      variant: 'secondary',
+    },
+    jina: {
+      label: 'Scraped',
+      description: 'Extracted by reading the page content — some fields may be inferred by AI.',
+      variant: 'outline',
+    },
+    crawl4ai: {
+      label: 'Scraped',
+      description: 'Extracted from a rendered version of the page — some fields may be inferred by AI.',
+      variant: 'outline',
+    },
+    manual: {
+      label: 'Pasted',
+      description: 'Parsed from text you pasted — no job page was fetched.',
+      variant: 'outline',
+    },
+  };
+
   interface SmartApplyDraft {
     inputMode: 'url' | 'paste';
     jobUrl: string;
     jobText: string;
-    scrapeResult: ScrapeJobResponse | null;
+    scrapeResult: ScrapeAnalyzeResponse | null;
     fitResult: FitAnalysisResponse | null;
     companyName: string;
     roleTitle: string;
     location: string;
     salary: string;
+    minSalary: number | null;
+    maxSalary: number | null;
     jobDescriptionExpanded: boolean;
     generateCvEnabled: boolean;
     cvEnhance: boolean;
@@ -71,7 +111,7 @@
   // ---------------------------------------------------------------------------
   // Section 2 — Analysis results
   // ---------------------------------------------------------------------------
-  let scrapeResult = $state<ScrapeJobResponse | null>(null);
+  let scrapeResult = $state<ScrapeAnalyzeResponse | null>(null);
   let fitResult = $state<FitAnalysisResponse | null>(null);
   let analysisError = $state('');
   let fitLoading = $state(false);
@@ -83,7 +123,15 @@
   let roleTitle = $state('');
   let location = $state('');
   let salary = $state('');
+  let minSalary = $state<number | null>(null);
+  let maxSalary = $state<number | null>(null);
   let jobDescriptionExpanded = $state(false);
+
+  function toNumberOrNull(value: string): number | null {
+    if (!value.trim()) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
 
   // ---------------------------------------------------------------------------
   // Section 4 — Generate options
@@ -125,6 +173,8 @@
     roleTitle = '';
     location = '';
     salary = '';
+    minSalary = null;
+    maxSalary = null;
     jobDescriptionExpanded = false;
     generateCvEnabled = true;
     cvEnhance = true;
@@ -145,7 +195,9 @@
     companyName = restored.companyName;
     roleTitle = restored.roleTitle;
     location = restored.location;
-    salary = restored.salary;
+    salary = restored.salary ?? '';
+    minSalary = restored.minSalary ?? null;
+    maxSalary = restored.maxSalary ?? null;
     jobDescriptionExpanded = restored.jobDescriptionExpanded;
     generateCvEnabled = restored.generateCvEnabled;
     cvEnhance = restored.cvEnhance;
@@ -159,7 +211,7 @@
   $effect(() => {
     const ap = activeProfile.current;
     if (authState.authMode !== 'password' || !ap || draftProfileId !== ap.id) return;
-    const scrapeSnapshot = scrapeResult ? JSON.parse(JSON.stringify(scrapeResult)) as ScrapeJobResponse : null;
+    const scrapeSnapshot = scrapeResult ? JSON.parse(JSON.stringify(scrapeResult)) as ScrapeAnalyzeResponse : null;
     const fitSnapshot = fitResult ? JSON.parse(JSON.stringify(fitResult)) as FitAnalysisResponse : null;
     saveDraft(sessionStorage, draftKey('/smart-apply', ap.id), {
       inputMode,
@@ -171,6 +223,8 @@
       roleTitle,
       location,
       salary,
+      minSalary,
+      maxSalary,
       jobDescriptionExpanded,
       generateCvEnabled,
       cvEnhance,
@@ -211,12 +265,16 @@
       roleTitle = analyzed.role_title || '';
       location = analyzed.location || '';
       salary = analyzed.salary || '';
+      minSalary = analyzed.min_salary;
+      maxSalary = analyzed.max_salary;
       scrapeResult = {
         job_description: analyzed.job_description,
         company_name: analyzed.company_name,
         role_title: analyzed.role_title,
         location: analyzed.location,
         salary: analyzed.salary,
+        min_salary: analyzed.min_salary,
+        max_salary: analyzed.max_salary,
         source: analyzed.source,
       };
 
@@ -264,9 +322,13 @@
         role_title: roleTitle,
         job_url: inputMode === 'url' ? jobUrl.trim() || null : null,
         profile_id: ap.id,
-        status: 'applied',
+        // Smart Apply generates the documents and tracks the role, but the
+        // user still has to actually submit the application themselves.
+        status: 'applying',
         location: location || null,
         salary: salary || null,
+        min_salary: minSalary,
+        max_salary: maxSalary,
         job_description: scrapeResult.job_description || null,
       });
 
@@ -433,20 +495,61 @@
             </div>
           </div>
           <div class="space-y-2">
-            <Label for="salary">Salary</Label>
-            <Input id="salary" bind:value={salary} placeholder="e.g. $120,000 - $150,000" class="h-10" />
+            <Label for="salary">Salary as posted</Label>
+            <Input id="salary" bind:value={salary} placeholder="e.g. Competitive, $120,000 - $150,000" class="h-10" />
+          </div>
+          <div class="space-y-2">
+            <Label for="min-salary">Annual base salary (USD)</Label>
+            <div class="grid grid-cols-2 gap-2">
+              <Input
+                id="min-salary"
+                type="number"
+                min="0"
+                step="1"
+                value={minSalary ?? ''}
+                oninput={(event) => minSalary = toNumberOrNull((event.target as HTMLInputElement).value)}
+                placeholder="Min"
+                class="h-10"
+              />
+              <Input
+                id="max-salary"
+                type="number"
+                min="0"
+                step="1"
+                value={maxSalary ?? ''}
+                oninput={(event) => maxSalary = toNumberOrNull((event.target as HTMLInputElement).value)}
+                aria-label="Maximum annual base salary in USD"
+                placeholder="Max"
+                class="h-10"
+              />
+            </div>
           </div>
         </div>
         <!-- Job Description (collapsible) -->
         {#if scrapeResult?.job_description}
+          {@const jobDescriptionSource = SCRAPE_SOURCE_INFO[scrapeResult.source]}
           <div class="pt-2 border-t border-border/50">
-            <button
-              onclick={() => jobDescriptionExpanded = !jobDescriptionExpanded}
-              class="flex items-center justify-between w-full text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span>Job Description</span>
-              <ChevronDown class="w-4 h-4 transition-transform {jobDescriptionExpanded ? 'rotate-180' : ''}" />
-            </button>
+            <div class="flex items-center justify-between">
+              <button
+                onclick={() => jobDescriptionExpanded = !jobDescriptionExpanded}
+                class="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span>Job Description</span>
+                <ChevronDown class="w-4 h-4 transition-transform {jobDescriptionExpanded ? 'rotate-180' : ''}" />
+              </button>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger>
+                    {#snippet child({ props })}
+                      <Badge {...props} variant={jobDescriptionSource.variant} class="cursor-default">
+                        {jobDescriptionSource.label}
+                      </Badge>
+                    {/snippet}
+                  </TooltipTrigger>
+                  <TooltipContent>{jobDescriptionSource.description}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             {#if jobDescriptionExpanded}
               <div class="mt-2 bg-muted/50 rounded-lg p-3 text-sm max-h-60 overflow-y-auto whitespace-pre-wrap">
                 {scrapeResult.job_description}

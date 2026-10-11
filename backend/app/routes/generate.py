@@ -2,6 +2,7 @@ import asyncio
 import io
 import json
 import logging
+from collections import Counter
 from collections.abc import AsyncIterable
 
 from fastapi import APIRouter, Depends
@@ -71,10 +72,6 @@ def _pdf_page_count(pdf_bytes: bytes) -> int:
     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
         return len(pdf.pages)
 
-
-# Projects arrive pre-ranked by relevance (see ATS_SYSTEM_PROMPT instruction 3),
-# so trimming to a prefix keeps the most relevant ones.
-MAX_PROJECTS_WHEN_TRIMMED = 3
 
 # Bounds for stretching inter-section/item spacing to fill a page that has
 # room to spare. 1.8x is roughly where extra whitespace starts reading as
@@ -157,15 +154,6 @@ def _render_cv_pdf(profile_data: dict) -> Response:
         html = render_cv_template(profile_data)
         pdf_bytes = html_to_pdf(html)
 
-        projects = profile_data.get("projects") or []
-        if len(projects) > MAX_PROJECTS_WHEN_TRIMMED and _pdf_page_count(pdf_bytes) > 1:
-            profile_data = {
-                **profile_data,
-                "projects": projects[:MAX_PROJECTS_WHEN_TRIMMED],
-            }
-            trimmed_html = render_cv_template(profile_data)
-            pdf_bytes = html_to_pdf(trimmed_html)
-
         if _pdf_page_count(pdf_bytes) == 1:
             pdf_bytes = _find_max_fitting_spacing_scale(profile_data, pdf_bytes)
     except PDFRenderError as exc:
@@ -223,12 +211,29 @@ def _build_cover_letter_prompt(p: ProfileData, req: CoverLetterRequest) -> str:
 def _apply_ats_enhancement(
     profile_data: ProfileData, ats: ATSEnhancement
 ) -> ProfileData:
+    # Ranking may change order, but must preserve every original project field.
+    original_projects = Counter(p.model_dump_json() for p in profile_data.projects)
+    returned_projects = Counter(p.model_dump_json() for p in ats.projects)
+    projects = (
+        ats.projects
+        if returned_projects == original_projects
+        else profile_data.projects
+    )
+    # Categories group existing skills; they cannot introduce or omit skill facts.
+    returned_skills = Counter(
+        skill for category in ats.skill_categories for skill in category.skills
+    )
+    categories = (
+        ats.skill_categories
+        if ats.skill_categories and returned_skills == Counter(profile_data.skills)
+        else profile_data.skill_categories
+    )
     return profile_data.model_copy(
         update={
             "summary": ats.summary,
             "work_experience": ats.work_experience,
-            "projects": ats.projects or profile_data.projects,
-            "skill_categories": ats.skill_categories or None,
+            "projects": projects,
+            "skill_categories": categories,
         }
     )
 

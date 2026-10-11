@@ -125,24 +125,32 @@ def test_render_cv_pdf_falls_back_when_spacing_probe_overflows():
     assert _page_count(response.body) == 1
 
 
-def test_render_cv_pdf_trims_to_top_projects_when_they_would_overflow():
+def test_render_cv_pdf_preserves_all_projects_when_they_overflow():
     profile = _profile(project_count=8)
-
-    unrimmed_html = generate_routes.render_cv_template(profile)
-    assert _page_count(generate_routes.html_to_pdf(unrimmed_html)) > 1, (
-        "test fixture must actually overflow one page before trimming for "
-        "this test to prove anything"
-    )
-
     response = generate_routes._render_cv_pdf(profile)
 
-    assert _page_count(response.body) == 1
     with pdfplumber.open(io.BytesIO(response.body)) as pdf:
-        text = pdf.pages[0].extract_text()
-    kept = [f"Project {i}" for i in range(generate_routes.MAX_PROJECTS_WHEN_TRIMMED)]
-    dropped = [
-        f"Project {i}"
-        for i in range(generate_routes.MAX_PROJECTS_WHEN_TRIMMED, 8)
+        assert len(pdf.pages) > 1
+        text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+    assert all(f"Project {i}" in text for i in range(8))
+    assert len(profile["projects"]) == 8
+
+
+def test_render_cv_pdf_preserves_projects_when_work_alone_overflows():
+    profile = _many_short_projects_profile(project_count=4)
+    profile["work_experience"] = [
+        {
+            "company": "Acme",
+            "role": "Engineer",
+            "start_date": "2020",
+            "end_date": None,
+            "bullets": [
+                f"Accomplishment {i}: delivered reliable services." for i in range(75)
+            ],
+        }
     ]
-    assert all(name in text for name in kept)
-    assert not any(name in text for name in dropped)
+    response = generate_routes._render_cv_pdf(profile)
+    with pdfplumber.open(io.BytesIO(response.body)) as pdf:
+        assert len(pdf.pages) > 1
+        text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+    assert all(f"Project {i}" in text for i in range(4))

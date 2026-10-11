@@ -21,9 +21,11 @@ from app.exceptions.request import (
 )
 from app.exceptions.resource import (
     ApplicationNotFoundError,
+    GeneratedCVNotFoundError,
     HistoryEntryNotFoundError,
     ProfileNotFoundError,
     ProviderNotFoundError,
+    ResumeReadinessAnalysisNotFoundError,
 )
 from app.exceptions.role_match import (
     RoleMatchAnalysisNotFoundError,
@@ -39,6 +41,8 @@ __all__ = [
     "ProfileNotFoundError",
     "ApplicationNotFoundError",
     "HistoryEntryNotFoundError",
+    "GeneratedCVNotFoundError",
+    "ResumeReadinessAnalysisNotFoundError",
     "ProviderNotFoundError",
     "RoleMatchAnalysisNotFoundError",
     "RoleMatchProfileRequiredError",

@@ -22,6 +22,8 @@ class ErrorCode(StrEnum):
     PROVIDER_NOT_FOUND = "PROVIDER_NOT_FOUND"
     ROLE_MATCH_ANALYSIS_NOT_FOUND = "ROLE_MATCH_ANALYSIS_NOT_FOUND"
     ROLE_MATCH_PROFILE_REQUIRED = "ROLE_MATCH_PROFILE_REQUIRED"
+    GENERATED_CV_NOT_FOUND = "GENERATED_CV_NOT_FOUND"
+    RESUME_READINESS_ANALYSIS_NOT_FOUND = "RESUME_READINESS_ANALYSIS_NOT_FOUND"
 
     INVALID_REQUEST = "INVALID_REQUEST"
     SCRAPE_VALUE_ERROR = "SCRAPE_VALUE_ERROR"
@@ -95,7 +97,9 @@ class AppError(Exception):
             raise TypeError(
                 f"{error_type.__name__}.default_message must be a non-empty string"
             )
-        if message is not None and (not isinstance(message, str) or not message.strip()):
+        if message is not None and (
+            not isinstance(message, str) or not message.strip()
+        ):
             raise TypeError("AppError message must be a non-empty string")
         if details is not None and not isinstance(details, dict):
             raise TypeError("AppError details must be a dictionary")

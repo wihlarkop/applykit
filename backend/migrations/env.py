@@ -6,11 +6,11 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+# Import every model package so its tables register on Base.metadata before
+# Alembic compares the database schema with the application metadata.
 from app.models import Base
-# Autogenerate needs every model module imported so its tables register on
-# Base.metadata; otherwise a table with no other registered module looks
-# "removed" and autogenerate emits a DROP for it.
-import app.role_match.models  # noqa: F401
+from app.resume_readiness import models as _resume_readiness_models  # noqa: E402,F401
+from app.role_match import models as _role_match_models  # noqa: E402,F401
 
 config = context.config
 

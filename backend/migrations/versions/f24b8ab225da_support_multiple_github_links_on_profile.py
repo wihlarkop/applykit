@@ -5,6 +5,7 @@ Revises: 4ac56bd7645a
 Create Date: 2026-09-01 13:55:34.892786
 
 """
+
 import json
 from typing import Sequence, Union
 
@@ -13,8 +14,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'f24b8ab225da'
-down_revision: Union[str, Sequence[str], None] = 'd9f4a2c7e1b3'
+revision: str = "f24b8ab225da"
+down_revision: Union[str, Sequence[str], None] = "4ac56bd7645a"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -46,7 +47,9 @@ def upgrade() -> None:
                 parsed = json.loads(value)
             except (TypeError, ValueError):
                 parsed = None
-            if isinstance(parsed, list) and all(isinstance(item, str) for item in parsed):
+            if isinstance(parsed, list) and all(
+                isinstance(item, str) for item in parsed
+            ):
                 encoded = json.dumps(parsed)
             else:
                 encoded = json.dumps([value])

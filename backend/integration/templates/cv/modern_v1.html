@@ -178,7 +178,8 @@
     <h2 class="section-title">Projects</h2>
     {% for proj in profile.projects %}
     <p class="project-item">
-      {% if proj.link %}<a class="proj-name" href="{{ proj.link }}">{{ proj.name }}</a>{% else %}<span class="proj-name">{{ proj.name }}</span>{% endif %}:
+      {% set project_url = proj.link | safe_project_url %}
+      {% if project_url %}<a class="proj-name" href="{{ project_url }}">{{ proj.name }}</a>{% else %}<span class="proj-name">{{ proj.name }}</span>{% endif %}:
       {{ proj.description }}{% if proj.tech_stack %} <span class="proj-tech">({{ proj.tech_stack | join(', ') }})</span>{% endif %}
     </p>
     {% endfor %}

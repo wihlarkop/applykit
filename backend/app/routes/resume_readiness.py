@@ -2,10 +2,16 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.exceptions import (
+    GeneratedCVNotFoundError,
+    ResumeReadinessAnalysisNotFoundError,
+    RoleMatchAnalysisNotFoundError,
+    ValidationAppError,
+)
 from app.resume_readiness.domain import (
     AnalysisMode,
     AnalysisStatus,
@@ -63,26 +69,22 @@ def _load_role_match(
 
     analysis = get_role_match_analysis(db, role_match_analysis_id)
     if analysis is None:
-        raise HTTPException(status_code=404, detail="Role Evidence Match analysis not found.")
+        raise RoleMatchAnalysisNotFoundError(role_match_analysis_id)
 
     job_description = requested_job_description or analysis.job_description
-    if (
+    if requested_job_description and normalize_text(
         requested_job_description
-        and normalize_text(requested_job_description)
-        != normalize_text(analysis.job_description)
-    ):
-        raise HTTPException(
-            status_code=422,
-            detail="Role Evidence Match was created from a different job description.",
+    ) != normalize_text(analysis.job_description):
+        raise ValidationAppError(
+            "Role Evidence Match was created from a different job description."
         )
 
     if generated_cv_profile_id is None:
         return None, job_description, None
 
     if analysis.profile_id is None or generated_cv_profile_id != analysis.profile_id:
-        raise HTTPException(
-            status_code=422,
-            detail="Role Evidence Match belongs to a different career profile.",
+        raise ValidationAppError(
+            "Role Evidence Match belongs to a different career profile."
         )
 
     return (
@@ -103,7 +105,7 @@ def create_resume_readiness_analysis(
 ):
     generated_cv = get_generated_cv(db, request.generated_cv_id)
     if generated_cv is None:
-        raise HTTPException(status_code=404, detail="Generated resume not found.")
+        raise GeneratedCVNotFoundError(request.generated_cv_id)
 
     role_match, job_description, effective_role_match_id = _load_role_match(
         db,
@@ -153,7 +155,7 @@ def read_resume_readiness_analysis(
 ):
     analysis = get_analysis(db, analysis_id)
     if analysis is None:
-        raise HTTPException(status_code=404, detail="Resume Readiness analysis not found.")
+        raise ResumeReadinessAnalysisNotFoundError(analysis_id)
     return present_analysis(analysis)
 
 
@@ -166,10 +168,12 @@ def read_latest_resume_readiness(
     db: Session = Depends(get_db),
 ):
     if get_generated_cv(db, generated_cv_id) is None:
-        raise HTTPException(status_code=404, detail="Generated resume not found.")
+        raise GeneratedCVNotFoundError(generated_cv_id)
     analysis = get_latest_for_generated_cv(db, generated_cv_id)
     if analysis is None:
-        raise HTTPException(status_code=404, detail="Resume has not been analyzed yet.")
+        raise ResumeReadinessAnalysisNotFoundError(
+            message="Resume has not been analyzed yet."
+        )
     return present_analysis(analysis)
 
 
@@ -182,6 +186,8 @@ def read_resume_readiness_history(
     db: Session = Depends(get_db),
 ):
     if get_generated_cv(db, generated_cv_id) is None:
-        raise HTTPException(status_code=404, detail="Generated resume not found.")
-    items = [present_analysis(item) for item in list_for_generated_cv(db, generated_cv_id)]
+        raise GeneratedCVNotFoundError(generated_cv_id)
+    items = [
+        present_analysis(item) for item in list_for_generated_cv(db, generated_cv_id)
+    ]
     return ResumeReadinessListResponse(items=items, total=len(items))

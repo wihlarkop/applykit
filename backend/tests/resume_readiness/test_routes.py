@@ -1,9 +1,9 @@
 from types import SimpleNamespace
 
-from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.exceptions import ResumeReadinessAnalysisNotFoundError, ValidationAppError
 from app.models import Base, GeneratedCV
 from app.resume_readiness import models as readiness_models  # noqa: F401
 from app.resume_readiness.domain import (
@@ -58,9 +58,7 @@ def _result() -> ReadinessResult:
 def test_create_general_readiness_analysis(monkeypatch):
     db = make_session()
     try:
-        cv = GeneratedCV(
-            profile_snapshot='{"name":"Edo","email":"edo@example.com"}'
-        )
+        cv = GeneratedCV(profile_snapshot='{"name":"Edo","email":"edo@example.com"}')
         db.add(cv)
         db.commit()
         monkeypatch.setattr(routes, "analyze_generated_cv", lambda value: _result())
@@ -87,10 +85,11 @@ def test_latest_legacy_cv_without_analysis_returns_404():
 
         try:
             routes.read_latest_resume_readiness(cv.id, db)
-        except Exception as exc:
-            assert getattr(exc, "status_code", None) == 404
+        except ResumeReadinessAnalysisNotFoundError as exc:
+            assert exc.status_code == 404
+            assert "has not been analyzed yet" in exc.message.lower()
         else:
-            raise AssertionError("Expected HTTP 404")
+            raise AssertionError("Expected missing analysis error")
     finally:
         db.close()
 
@@ -154,8 +153,8 @@ def test_role_match_from_another_profile_is_rejected(monkeypatch):
             generated_cv_profile_id=1,
             requested_job_description=None,
         )
-    except HTTPException as exc:
+    except ValidationAppError as exc:
         assert exc.status_code == 422
-        assert "different career profile" in str(exc.detail)
+        assert "different career profile" in exc.message
     else:
         raise AssertionError("Expected incompatible profile rejection")

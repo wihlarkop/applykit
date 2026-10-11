@@ -76,7 +76,7 @@ async def scrape_analyze(
     pasted_url = _pasted_http_url(body.text)
     effective_url = body.url or pasted_url
     job_description = ""
-    source = "jina"
+    source = "manual"
 
     try:
         if effective_url:

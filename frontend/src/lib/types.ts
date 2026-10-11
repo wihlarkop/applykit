@@ -117,7 +117,7 @@ export interface ScrapeAnalyzeResponse {
   location: string | null;
   salary: string | null;
   job_description: string;
-  source: 'greenhouse_api' | 'lever_api' | 'ashby_api' | 'jina' | 'crawl4ai';
+  source: 'greenhouse_api' | 'lever_api' | 'ashby_api' | 'jina' | 'crawl4ai' | 'manual';
 }
 
 export interface FitAnalysisResponse {

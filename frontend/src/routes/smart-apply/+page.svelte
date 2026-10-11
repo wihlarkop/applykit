@@ -21,7 +21,7 @@
   import { clearDraft, consumeDraft, draftKey, saveDraft } from '$lib/draft-recovery';
   import { consumeStream } from '$lib/stream';
   import { toastState } from '$lib/toast.svelte';
-  import type { FitAnalysisResponse, ScrapeJobResponse } from '$lib/types';
+  import type { FitAnalysisResponse, ScrapeAnalyzeResponse } from '$lib/types';
   import { errorMessage } from '$lib/utils';
   import {
       AlertTriangle,
@@ -44,7 +44,7 @@
   });
 
   const SCRAPE_SOURCE_INFO: Record<
-    ScrapeJobResponse['source'],
+    ScrapeAnalyzeResponse['source'],
     { label: string; description: string; variant: 'secondary' | 'outline' }
   > = {
     greenhouse_api: {
@@ -72,13 +72,18 @@
       description: 'Extracted from a rendered version of the page — some fields may be inferred by AI.',
       variant: 'outline',
     },
+    manual: {
+      label: 'Pasted',
+      description: 'Parsed from text you pasted — no job page was fetched.',
+      variant: 'outline',
+    },
   };
 
   interface SmartApplyDraft {
     inputMode: 'url' | 'paste';
     jobUrl: string;
     jobText: string;
-    scrapeResult: ScrapeJobResponse | null;
+    scrapeResult: ScrapeAnalyzeResponse | null;
     fitResult: FitAnalysisResponse | null;
     companyName: string;
     roleTitle: string;
@@ -104,7 +109,7 @@
   // ---------------------------------------------------------------------------
   // Section 2 — Analysis results
   // ---------------------------------------------------------------------------
-  let scrapeResult = $state<ScrapeJobResponse | null>(null);
+  let scrapeResult = $state<ScrapeAnalyzeResponse | null>(null);
   let fitResult = $state<FitAnalysisResponse | null>(null);
   let analysisError = $state('');
   let fitLoading = $state(false);
@@ -192,7 +197,7 @@
   $effect(() => {
     const ap = activeProfile.current;
     if (authState.authMode !== 'password' || !ap || draftProfileId !== ap.id) return;
-    const scrapeSnapshot = scrapeResult ? JSON.parse(JSON.stringify(scrapeResult)) as ScrapeJobResponse : null;
+    const scrapeSnapshot = scrapeResult ? JSON.parse(JSON.stringify(scrapeResult)) as ScrapeAnalyzeResponse : null;
     const fitSnapshot = fitResult ? JSON.parse(JSON.stringify(fitResult)) as FitAnalysisResponse : null;
     saveDraft(sessionStorage, draftKey('/smart-apply', ap.id), {
       inputMode,

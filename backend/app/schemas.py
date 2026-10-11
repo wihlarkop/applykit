@@ -316,7 +316,7 @@ class ScrapeAnalyzeResponse(BaseModel):
     location: str | None
     salary: str | None
     job_description: str
-    source: Literal["greenhouse_api", "lever_api", "ashby_api", "jina", "crawl4ai"]
+    source: Literal["greenhouse_api", "lever_api", "ashby_api", "jina", "crawl4ai", "manual"]
 
 
 # --- Fit analysis schemas ---

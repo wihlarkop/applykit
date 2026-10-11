@@ -14,8 +14,8 @@ describe('smart apply scrape source badge', () => {
     expect(page).toContain('<TooltipContent>{jobDescriptionSource.description}</TooltipContent>');
   });
 
-  test('maps every ScrapeJobResponse source to a label and description', () => {
-    for (const source of ['greenhouse_api', 'lever_api', 'ashby_api', 'jina', 'crawl4ai']) {
+  test('maps every ScrapeAnalyzeResponse source to a label and description', () => {
+    for (const source of ['greenhouse_api', 'lever_api', 'ashby_api', 'jina', 'crawl4ai', 'manual']) {
       expect(page).toContain(`${source}:`);
     }
   });

@@ -154,17 +154,18 @@ Given job description data, extract the following fields:
 - company_name: The company hiring
 - role_title: The job title/position
 - location: The job location, including Remote/Hybrid/Onsite when stated
-- salary: Salary/range if explicitly mentioned
+- salary: Salary/range if explicitly mentioned; preserve the wording as written
+- min_salary, max_salary: Plain integer amounts for an explicit annual base salary in USD (or with no currency stated). Exclude hourly, weekly, monthly, equity, bonus, total-compensation, and non-USD figures. For one annual salary figure, set both min_salary and max_salary to it. If the criteria are not clearly met, set both to null; never guess or convert units.
 
 Return ONLY valid JSON with exactly these keys:
-company_name, role_title, location, salary
-All values should be strings or null if not found. Preserve salary ranges as written. No markdown, no explanation - just the raw JSON object.""")
+company_name, role_title, location, salary, min_salary, max_salary
+company_name, role_title, location, salary should be strings or null if not found. min_salary and max_salary should be integers or null. Preserve salary ranges as written in the salary field. No markdown, no explanation - just the raw JSON object.""")
 
 
 PARSE_JD_USER_TEMPLATE = """\
 Extract structured information from this job description data:
 {job_description}
-Return JSON with company_name, role_title, location, salary fields."""
+Return JSON with company_name, role_title, location, salary, min_salary, max_salary fields."""
 
 
 # --- CV Import ---

@@ -101,6 +101,8 @@ async def scrape_analyze(
             role_title=role_title,
             location=location,
             salary=salary,
+            min_salary=parsed.min_salary,
+            max_salary=parsed.max_salary,
             job_description=job_description,
             source=source,
         )

@@ -89,6 +89,8 @@
     roleTitle: string;
     location: string;
     salary: string;
+    minSalary: number | null;
+    maxSalary: number | null;
     jobDescriptionExpanded: boolean;
     generateCvEnabled: boolean;
     cvEnhance: boolean;
@@ -121,7 +123,15 @@
   let roleTitle = $state('');
   let location = $state('');
   let salary = $state('');
+  let minSalary = $state<number | null>(null);
+  let maxSalary = $state<number | null>(null);
   let jobDescriptionExpanded = $state(false);
+
+  function toNumberOrNull(value: string): number | null {
+    if (!value.trim()) return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
 
   // ---------------------------------------------------------------------------
   // Section 4 — Generate options
@@ -163,6 +173,8 @@
     roleTitle = '';
     location = '';
     salary = '';
+    minSalary = null;
+    maxSalary = null;
     jobDescriptionExpanded = false;
     generateCvEnabled = true;
     cvEnhance = true;
@@ -183,7 +195,9 @@
     companyName = restored.companyName;
     roleTitle = restored.roleTitle;
     location = restored.location;
-    salary = restored.salary;
+    salary = restored.salary ?? '';
+    minSalary = restored.minSalary ?? null;
+    maxSalary = restored.maxSalary ?? null;
     jobDescriptionExpanded = restored.jobDescriptionExpanded;
     generateCvEnabled = restored.generateCvEnabled;
     cvEnhance = restored.cvEnhance;
@@ -209,6 +223,8 @@
       roleTitle,
       location,
       salary,
+      minSalary,
+      maxSalary,
       jobDescriptionExpanded,
       generateCvEnabled,
       cvEnhance,
@@ -249,12 +265,16 @@
       roleTitle = analyzed.role_title || '';
       location = analyzed.location || '';
       salary = analyzed.salary || '';
+      minSalary = analyzed.min_salary;
+      maxSalary = analyzed.max_salary;
       scrapeResult = {
         job_description: analyzed.job_description,
         company_name: analyzed.company_name,
         role_title: analyzed.role_title,
         location: analyzed.location,
         salary: analyzed.salary,
+        min_salary: analyzed.min_salary,
+        max_salary: analyzed.max_salary,
         source: analyzed.source,
       };
 
@@ -306,8 +326,9 @@
         // user still has to actually submit the application themselves.
         status: 'applying',
         location: location || null,
-        // salary here is free text from the job posting (e.g. "$120K-$150K"),
-        // which can't be reliably split into the tracker's structured min/max.
+        salary: salary || null,
+        min_salary: minSalary,
+        max_salary: maxSalary,
         job_description: scrapeResult.job_description || null,
       });
 
@@ -474,8 +495,34 @@
             </div>
           </div>
           <div class="space-y-2">
-            <Label for="salary">Salary</Label>
-            <Input id="salary" bind:value={salary} placeholder="e.g. $120,000 - $150,000" class="h-10" />
+            <Label for="salary">Salary as posted</Label>
+            <Input id="salary" bind:value={salary} placeholder="e.g. Competitive, $120,000 - $150,000" class="h-10" />
+          </div>
+          <div class="space-y-2">
+            <Label for="min-salary">Annual base salary (USD)</Label>
+            <div class="grid grid-cols-2 gap-2">
+              <Input
+                id="min-salary"
+                type="number"
+                min="0"
+                step="1"
+                value={minSalary ?? ''}
+                oninput={(event) => minSalary = toNumberOrNull((event.target as HTMLInputElement).value)}
+                placeholder="Min"
+                class="h-10"
+              />
+              <Input
+                id="max-salary"
+                type="number"
+                min="0"
+                step="1"
+                value={maxSalary ?? ''}
+                oninput={(event) => maxSalary = toNumberOrNull((event.target as HTMLInputElement).value)}
+                aria-label="Maximum annual base salary in USD"
+                placeholder="Max"
+                class="h-10"
+              />
+            </div>
           </div>
         </div>
         <!-- Job Description (collapsible) -->

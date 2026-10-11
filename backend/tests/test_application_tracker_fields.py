@@ -5,7 +5,11 @@ from sqlalchemy.orm import sessionmaker
 
 from app.models import Base
 from app.routes.applications import create_application, update_application
-from app.schemas import ApplicationStatus, CreateApplicationRequest, UpdateApplicationRequest
+from app.schemas import (
+    ApplicationStatus,
+    CreateApplicationRequest,
+    UpdateApplicationRequest,
+)
 
 
 def _make_session():
@@ -19,6 +23,7 @@ def test_create_application_persists_salary_range_excitement_and_dates():
     try:
         req = CreateApplicationRequest(
             company_name="Acme",
+            salary="Competitive",
             min_salary=120_000,
             max_salary=150_000,
             excitement=4,
@@ -28,6 +33,7 @@ def test_create_application_persists_salary_range_excitement_and_dates():
         )
         entry = create_application(req, db)
 
+        assert entry.salary == "Competitive"
         assert entry.min_salary == 120_000
         assert entry.max_salary == 150_000
         assert entry.excitement == 4
@@ -57,6 +63,11 @@ def test_update_application_patches_new_fields_independently():
         assert updated.min_salary == 100_000
         assert updated.max_salary == 130_000
         assert updated.excitement == 5  # untouched by the second patch
+
+        updated = update_application(
+            created.id, UpdateApplicationRequest(salary="$120K-$150K"), db
+        )
+        assert updated.salary == "$120K-$150K"
     finally:
         db.close()
 
@@ -69,13 +80,24 @@ def test_excitement_rejects_out_of_range_values(excitement):
 
 @pytest.mark.parametrize(
     "status",
-    ["bookmarked", "applying", "applied", "interviewing", "negotiating", "accepted", "rejected"],
+    [
+        "bookmarked",
+        "applying",
+        "applied",
+        "interviewing",
+        "negotiating",
+        "accepted",
+        "rejected",
+    ],
 )
 def test_create_application_accepts_every_status_in_the_expanded_taxonomy(status):
     db = _make_session()
     try:
         entry = create_application(
-            CreateApplicationRequest(company_name="Acme", status=ApplicationStatus(status)), db
+            CreateApplicationRequest(
+                company_name="Acme", status=ApplicationStatus(status)
+            ),
+            db,
         )
         assert entry.status == status
     finally:

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { ApplicationEntry, ApplicationStatus } from '$lib/types';
 	import { STATUS_CONFIG, STATUS_OPTIONS } from '$lib/constants';
-	import { formatDateShort, getScoreColor, errorMessage, formatSalaryRange, formatExcitement } from '$lib/utils';
+	import { formatDateShort, getScoreColor, errorMessage, formatApplicationSalary, formatExcitement } from '$lib/utils';
 	import { compareApplications, type ApplicationSortColumn, type SortDirection } from '$lib/tracker-sort';
 	import { groupApplications, type GroupByOption } from '$lib/tracker-view-config';
 	import { updateApplication, deleteApplication } from '$lib/api';
@@ -168,7 +168,7 @@
 			</span>
 		</td>
 	{:else if col.key === 'min_salary'}
-		<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{formatSalaryRange(app.min_salary, app.max_salary)}</td>
+		<td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{formatApplicationSalary(app.min_salary, app.max_salary, app.salary)}</td>
 	{:else if col.key === 'location'}
 		<td class="px-3 py-2 text-muted-foreground whitespace-nowrap" onclick={(e) => e.stopPropagation()}>
 			{#if editingCell?.id === app.id && editingCell.field === 'location'}

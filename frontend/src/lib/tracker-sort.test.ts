@@ -21,6 +21,7 @@ function app(overrides: Partial<ApplicationEntry>): ApplicationEntry {
 		linked_cover_letter_id: null,
 		linked_cv_id: null,
 		location: null,
+		salary: null,
 		min_salary: null,
 		max_salary: null,
 		excitement: null,

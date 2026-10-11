@@ -115,6 +115,15 @@ export function formatSalaryRange(min: number | null, max: number | null): strin
 	return '—';
 }
 
+export function formatApplicationSalary(
+	min: number | null,
+	max: number | null,
+	salary: string | null | undefined
+): string {
+	if (min !== null || max !== null) return formatSalaryRange(min, max);
+	return salary?.trim() || '—';
+}
+
 export function formatExcitement(n: number | null): string {
 	if (n === null) return '—';
 	return '★'.repeat(n) + '☆'.repeat(5 - n);

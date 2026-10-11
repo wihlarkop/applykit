@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { formatExcitement, formatSalaryRange } from './utils';
+import { formatApplicationSalary, formatExcitement, formatSalaryRange } from './utils';
 
 describe('formatSalaryRange', () => {
 	test('formats a min-max range', () => {
@@ -31,5 +31,19 @@ describe('formatExcitement', () => {
 
 	test('renders an em dash when unrated', () => {
 		expect(formatExcitement(null)).toBe('—');
+	});
+});
+
+describe('formatApplicationSalary', () => {
+	test('prefers the structured range when available', () => {
+		expect(formatApplicationSalary(120_000, 150_000, 'Competitive')).toBe('$120K - $150K');
+	});
+
+	test('falls back to the original salary text when no range is available', () => {
+		expect(formatApplicationSalary(null, null, ' Competitive ')).toBe('Competitive');
+	});
+
+	test('shows an em dash when neither salary value is available', () => {
+		expect(formatApplicationSalary(null, null, null)).toBe('—');
 	});
 });

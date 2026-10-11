@@ -58,7 +58,7 @@ def test_release_metadata_is_v1_4_0_candidate() -> None:
     lock = read("backend/uv.lock")
     changelog = read("CHANGELOG.md")
 
-    assert re.search(r'^version = "1\.4\.0", backend, re.MULTILINE)
+    assert re.search(r'^version = "1\.4\.0"$', backend, re.MULTILINE)
     assert frontend["version"] == "1.4.0"
     assert re.search(
         r'name = "backend"\nversion = "1\.4\.0"',
@@ -67,12 +67,5 @@ def test_release_metadata_is_v1_4_0_candidate() -> None:
     )
     assert "## [1.4.0] - Unreleased" in changelog
     assert "[1.4.0]: https://github.com/wihlarkop/applykit/releases/tag/v1.4.0" in changelog
-, backend, re.MULTILINE)
-    assert frontend["version"] == "1.3.0"
-    assert re.search(
-        r'name = "backend"\nversion = "1\.3\.0"',
-        lock,
-        re.MULTILINE,
-    )
-    assert "## [1.3.0]" in changelog
+    assert "## [1.3.0] - 2026-08-06" in changelog
     assert "[1.3.0]: https://github.com/wihlarkop/applykit/releases/tag/v1.3.0" in changelog

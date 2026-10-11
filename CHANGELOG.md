@@ -4,7 +4,7 @@ All notable changes to ApplyKit are documented here.
 
 The project follows Semantic Versioning. Minor releases add backward-compatible features, while major releases are reserved for breaking changes.
 
-## [1.4.0] - Unreleased
+## [1.4.0] - 2026-10-12
 
 ### Added
 

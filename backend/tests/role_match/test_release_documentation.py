@@ -65,7 +65,7 @@ def test_release_metadata_is_v1_4_0_candidate() -> None:
         lock,
         re.MULTILINE,
     )
-    assert "## [1.4.0] - Unreleased" in changelog
+    assert "## [1.4.0] - 2026-10-12" in changelog
     assert "[1.4.0]: https://github.com/wihlarkop/applykit/releases/tag/v1.4.0" in changelog
     assert "## [1.3.0] - 2026-08-06" in changelog
     assert "[1.3.0]: https://github.com/wihlarkop/applykit/releases/tag/v1.3.0" in changelog

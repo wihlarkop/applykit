@@ -52,18 +52,20 @@ def test_upgrade_guide_covers_migration_and_legacy_history() -> None:
     assert "role_match_analysis" in source
 
 
-def test_release_metadata_is_v1_3_0() -> None:
+def test_release_metadata_is_v1_4_0_candidate() -> None:
     backend = read("backend/pyproject.toml")
     frontend = json.loads(read("frontend/package.json"))
     lock = read("backend/uv.lock")
     changelog = read("CHANGELOG.md")
 
-    assert re.search(r'^version = "1\.3\.0"$', backend, re.MULTILINE)
-    assert frontend["version"] == "1.3.0"
+    assert re.search(r'^version = "1\.4\.0"$', backend, re.MULTILINE)
+    assert frontend["version"] == "1.4.0"
     assert re.search(
-        r'name = "backend"\nversion = "1\.3\.0"',
+        r'name = "backend"\nversion = "1\.4\.0"',
         lock,
         re.MULTILINE,
     )
-    assert "## [1.3.0]" in changelog
+    assert "## [1.4.0] - 2026-10-12" in changelog
+    assert "[1.4.0]: https://github.com/wihlarkop/applykit/releases/tag/v1.4.0" in changelog
+    assert "## [1.3.0] - 2026-08-06" in changelog
     assert "[1.3.0]: https://github.com/wihlarkop/applykit/releases/tag/v1.3.0" in changelog

@@ -4,6 +4,30 @@ All notable changes to ApplyKit are documented here.
 
 The project follows Semantic Versioning. Minor releases add backward-compatible features, while major releases are reserved for breaking changes.
 
+## [1.4.0] - 2026-10-12
+
+### Added
+
+- Deterministic Resume Readiness for ApplyKit-generated resumes, covering ATS parseability, resume quality, and job tailoring with explainable, evidence-backed findings.
+- A shared Resume workspace for current and historical generated resumes, including extraction previews and readiness summaries in Documents.
+- Dashboard next-action guidance that helps users continue their application preparation.
+- Canonical `/resume`, `/documents`, and `/applications` routes while retaining the existing `/generate`, `/history`, and `/tracker` routes.
+
+### Changed
+
+- Resume Readiness can analyze saved generated resumes without regenerating them and uses server-verified Role Evidence Match data for job-specific tailoring.
+- Resume Readiness stores immutable analysis results and rule findings for later review.
+
+### Compatibility
+
+- Existing generated resumes remain available without backfill; legacy routes and generation APIs remain supported.
+- Resume Readiness reports document quality and does not claim ATS passage or hiring probability.
+
+### Upgrade notes
+
+- Back up the database before upgrading. The new readiness data uses an additive migration and does not rewrite existing resume records.
+- Docker installations run migrations at backend startup. Manual installations should run `make migrate` before starting the upgraded app.
+
 ## [1.3.0] - 2026-08-06
 
 ### Added
@@ -83,5 +107,6 @@ The project follows Semantic Versioning. Minor releases add backward-compatible 
 - Do not replace or delete the credential encryption key. Existing encrypted provider credentials require the original key.
 - Existing AI configurations require one successful connection retest after upgrading so ApplyKit can establish the new readiness fingerprint.
 
+[1.4.0]: https://github.com/wihlarkop/applykit/releases/tag/v1.4.0
 [1.3.0]: https://github.com/wihlarkop/applykit/releases/tag/v1.3.0
 [1.2.0]: https://github.com/wihlarkop/applykit/releases/tag/v1.2.0

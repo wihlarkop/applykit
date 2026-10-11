@@ -113,6 +113,7 @@ const CSV_COLUMNS: { key: keyof ApplicationEntry; header: string }[] = [
 	{ key: 'company_name', header: 'Company' },
 	{ key: 'role_title', header: 'Role' },
 	{ key: 'status', header: 'Status' },
+	{ key: 'salary', header: 'Salary as listed' },
 	{ key: 'min_salary', header: 'Min Salary' },
 	{ key: 'max_salary', header: 'Max Salary' },
 	{ key: 'location', header: 'Location' },

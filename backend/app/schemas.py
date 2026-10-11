@@ -359,6 +359,7 @@ class CreateApplicationRequest(BaseModel):
     applied_date: date | None = None
     profile_id: int | None = None
     location: str | None = None
+    salary: str | None = None
     min_salary: int | None = None
     max_salary: int | None = None
     excitement: int | None = Field(default=None, ge=1, le=5)
@@ -376,6 +377,7 @@ class UpdateApplicationRequest(BaseModel):
     notes: str | None = None
     applied_date: date | None = None
     location: str | None = None
+    salary: str | None = None
     min_salary: int | None = None
     max_salary: int | None = None
     excitement: int | None = Field(default=None, ge=1, le=5)
@@ -402,6 +404,7 @@ class ApplicationEntry(BaseModel):
     linked_cover_letter_id: int | None
     linked_cv_id: int | None
     location: str | None
+    salary: str | None
     min_salary: int | None
     max_salary: int | None
     excitement: int | None

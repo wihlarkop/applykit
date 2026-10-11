@@ -228,6 +228,20 @@
         </div>
 
         <div>
+          <label for="dp-salary-text" class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Salary as posted</label>
+          <input
+            id="dp-salary-text"
+            class="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-primary outline-none transition-all"
+            placeholder="e.g. Competitive, $120K–$150K"
+            value={app.salary ?? ''}
+            onblur={(e) => {
+              const v = (e.target as HTMLInputElement).value.trim() || null;
+              if (v !== app.salary) patch({ salary: v });
+            }}
+          />
+        </div>
+
+        <div>
           <span class="text-xs font-bold text-muted-foreground/80 block mb-1.5">Excitement</span>
           <div class="flex items-center gap-1">
             {#each [1, 2, 3, 4, 5] as n}

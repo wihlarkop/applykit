@@ -252,8 +252,7 @@ def update_cover_letter_status(
                 company_name=entry.company_name or "Unknown",
                 role_title=entry.role_title or "",
                 location=entry.location,
-                # entry.salary is free text (e.g. "Competitive", "$120K-$150K");
-                # left null here rather than guessing a structured min/max split.
+                salary=entry.salary,
                 job_description=entry.job_description,
                 status=body.status,
                 job_url=entry.job_url,
